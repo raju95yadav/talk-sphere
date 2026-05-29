@@ -84,12 +84,69 @@ exports.requestOTP = async (req, res) => {
     };
     await user.save();
 
+    const isBrevoConfigured = process.env.BREVO_API_KEY && process.env.EMAIL_USER;
     const isResendConfigured = process.env.RESEND_API_KEY;
     const isEmailConfigured = process.env.EMAIL_USER && 
                               process.env.EMAIL_PASS && 
                               !process.env.EMAIL_USER.includes('your_email');
 
-    if (isResendConfigured) {
+    if (isBrevoConfigured) {
+      try {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'api-key': process.env.BREVO_API_KEY,
+            'content-type': 'application/json'
+          },
+          body: JSON.stringify({
+            sender: {
+              name: 'Talk Sphere',
+              email: process.env.EMAIL_USER
+            },
+            to: [
+              {
+                email: email
+              }
+            ],
+            subject: 'Talk Sphere - Your Login OTP',
+            htmlContent: `<div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 12px; background-color: #ffffff;">
+                    <h2 style="color: #ff007f; text-align: center; font-family: 'Helvetica Neue', Helvetica, sans-serif;">TALK SPHERE</h2>
+                    <p style="font-size: 16px; line-height: 1.5; color: #333333;">Hello,</p>
+                    <p style="font-size: 16px; line-height: 1.5; color: #333333;">Your One-Time Password (OTP) for secure login is:</p>
+                    <div style="font-size: 32px; font-weight: bold; background-color: #f9f9f9; border: 2px dashed #ff007f; padding: 15px; text-align: center; border-radius: 8px; letter-spacing: 4px; margin: 20px 0; color: #ff007f;">
+                      ${otp}
+                    </div>
+                    <p style="font-size: 14px; color: #666666; line-height: 1.5;">This OTP code is highly secure and will expire in 10 minutes. Please do not share it with anyone.</p>
+                    <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;" />
+                    <p style="font-size: 12px; color: #999999; text-align: center;">Sent securely via Talk Sphere Platform.</p>
+                   </div>`
+          })
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`Brevo API failed with status ${response.status}: ${errText}`);
+        }
+
+        console.log(`OTP sent successfully via Brevo HTTP API to ${email}`);
+        return res.status(200).json({ message: 'OTP sent successfully to your email' });
+      } catch (brevoError) {
+        console.error('--- BREVO HTTP API ERROR ---');
+        console.error(`Message: ${brevoError.message}`);
+        console.error('-----------------------------');
+        
+        if (process.env.NODE_ENV === 'production') {
+          return res.status(500).json({ message: 'Failed to deliver OTP email via API. Please try again later.' });
+        } else {
+          console.log(`FALLBACK (DEV ONLY): OTP for ${email}: ${otp}`);
+          return res.status(200).json({ 
+            message: 'Failed to send email via Brevo. Fallback OTP printed in server console.',
+            fallback: true
+          });
+        }
+      }
+    } else if (isResendConfigured) {
       try {
         const response = await fetch('https://api.resend.com/emails', {
           method: 'POST',
