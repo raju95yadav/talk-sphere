@@ -1,0 +1,25 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Dependency directories
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Build directories
+dist/
+client/dist/
+client/dist-ssr/
+
+# Environment variables (Sensitive data)
+.env
+client/.env
+client/.env.local
+server/.env
+server/.env.local
+
+# OS Metadata
+.DS_Store
+Thumbs.db

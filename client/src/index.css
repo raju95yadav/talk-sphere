@@ -1,0 +1,99 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-accent-primary: #ff0055;
+  --color-accent-secondary: #702cf9;
+  
+  --color-bg-main: var(--bg-main);
+  --color-bg-card: var(--bg-card);
+  --color-bg-card-secondary: var(--bg-card-secondary);
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-muted);
+  --color-border-main: var(--border-main);
+}
+
+:root {
+  --font-family: 'Outfit', sans-serif;
+  
+  /* Dark Mode (Default) */
+  --bg-main: #121218;
+  --bg-card: #1c1c24;
+  --bg-card-secondary: #252533;
+  --text-main: #ffffff;
+  --text-muted: #a0a0b8;
+  --border-main: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme='light'] {
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-secondary: #f1f5f9;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border-main: rgba(0, 0, 0, 0.05);
+}
+
+@layer base {
+  body {
+    font-family: var(--font-family);
+    @apply bg-bg-main text-text-main min-h-screen transition-colors duration-300;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-bg-card backdrop-blur-xl border border-border-main rounded-3xl shadow-xl;
+  }
+  
+  .btn-primary {
+    @apply bg-accent-primary text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-accent-primary/20 hover:scale-105 active:scale-95 transition-all uppercase tracking-wider text-[10px];
+  }
+
+  .input-field {
+    @apply w-full bg-bg-card-secondary border border-border-main rounded-xl py-4 px-4 text-text-main focus:border-accent-primary outline-none transition-all;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-white/10 rounded-full hover:bg-accent-primary transition-colors;
+}
+
+[data-theme='light'] ::-webkit-scrollbar-thumb {
+  @apply bg-black/10;
+}
+
+/* AI Markdown Styles */
+.markdown-container p {
+  @apply mb-3 last:mb-0;
+}
+
+.markdown-container ul, .markdown-container ol {
+  @apply ml-4 mb-3;
+}
+
+.markdown-container ul {
+  @apply list-disc;
+}
+
+.markdown-container ol {
+  @apply list-decimal;
+}
+
+.markdown-container li {
+  @apply mb-1;
+}
+
+.markdown-container strong {
+  @apply font-black text-accent-primary;
+}
+
