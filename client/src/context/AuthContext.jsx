@@ -43,9 +43,13 @@ export const AuthProvider = ({ children }) => {
       if (event.data?.type === 'LOGIN') {
         setUser(event.data.user);
         updateToken(event.data.token);
+        if (event.data.refreshToken) {
+          localStorage.setItem('talk_sphere_refresh_token', event.data.refreshToken);
+        }
       } else if (event.data?.type === 'LOGOUT') {
         setUser(null);
         updateToken(null);
+        localStorage.removeItem('talk_sphere_refresh_token');
       }
     };
 
@@ -59,13 +63,17 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const res = await apiClient.post('/api/auth/refresh-token');
-        const { token: newToken, user: userData } = res.data;
+        const localRefreshToken = localStorage.getItem('talk_sphere_refresh_token');
+        const res = await apiClient.post('/api/auth/refresh-token', { refreshToken: localRefreshToken });
+        const { token: newToken, user: userData, refreshToken: serverRefreshToken } = res.data;
         if (!newToken) {
           throw new Error('No active session');
         }
         updateToken(newToken);
         setUser(userData);
+        if (serverRefreshToken) {
+          localStorage.setItem('talk_sphere_refresh_token', serverRefreshToken);
+        }
       } catch (err) {
         console.log('No active session found or refresh token expired.');
       } finally {
@@ -75,10 +83,13 @@ export const AuthProvider = ({ children }) => {
     checkSession();
   }, []);
 
-  const login = (userData, userToken) => {
+  const login = (userData, userToken, refreshToken) => {
     setUser(userData);
     updateToken(userToken);
-    authChannel.postMessage({ type: 'LOGIN', user: userData, token: userToken });
+    if (refreshToken) {
+      localStorage.setItem('talk_sphere_refresh_token', refreshToken);
+    }
+    authChannel.postMessage({ type: 'LOGIN', user: userData, token: userToken, refreshToken });
   };
 
   const refreshUser = async () => {
@@ -93,12 +104,14 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await apiClient.post('/api/auth/logout');
+      const localRefreshToken = localStorage.getItem('talk_sphere_refresh_token');
+      await apiClient.post('/api/auth/logout', { refreshToken: localRefreshToken });
     } catch (err) {
       console.error('Failed to log out from server', err);
     } finally {
       setUser(null);
       updateToken(null);
+      localStorage.removeItem('talk_sphere_refresh_token');
       authChannel.postMessage({ type: 'LOGOUT' });
     }
   };

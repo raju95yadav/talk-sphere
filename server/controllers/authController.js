@@ -293,6 +293,7 @@ exports.verifyOTP = async (req, res) => {
 
     res.status(200).json({
       token: accessToken,
+      refreshToken: refreshToken,
       user: {
         id: user._id,
         email: user.email,
@@ -343,6 +344,7 @@ exports.refreshToken = async (req, res) => {
 
     res.status(200).json({
       token: accessToken,
+      refreshToken: refreshToken,
       user: {
         id: user._id,
         email: user.email,

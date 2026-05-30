@@ -135,6 +135,47 @@ const ChatSection = () => {
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
 
+  const [activeMobileMenuMessage, setActiveMobileMenuMessage] = useState(null);
+  const touchStartRef = useRef({ x: 0, y: 0 });
+  const touchTimeoutRef = useRef(null);
+  const isTouchMovedRef = useRef(false);
+
+  const handleTouchStart = (e, msg) => {
+    if (msg.deletedForEveryone) return;
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    isTouchMovedRef.current = false;
+
+    touchTimeoutRef.current = setTimeout(() => {
+      if (!isTouchMovedRef.current) {
+        if (navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+        setActiveMobileMenuMessage(msg);
+      }
+    }, 500);
+  };
+
+  const handleTouchMove = (e) => {
+    if (!touchTimeoutRef.current) return;
+    const touch = e.touches[0];
+    const diffX = Math.abs(touch.clientX - touchStartRef.current.x);
+    const diffY = Math.abs(touch.clientY - touchStartRef.current.y);
+
+    if (diffX > 10 || diffY > 10) {
+      isTouchMovedRef.current = true;
+      clearTimeout(touchTimeoutRef.current);
+      touchTimeoutRef.current = null;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchTimeoutRef.current) {
+      clearTimeout(touchTimeoutRef.current);
+      touchTimeoutRef.current = null;
+    }
+  };
+
   // Dynamic offline last seen text helper
   const getPresenceText = (contact) => {
     if (contact.isOnline) return 'online';
@@ -823,7 +864,7 @@ const ChatSection = () => {
         exit={{ opacity: 0, scale: 0.9 }}
         className="fixed inset-0 z-[60] bg-bg-main flex flex-col overflow-hidden"
       >
-        <div className="p-4 border-b border-border-main flex items-center justify-between bg-bg-card/80 backdrop-blur-md relative z-50">
+        <div className="p-4 pt-[calc(16px+env(safe-area-inset-top))] border-b border-border-main flex items-center justify-between bg-bg-card/80 backdrop-blur-md relative z-50">
           <div className="flex items-center gap-3">
             <button onClick={() => {
               setSelectedContact(null); 
@@ -919,7 +960,12 @@ const ChatSection = () => {
                   transition={{ type: "spring", stiffness: 260, damping: 20 }}
                   className={`flex ${msg.isSent ? 'justify-end' : 'justify-start'} relative z-10`}
                 >
-                  <div className={`max-w-[85%] md:max-w-[65%] relative group ${msg.isSent ? 'text-right' : 'text-left'}`}>
+                  <div 
+                    onTouchStart={(e) => handleTouchStart(e, msg)}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    className={`max-w-[85%] md:max-w-[65%] relative group ${msg.isSent ? 'text-right' : 'text-left'}`}
+                  >
                     <div className={`px-4 py-2.5 rounded-2xl shadow-lg inline-block relative min-w-[80px] transition-all duration-300 ${
                       msg.isSent 
                         ? 'bg-gradient-to-br from-accent-primary to-accent-primary/80 text-white rounded-br-sm shadow-accent-primary/20' 
@@ -1187,7 +1233,7 @@ const ChatSection = () => {
         )}
 
         {isRecording ? (
-          <div className="p-3 md:p-5 bg-bg-card/80 backdrop-blur-xl border-t border-border-main flex gap-2 md:gap-4 items-center relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
+          <div className="p-3 pb-[calc(12px+env(safe-area-inset-bottom))] md:p-5 bg-bg-card/80 backdrop-blur-xl border-t border-border-main flex gap-2 md:gap-4 items-center relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
             <button onClick={cancelRecording} className="p-2 md:p-3 rounded-full text-red-500 hover:bg-red-500/20 transition-all flex-shrink-0">
               <Trash2 size={20} />
             </button>
@@ -1201,7 +1247,7 @@ const ChatSection = () => {
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSendMessage} className="p-3 md:p-5 bg-bg-card/80 backdrop-blur-xl border-t border-border-main flex gap-2 md:gap-3 items-center relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
+          <form onSubmit={handleSendMessage} className="p-3 pb-[calc(12px+env(safe-area-inset-bottom))] md:p-5 bg-bg-card/80 backdrop-blur-xl border-t border-border-main flex gap-2 md:gap-3 items-center relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
             <input type="file" id="chat-file" className="hidden" onChange={handleFileUpload} />
             <button type="button" onClick={() => document.getElementById('chat-file').click()} disabled={isUploading} className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-bg-card-secondary text-text-muted hover:text-text-main dark:hover:bg-white/10 hover:bg-black/5 flex items-center justify-center transition-all flex-shrink-0 relative overflow-hidden">
               {isUploading ? (
@@ -1325,6 +1371,131 @@ const ChatSection = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Mobile Message Context Menu */}
+        <AnimatePresence>
+          {activeMobileMenuMessage && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm flex items-end justify-center sm:items-center p-4"
+              onClick={() => setActiveMobileMenuMessage(null)}
+            >
+              <motion.div 
+                initial={{ y: '100%', opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: '100%', opacity: 0 }}
+                transition={{ type: "spring", damping: 25, stiffness: 350 }}
+                className="w-full max-w-sm bg-bg-card border border-border-main rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl p-4 space-y-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Emoji reactions row */}
+                <div className="flex justify-between items-center bg-bg-card-secondary p-3 rounded-2xl border border-border-main overflow-x-auto gap-2">
+                  {emojis.map((emoji) => (
+                    <button 
+                      key={emoji} 
+                      onClick={() => {
+                        handleReact(activeMobileMenuMessage._id, emoji);
+                        setActiveMobileMenuMessage(null);
+                      }}
+                      className="text-2xl hover:scale-125 active:scale-95 transition-transform"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Option items list */}
+                <div className="divide-y divide-border-main/50 bg-bg-card-secondary rounded-2xl border border-border-main overflow-hidden">
+                  
+                  {/* Reply */}
+                  <button 
+                    onClick={() => {
+                      setReplyingTo(activeMobileMenuMessage);
+                      setActiveMobileMenuMessage(null);
+                    }}
+                    className="w-full px-5 py-3.5 text-left text-xs font-black uppercase text-text-main hover:bg-white/5 flex items-center gap-3 transition-colors"
+                  >
+                    <Reply size={16} className="text-accent-primary" /> Reply
+                  </button>
+
+                  {/* Forward */}
+                  <button 
+                    onClick={() => {
+                      setForwardingMessage(activeMobileMenuMessage);
+                      setActiveMobileMenuMessage(null);
+                    }}
+                    className="w-full px-5 py-3.5 text-left text-xs font-black uppercase text-text-main hover:bg-white/5 flex items-center gap-3 transition-colors"
+                  >
+                    <Forward size={16} className="text-accent-primary" /> Forward
+                  </button>
+
+                  {/* Copy Message (Only if text) */}
+                  {activeMobileMenuMessage.type === 'text' && (
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(activeMobileMenuMessage.content);
+                        toast.success('Copied to clipboard');
+                        setActiveMobileMenuMessage(null);
+                      }}
+                      className="w-full px-5 py-3.5 text-left text-xs font-black uppercase text-text-main hover:bg-white/5 flex items-center gap-3 transition-colors"
+                    >
+                      <FileText size={16} className="text-accent-primary" /> Copy Message
+                    </button>
+                  )}
+
+                  {/* Edit (Only if sent by me & type is text) */}
+                  {activeMobileMenuMessage.isSent && activeMobileMenuMessage.type === 'text' && (
+                    <button 
+                      onClick={() => {
+                        setEditingMessage(activeMobileMenuMessage);
+                        setMessage(activeMobileMenuMessage.content);
+                        setActiveMobileMenuMessage(null);
+                      }}
+                      className="w-full px-5 py-3.5 text-left text-xs font-black uppercase text-text-main hover:bg-white/5 flex items-center gap-3 transition-colors"
+                    >
+                      <Edit3 size={16} className="text-accent-primary" /> Edit
+                    </button>
+                  )}
+
+                  {/* Delete For Me */}
+                  <button 
+                    onClick={() => {
+                      handleDeleteMessage(activeMobileMenuMessage._id, 'me');
+                      setActiveMobileMenuMessage(null);
+                    }}
+                    className="w-full px-5 py-3.5 text-left text-xs font-black uppercase text-red-500 hover:bg-red-500/10 flex items-center gap-3 transition-colors"
+                  >
+                    <Trash size={16} /> Delete For Me
+                  </button>
+
+                  {/* Delete For Everyone (Only if sent by me) */}
+                  {activeMobileMenuMessage.isSent && (
+                    <button 
+                      onClick={() => {
+                        handleDeleteMessage(activeMobileMenuMessage._id, 'everyone');
+                        setActiveMobileMenuMessage(null);
+                      }}
+                      className="w-full px-5 py-3.5 text-left text-xs font-black uppercase text-red-500 hover:bg-red-500/10 flex items-center gap-3 transition-colors"
+                    >
+                      <Trash2 size={16} /> Delete For Everyone
+                    </button>
+                  )}
+
+                </div>
+
+                {/* Cancel Button */}
+                <button 
+                  onClick={() => setActiveMobileMenuMessage(null)}
+                  className="w-full py-4 text-center text-xs font-black uppercase text-text-muted hover:text-text-main bg-bg-card-secondary rounded-2xl border border-border-main transition-colors"
+                >
+                  Cancel
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     );
   }
@@ -1336,13 +1507,13 @@ const ChatSection = () => {
           <div className="flex bg-bg-card-secondary p-1 rounded-xl">
              <button 
                onClick={() => setView('transmissions')}
-               className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${view === 'transmissions' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
+               className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all ${view === 'transmissions' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
              >
                Transmissions
              </button>
              <button 
                onClick={() => setView('discover')}
-               className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${view === 'discover' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
+               className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all ${view === 'discover' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
              >
                Discover
              </button>
@@ -1430,7 +1601,7 @@ const ChatSection = () => {
                 onClick={() => setSelectedContact(conv.user)}
                 className="flex items-center justify-between p-4 rounded-2xl dark:hover:bg-white/5 hover:bg-black/5 transition-all cursor-pointer group border border-transparent hover:border-border-main"
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 min-w-0 flex-1">
                   <div className="relative">
                     <div className="w-14 h-14 rounded-2xl bg-bg-card-secondary flex items-center justify-center border border-border-main overflow-hidden shadow-xl">
                        {conv.user.avatar ? (
@@ -1441,7 +1612,7 @@ const ChatSection = () => {
                     </div>
                     <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-[3px] border-bg-card ${conv.user.isOnline ? 'bg-green-500' : 'bg-gray-500'} shadow-lg`}></div>
                   </div>
-                  <div className="overflow-hidden">
+                  <div className="overflow-hidden flex-1 min-w-0">
                     <h4 className="font-bold text-sm tracking-tight truncate">{conv.user.username || conv.user.name}</h4>
                     <div className="flex items-center gap-1 mt-0.5">
                       {conv.lastMessage.sender === currentUserId && (

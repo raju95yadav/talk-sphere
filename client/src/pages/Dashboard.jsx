@@ -111,8 +111,8 @@ const Dashboard = () => {
         onChange={handleFileChange}
       />
       {/* Top Navigation */}
-      <div className="sticky top-0 z-50 max-w-7xl mx-auto mb-10 pt-4">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 glass-card p-2 md:rounded-full shadow-2xl backdrop-blur-2xl">
+      <div className="md:sticky md:top-0 z-50 max-w-7xl mx-auto mb-6 md:mb-10 pt-4">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-3 md:gap-6 glass-card p-2 md:rounded-full shadow-2xl backdrop-blur-2xl">
           <div className="flex items-center gap-4 px-6 py-2">
             <div className="w-10 h-10 bg-accent-primary rounded-xl flex items-center justify-center shadow-lg shadow-accent-primary/20">
               <span className="font-black text-xl text-white">TS</span>
@@ -125,7 +125,7 @@ const Dashboard = () => {
               <button
                 key={tab.name}
                 onClick={() => setActiveTab(tab.name)}
-                className={`flex-1 md:flex-none flex items-center justify-center gap-2 py-3 px-6 rounded-full text-[10px] font-bold transition-all uppercase tracking-widest ${
+                className={`flex-1 md:flex-none flex items-center justify-center gap-2 py-2.5 px-3 sm:px-6 rounded-full text-[9px] sm:text-[10px] font-bold transition-all uppercase tracking-widest ${
                   activeTab === tab.name 
                     ? 'bg-accent-primary text-white shadow-xl shadow-accent-primary/30' 
                     : 'text-text-muted hover:text-text-main dark:hover:bg-white/5 hover:bg-black/5'
@@ -137,7 +137,7 @@ const Dashboard = () => {
             ))}
           </div>
 
-          <div className="flex items-center gap-4 px-6 md:border-l border-border-main">
+          <div className="flex items-center justify-between md:justify-end gap-4 w-full md:w-auto px-6 md:border-l border-border-main">
              <button 
                onClick={toggleTheme}
                className="p-3 rounded-xl bg-bg-card-secondary text-text-muted hover:text-accent-primary transition-all border border-border-main"
@@ -179,11 +179,11 @@ const Dashboard = () => {
             className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start"
           >
             {/* Chats Section - Full Height/Width in its column */}
-            <div className="lg:col-span-7 h-[800px] flex flex-col">
+            <div className="lg:col-span-7 h-[500px] sm:h-[600px] lg:h-[800px] flex flex-col">
               <ChatSection />
             </div>
 
-            <div className="lg:col-span-5 h-[800px] flex flex-col">
+            <div className="lg:col-span-5 h-[500px] sm:h-[600px] lg:h-[800px] flex flex-col">
               {/* Notes Section */}
               <div className="flex-1">
                 <NoteSection />
@@ -196,7 +196,7 @@ const Dashboard = () => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="h-[800px] max-w-4xl mx-auto flex flex-col"
+            className="h-[500px] sm:h-[600px] lg:h-[800px] max-w-4xl mx-auto flex flex-col"
           >
             <AIChatSection />
           </motion.div>

@@ -76,13 +76,17 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const res = await apiClient.post('/api/auth/refresh-token');
-        const { token, user } = res.data;
+        const localRefreshToken = localStorage.getItem('talk_sphere_refresh_token');
+        const res = await apiClient.post('/api/auth/refresh-token', { refreshToken: localRefreshToken });
+        const { token, user, refreshToken: serverRefreshToken } = res.data;
         if (!token) {
           throw new Error('Refresh token request returned no token');
         }
 
         accessToken = token;
+        if (serverRefreshToken) {
+          localStorage.setItem('talk_sphere_refresh_token', serverRefreshToken);
+        }
 
         // Synchronize with AuthContext state
         if (apiClient.onTokenRefreshed) {

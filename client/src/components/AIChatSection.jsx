@@ -17,7 +17,7 @@ const AIChatSection = () => {
     return saved ? JSON.parse(saved) : [{ id: Date.now(), title: 'Initial Query', messages: [] }];
   });
   const [activeSessionId, setActiveSessionId] = useState(sessions[0]?.id);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 768);
   const scrollRef = useRef();
 
   // Setup real-time AI status synchronization listeners

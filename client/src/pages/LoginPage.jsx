@@ -36,7 +36,7 @@ const LoginPage = () => {
     try {
       const res = await apiClient.post('/api/auth/verify-otp', { email, code: otp });
       toast.success('Login successful!');
-      login(res.data.user, res.data.token);
+      login(res.data.user, res.data.token, res.data.refreshToken);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Invalid OTP');
     } finally {
