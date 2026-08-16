@@ -136,16 +136,7 @@ exports.requestOTP = async (req, res) => {
         console.error('--- BREVO HTTP API ERROR ---');
         console.error(`Message: ${brevoError.message}`);
         console.error('-----------------------------');
-        
-        if (process.env.NODE_ENV === 'production') {
-          return res.status(500).json({ message: 'Failed to deliver OTP email via API. Please try again later.' });
-        } else {
-          console.log(`FALLBACK (DEV ONLY): OTP for ${email}: ${otp}`);
-          return res.status(200).json({ 
-            message: 'Failed to send email via Brevo. Fallback OTP printed in server console.',
-            fallback: true
-          });
-        }
+        return res.status(500).json({ message: 'Failed to deliver OTP email via Brevo API. Please try again later.' });
       }
     } else if (isResendConfigured) {
       try {
@@ -184,16 +175,7 @@ exports.requestOTP = async (req, res) => {
         console.error('--- RESEND HTTP API ERROR ---');
         console.error(`Message: ${resendError.message}`);
         console.error('-----------------------------');
-        
-        if (process.env.NODE_ENV === 'production') {
-          return res.status(500).json({ message: 'Failed to deliver OTP email via API. Please try again later.' });
-        } else {
-          console.log(`FALLBACK (DEV ONLY): OTP for ${email}: ${otp}`);
-          return res.status(200).json({ 
-            message: 'Failed to send email via Resend. Fallback OTP printed in server console.',
-            fallback: true
-          });
-        }
+        return res.status(500).json({ message: 'Failed to deliver OTP email via Resend API. Please try again later.' });
       }
     } else if (isEmailConfigured) {
       try {
@@ -210,24 +192,10 @@ exports.requestOTP = async (req, res) => {
         console.error('--- NODEMAILER ERROR ---');
         console.error(`Message: ${mailError.message}`);
         console.error('------------------------');
-        
-        // Throw 500 error in production to notify users of delivery failure
-        if (process.env.NODE_ENV === 'production') {
-          return res.status(500).json({ message: 'Failed to deliver OTP email. Please try again later.' });
-        } else {
-          // Dev Mode fallback
-          console.log(`FALLBACK (DEV ONLY): OTP for ${email}: ${otp}`);
-          return res.status(200).json({ 
-            message: 'Failed to send email. Fallback OTP printed in server console.',
-            fallback: true
-          });
-        }
+        return res.status(500).json({ message: 'Failed to deliver OTP email. Please try again later.' });
       }
     } else {
-      console.log('--- DEVELOPMENT MODE ---');
-      console.log(`OTP for ${email}: ${otp}`);
-      console.log('------------------------');
-      return res.status(200).json({ message: 'OTP generated (Check server console if email not configured)' });
+      return res.status(500).json({ message: 'Email service is not configured. Please configure EMAIL_USER and EMAIL_PASS.' });
     }
   } catch (error) {
     console.error(error);

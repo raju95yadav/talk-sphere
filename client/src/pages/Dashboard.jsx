@@ -152,7 +152,7 @@ const Dashboard = () => {
              
              <div 
                onClick={handleAvatarClick}
-               className="w-10 h-10 rounded-full bg-bg-card-secondary border border-border-main flex items-center justify-center cursor-pointer overflow-hidden relative group"
+               className="w-10 h-10 rounded-full bg-bg-card-secondary border border-border-main flex items-center justify-center cursor-pointer overflow-hidden relative group shrink-0"
              >
                {user?.avatar ? (
                  <img src={user.avatar} className="w-full h-full object-cover" alt="avatar" />
@@ -165,6 +165,15 @@ const Dashboard = () => {
                  </div>
                )}
              </div>
+
+             <button 
+               onClick={logout}
+               title="Logout"
+               className="p-2.5 rounded-full bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white transition-all border border-red-500/20 flex items-center gap-1.5 px-3.5 shadow-lg shadow-red-500/10 active:scale-95 cursor-pointer shrink-0"
+             >
+               <LogOut size={16} />
+               <span className="text-[10px] font-extrabold uppercase tracking-wider hidden sm:inline">Logout</span>
+             </button>
           </div>
         </div>
       </div>
@@ -196,7 +205,7 @@ const Dashboard = () => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="h-[500px] sm:h-[600px] lg:h-[800px] max-w-4xl mx-auto flex flex-col"
+            className="h-[calc(100vh-140px)] min-h-[500px] sm:h-[650px] lg:h-[800px] max-w-4xl mx-auto flex flex-col w-full"
           >
             <AIChatSection />
           </motion.div>

@@ -26,31 +26,12 @@ exports.chatWithAI = async (req, res) => {
     // Check if API key is configured
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-      console.warn('--- AI MOCK MODE ACTIVE ---');
-      console.warn('Tip: Set a valid GEMINI_API_KEY in .env to use real AI.');
-      
-      // Simulate a small delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      const mockText = `[MOCK MODE] I received your message: "${message}". To enable my full intelligence, please provide a valid GEMINI_API_KEY in the server .env file.`;
-      
-      if (io && sessionId) {
-        io.to(userId).emit('ai_response_received', {
-          sessionId,
-          userMessage: { role: 'user', content: message, createdAt: new Date() },
-          aiMessage: { role: 'assistant', content: mockText, createdAt: new Date() }
-        });
-      }
-
-      return res.json({ 
-        content: mockText,
-        role: 'assistant'
-      });
+      return res.status(500).json({ message: 'Gemini API key is not configured on the server.' });
     }
 
     // Prepare the model with a system persona for accuracy
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash-latest",
+      model: "gemini-flash-latest",
       systemInstruction: "You are the Talk-Sphere Neural Assistant, a highly intelligent and factual AI integrated into the Talk-Sphere ecosystem. Your goal is to provide accurate, helpful, and professional responses. If a user asks for health, technical, or factual data, ensure it is based on reliable sources. Keep your tone professional yet modern. Use markdown for clear formatting."
     });
 

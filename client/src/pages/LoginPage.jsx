@@ -87,28 +87,28 @@ const LoginPage = () => {
   });
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-6 bg-bg-main overflow-hidden">
+    <div className="dark min-h-screen relative flex items-center justify-center p-6 bg-[#121218] text-white overflow-hidden select-none">
       {/* Decorative Background Elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent-primary/20 rounded-full blur-[120px] animate-pulse"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-accent-secondary/20 rounded-full blur-[120px] animate-pulse delay-700"></div>
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#ff0055]/20 rounded-full blur-[120px] animate-pulse"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#702cf9]/20 rounded-full blur-[120px] animate-pulse delay-700"></div>
 
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-lg glass-card p-8 md:p-12 shadow-2xl relative z-10 border border-border-main"
+        className="w-full max-w-lg bg-[#1c1c24]/90 backdrop-blur-2xl p-8 md:p-12 shadow-2xl rounded-3xl relative z-10 border border-white/10"
       >
         <div className="flex flex-col items-center mb-10 text-center">
           <motion.div 
             whileHover={{ rotate: 10 }}
-            className="w-20 h-20 bg-gradient-to-tr from-accent-primary to-accent-secondary rounded-3xl flex items-center justify-center mb-6 shadow-xl shadow-accent-primary/20"
+            className="w-20 h-20 bg-gradient-to-tr from-[#ff0055] to-[#702cf9] rounded-3xl flex items-center justify-center mb-6 shadow-xl shadow-[#ff0055]/20"
           >
             <ShieldCheck size={40} className="text-white" />
           </motion.div>
-          <h2 className="text-4xl font-extrabold tracking-tighter mb-2 bg-gradient-to-r dark:from-white dark:to-white/60 from-slate-900 to-slate-700 bg-clip-text text-transparent">
+          <h2 className="text-4xl font-extrabold tracking-tighter mb-2 bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent">
             TALK SPHERE
           </h2>
-          <p className="text-text-muted font-medium text-sm md:text-base">
+          <p className="text-[#a0a0b8] font-medium text-sm md:text-base">
             Premium real-time communication platform
           </p>
         </div>
@@ -124,11 +124,11 @@ const LoginPage = () => {
               className="space-y-8"
             >
               <div className="space-y-3">
-                <label className="block text-[10px] font-bold text-text-muted uppercase tracking-[0.2em] ml-1">
+                <label className="block text-[10px] font-bold text-[#a0a0b8] uppercase tracking-[0.2em] ml-1">
                   Email Address
                 </label>
                 <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-accent-primary transition-colors">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#a0a0b8] group-focus-within:text-[#ff0055] transition-colors">
                     <Mail size={20} />
                   </div>
                   <input 
@@ -136,7 +136,7 @@ const LoginPage = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@example.com"
-                    className="w-full bg-bg-card-secondary border border-border-main rounded-2xl py-4 pl-12 pr-4 text-text-main focus:border-accent-primary focus:bg-bg-card outline-none transition-all placeholder:text-text-muted/50"
+                    className="w-full bg-[#252533] border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white focus:border-[#ff0055] focus:bg-[#1c1c24] outline-none transition-all placeholder:text-[#a0a0b8]/50 font-medium"
                     required
                   />
                 </div>
@@ -144,22 +144,22 @@ const LoginPage = () => {
 
               <button 
                 disabled={loading}
-                className="w-full btn-primary py-4 flex items-center justify-center gap-3 text-sm"
+                className="w-full bg-[#ff0055] text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3 text-xs uppercase tracking-widest shadow-lg shadow-[#ff0055]/25 hover:bg-[#ff0055]/90 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
               >
                 {loading ? <Loader2 className="animate-spin" size={20} /> : <>GET ONE-TIME PASSWORD <ArrowRight size={18} /></>}
               </button>
 
               <div className="flex items-center gap-4 my-6">
-                <div className="h-px flex-1 bg-black/10 dark:bg-white/10"></div>
-                <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">── OR ──</span>
-                <div className="h-px flex-1 bg-black/10 dark:bg-white/10"></div>
+                <div className="h-px flex-1 bg-white/10"></div>
+                <span className="text-[10px] font-bold text-[#a0a0b8] uppercase tracking-widest">── OR ──</span>
+                <div className="h-px flex-1 bg-white/10"></div>
               </div>
 
               <button 
                 type="button"
                 onClick={() => handleGoogleCustomLogin()}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl bg-white text-slate-900 font-black text-xs uppercase tracking-widest hover:bg-slate-100 dark:bg-bg-card-secondary dark:text-white dark:hover:bg-bg-card border border-slate-200 dark:border-border-main transition-all shadow-xl dark:shadow-white/5 shadow-black/5 active:scale-[0.99] cursor-pointer"
+                className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl bg-[#252533] text-white font-black text-xs uppercase tracking-widest hover:bg-[#2c2c3d] border border-white/10 transition-all shadow-xl shadow-black/20 active:scale-[0.99] cursor-pointer"
               >
                 <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -170,8 +170,8 @@ const LoginPage = () => {
                 <span>SIGN IN WITH GOOGLE</span>
               </button>
               
-              <div className="pt-4 border-t border-black/5 dark:border-white/5">
-                <p className="text-[10px] text-text-muted text-center leading-relaxed font-semibold">
+              <div className="pt-4 border-t border-white/5">
+                <p className="text-[10px] text-[#a0a0b8] text-center leading-relaxed font-semibold">
                   A SECURE ACCESS CODE WILL BE SENT TO YOUR EMAIL DESTINATION.
                 </p>
               </div>
@@ -186,11 +186,11 @@ const LoginPage = () => {
               className="space-y-8"
             >
               <div className="space-y-3">
-                <label className="block text-[10px] font-bold text-text-muted uppercase tracking-[0.2em] ml-1">
+                <label className="block text-[10px] font-bold text-[#a0a0b8] uppercase tracking-[0.2em] ml-1">
                   Verification Code
                 </label>
                 <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-accent-primary transition-colors">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#a0a0b8] group-focus-within:text-[#ff0055] transition-colors">
                     <ShieldCheck size={20} />
                   </div>
                   <input 
@@ -199,7 +199,7 @@ const LoginPage = () => {
                     onChange={(e) => setOtp(e.target.value)}
                     placeholder="000000"
                     maxLength="6"
-                    className="w-full bg-bg-card-secondary border border-border-main rounded-2xl py-4 pl-12 pr-4 text-text-main focus:border-accent-primary focus:bg-bg-card outline-none transition-all text-center tracking-[0.8em] font-black text-xl"
+                    className="w-full bg-[#252533] border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white focus:border-[#ff0055] focus:bg-[#1c1c24] outline-none transition-all text-center tracking-[0.8em] font-black text-xl placeholder:text-[#a0a0b8]/50"
                     required
                   />
                 </div>
@@ -207,7 +207,7 @@ const LoginPage = () => {
 
               <button 
                 disabled={loading}
-                className="w-full btn-primary py-4 flex items-center justify-center gap-3 text-sm"
+                className="w-full bg-[#ff0055] text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3 text-xs uppercase tracking-widest shadow-lg shadow-[#ff0055]/25 hover:bg-[#ff0055]/90 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
               >
                 {loading ? <Loader2 className="animate-spin" size={20} /> : <>AUTHENTICATE & ENTER <ArrowRight size={18} /></>}
               </button>
@@ -215,7 +215,7 @@ const LoginPage = () => {
               <button 
                 type="button"
                 onClick={() => setStep(1)}
-                className="w-full text-text-muted text-xs font-bold hover:text-text-main transition-colors uppercase tracking-widest"
+                className="w-full text-[#a0a0b8] text-xs font-bold hover:text-white transition-colors uppercase tracking-widest cursor-pointer"
               >
                 Change Email
               </button>
