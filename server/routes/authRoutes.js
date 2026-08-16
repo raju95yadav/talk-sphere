@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
-const { requestOTP, verifyOTP, refreshToken, logout } = require('../controllers/authController');
+const { requestOTP, verifyOTP, refreshToken, logout, googleAuth } = require('../controllers/authController');
 
 // Rate limit for OTP requests (5 per 15 mins per IP)
 const otpRequestLimiter = rateLimit({
@@ -23,6 +23,7 @@ const otpVerifyLimiter = rateLimit({
 
 router.post('/request-otp', otpRequestLimiter, requestOTP);
 router.post('/verify-otp', otpVerifyLimiter, verifyOTP);
+router.post('/google', googleAuth);
 router.post('/refresh-token', refreshToken);
 router.post('/logout', logout);
 

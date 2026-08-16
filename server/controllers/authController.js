@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { OAuth2Client } = require('google-auth-library');
 
 // Generate cryptographically secure OTP
 const generateOTP = () => {
@@ -401,3 +402,121 @@ exports.logout = async (req, res) => {
     res.status(500).json({ message: 'Error logging out' });
   }
 };
+
+exports.googleAuth = async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    if (!token) {
+      return res.status(400).json({ message: 'Google authentication token is required' });
+    }
+
+    let email, name, picture, googleId;
+
+    // Try verifying as ID token first
+    try {
+      const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+      const ticket = await client.verifyIdToken({
+        idToken: token,
+        audience: process.env.GOOGLE_CLIENT_ID
+      });
+      const payload = ticket.getPayload();
+      if (payload && payload.email) {
+        email = payload.email;
+        name = payload.name;
+        picture = payload.picture;
+        googleId = payload.sub;
+      }
+    } catch (idTokenError) {
+      // Fallback: verify as Access Token via Google UserInfo API (for custom useGoogleLogin button)
+      try {
+        const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (userInfoRes.ok) {
+          const payload = await userInfoRes.json();
+          email = payload.email;
+          name = payload.name;
+          picture = payload.picture;
+          googleId = payload.sub;
+        }
+      } catch (userInfoError) {
+        console.error('Google UserInfo API check failed:', userInfoError.message);
+      }
+    }
+
+    if (!email) {
+      return res.status(400).json({ message: 'Failed to verify Google token' });
+    }
+
+    let user = await User.findOne({ email: email.toLowerCase() });
+
+    if (user) {
+      let updated = false;
+      if (!user.googleId) {
+        user.googleId = googleId;
+        updated = true;
+      }
+      if (!user.avatar && picture) {
+        user.avatar = picture;
+        updated = true;
+      }
+      if (!user.isVerified) {
+        user.isVerified = true;
+        updated = true;
+      }
+      if (updated) {
+        await user.save();
+      }
+    } else {
+      const defaultUsername = email.split('@')[0] + Math.floor(1000 + Math.random() * 9000);
+      user = new User({
+        email: email.toLowerCase(),
+        name: name || email.split('@')[0],
+        avatar: picture || '',
+        googleId,
+        username: defaultUsername,
+        isVerified: true
+      });
+      await user.save();
+    }
+
+    // Sign Access Token (15 minutes) and Refresh Token (7 days)
+    const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+    // Store Refresh Token in DB
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    await RefreshToken.create({
+      token: refreshToken,
+      user: user._id,
+      expiresAt
+    });
+
+    // Send HTTP-Only Cookie with Refresh Token
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.status(200).json({
+      token: accessToken,
+      refreshToken: refreshToken,
+      user: {
+        id: user._id,
+        email: user.email,
+        username: user.username,
+        avatar: user.avatar,
+        name: user.name,
+        phoneNumber: user.phoneNumber,
+        age: user.age,
+        address: user.address
+      }
+    });
+  } catch (error) {
+    console.error('Google Auth Error:', error);
+    res.status(401).json({ message: error.message || 'Google authentication failed' });
+  }
+};
+

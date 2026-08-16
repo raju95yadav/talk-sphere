@@ -8,6 +8,10 @@ const userSchema = new mongoose.Schema({
     trim: true,
     lowercase: true
   },
+  googleId: {
+    type: String,
+    sparse: true
+  },
   username: {
     type: String,
     trim: true,

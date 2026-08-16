@@ -30,6 +30,10 @@ const io = new Server(server, {
 app.set('io', io);
 
 // Middleware
+app.use((req, res, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  next();
+});
 app.use(cors({
   origin: clientOrigin,
   credentials: true
