@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const Message = require('../models/Message');
 const Note = require('../models/Note');
+const ApiError = require('../utils/ApiError');
+const logger = require('../utils/logger');
 
 exports.getProfile = async (req, res) => {
   try {

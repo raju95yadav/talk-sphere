@@ -1,18 +1,17 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const ApiError = require('../utils/ApiError');
+const logger = require('../utils/logger');
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-exports.chatWithAI = async (req, res) => {
+exports.chatWithAI = async (req, res, next) => {
   const { message, history, sessionId } = req.body;
   const io = req.app.get('io');
   const userId = req.user._id.toString();
 
   try {
-    console.log('--- AI TRANSMISSION INCOMING ---');
-    console.log('User Message:', message);
-    console.log('Session ID:', sessionId);
-    console.log('Context History Size:', history?.length || 0);
+    logger.info('AI_CONTROLLER', `Transmission incoming from User: ${userId} (Session: ${sessionId})`);
 
     if (!message || message.trim() === '') {
       return res.status(400).json({ message: 'A message transmission is required.' });

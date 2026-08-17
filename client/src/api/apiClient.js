@@ -1,4 +1,5 @@
 import axios from 'axios';
+import clientLogger from '../utils/clientLogger';
 
 let accessToken = null;
 
@@ -27,7 +28,10 @@ apiClient.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    clientLogger.error('API_CLIENT_REQUEST', 'Request Interceptor Error', error);
+    return Promise.reject(error);
+  }
 );
 
 // Response Interceptor: Catch 401 and refresh access token silently
@@ -49,6 +53,18 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const moduleTag = error.response?.data?.module || 'API_SERVER';
+    const status = error.response?.status || 'NETWORK';
+    const message = error.response?.data?.message || error.message || 'API Request Failed';
+    const method = originalRequest?.method?.toUpperCase() || 'HTTP';
+    const url = originalRequest?.url || '';
+
+    // Log structured error for developer diagnostics
+    clientLogger.error(
+      `API_CLIENT:${moduleTag}`,
+      `[${method} ${url}] (${status}) - ${message}`,
+      error
+    );
 
     // Avoid intercepting failures on the auth paths themselves
     if (

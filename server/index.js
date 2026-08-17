@@ -8,6 +8,9 @@ const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 const Message = require('./models/Message');
 const User = require('./models/User');
+const ApiError = require('./utils/ApiError');
+const logger = require('./utils/logger');
+const errorMiddleware = require('./middleware/errorMiddleware');
 
 dotenv.config();
 
@@ -316,7 +319,24 @@ io.on('connection', (socket) => {
 
 });
 
+// 404 Undefined Route Handler
+app.use((req, res, next) => {
+  next(new ApiError(404, `Route ${req.originalUrl} not found`, 'EXPRESS_ROUTER'));
+});
+
+// Global Error Handler Middleware (Must be registered after all routes)
+app.use(errorMiddleware);
+
+// Process Exception & Rejection Handlers
+process.on('unhandledRejection', (reason) => {
+  logger.error('UNHANDLED_PROMISE_REJECTION', reason.message || 'Unhandled Promise Rejection', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  logger.error('UNCAUGHT_EXCEPTION', err.message || 'Uncaught Exception', err);
+});
+
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  logger.info('EXPRESS_SERVER', `Server running on port ${PORT}`);
 });

@@ -1,6 +1,8 @@
 const Note = require('../models/Note');
 const User = require('../models/User');
 const Message = require('../models/Message');
+const ApiError = require('../utils/ApiError');
+const logger = require('../utils/logger');
 
 exports.getNotes = async (req, res) => {
   try {

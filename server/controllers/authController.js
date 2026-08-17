@@ -5,6 +5,8 @@ const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
+const ApiError = require('../utils/ApiError');
+const logger = require('../utils/logger');
 
 // Generate cryptographically secure OTP
 const generateOTP = () => {
