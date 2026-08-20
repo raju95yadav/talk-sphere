@@ -9,7 +9,8 @@ const {
   editMessage,
   getConversations,
   clearChat,
-  searchMessages
+  searchMessages,
+  getCallLogs
 } = require('../controllers/chatController');
 const { protect } = require('../middleware/authMiddleware');
 const { chatMediaStorage } = require('../utils/cloudinary');
@@ -51,6 +52,7 @@ router.post('/upload', (req, res) => {
 router.post('/contacts', addContact);
 router.get('/contacts', getContacts);
 router.get('/conversations', getConversations);
+router.get('/call-logs', getCallLogs);
 router.get('/history/:receiverId', getChatHistory);
 router.get('/search/:receiverId', searchMessages);
 router.patch('/message/:messageId', editMessage);

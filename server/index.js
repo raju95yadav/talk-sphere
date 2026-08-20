@@ -316,7 +316,191 @@ io.on('connection', (socket) => {
     io.to(receiverId).emit('stop_typing', { senderId: socket.userId });
   });
 
+  // Active Calls tracking Map (Session key -> Call metadata)
+  const activeCalls = new Map();
 
+  const getCallKey = (user1, user2) => {
+    if (!user1 || !user2) return null;
+    return [user1.toString(), user2.toString()].sort().join('_');
+  };
+
+  const createCallLogMessage = async (senderId, receiverId, callType, callStatus, duration = 0) => {
+    try {
+      const formattedType = callType === 'video' ? 'Video Call' : 'Voice Call';
+      let content = '';
+      if (callStatus === 'missed') {
+        content = `Missed ${formattedType}`;
+      } else if (callStatus === 'declined') {
+        content = `Declined ${formattedType}`;
+      } else {
+        const mins = Math.floor(duration / 60);
+        const secs = duration % 60;
+        const durationStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+        content = `${formattedType} • ${durationStr}`;
+      }
+
+      const newMessage = new Message({
+        sender: senderId,
+        receiver: receiverId,
+        content,
+        type: 'call',
+        callDetails: {
+          callType,
+          status: callStatus,
+          duration
+        }
+      });
+
+      await newMessage.save();
+
+      const sender = await User.findById(senderId).select('name username avatar');
+      const messageData = {
+        _id: newMessage._id,
+        sender: senderId,
+        senderName: sender?.username || sender?.name || 'User',
+        senderAvatar: sender?.avatar,
+        receiver: receiverId,
+        content,
+        type: 'call',
+        callDetails: newMessage.callDetails,
+        createdAt: newMessage.createdAt,
+        status: newMessage.status,
+        reactions: []
+      };
+
+      io.to(receiverId.toString()).emit('receive_message', messageData);
+      io.to(senderId.toString()).emit('message_sent', messageData);
+    } catch (err) {
+      console.error('Error logging call message:', err);
+    }
+  };
+
+  // WebRTC Signaling Handlers
+  socket.on('call_user', (data) => {
+    const { userToCall, signalData, from, callerName, callerAvatar, callType } = data;
+    console.log(`[WebRTC] Incoming call signal from ${from} to ${userToCall} (${callType})`);
+    
+    // Check if target user is already engaged in another call
+    let isTargetBusy = false;
+    for (const [_, activeCall] of activeCalls.entries()) {
+      if (activeCall.caller === userToCall.toString() || activeCall.receiver === userToCall.toString()) {
+        isTargetBusy = true;
+        break;
+      }
+    }
+
+    if (isTargetBusy) {
+      console.log(`[WebRTC] Target user ${userToCall} is busy on another call`);
+      socket.emit('user_busy', { message: 'User is on another call' });
+      return;
+    }
+
+    const key = getCallKey(from, userToCall);
+    if (key) {
+      // Set 35-second ringing timeout
+      const timeoutId = setTimeout(async () => {
+        if (activeCalls.has(key)) {
+          const timedOutCall = activeCalls.get(key);
+          if (!timedOutCall.answered) {
+            console.log(`[WebRTC] Call timed out (35s) for key ${key}`);
+            activeCalls.delete(key);
+            io.to(from.toString()).emit('call_timeout');
+            io.to(userToCall.toString()).emit('call_timeout');
+            await createCallLogMessage(timedOutCall.caller, timedOutCall.receiver, timedOutCall.callType, 'missed', 0);
+          }
+        }
+      }, 35000);
+
+      activeCalls.set(key, {
+        caller: from.toString(),
+        receiver: userToCall.toString(),
+        callType: callType || 'video',
+        startTime: Date.now(),
+        answered: false,
+        answeredTime: null,
+        timeoutId
+      });
+    }
+
+    io.to(userToCall.toString()).emit('incoming_call', {
+      signal: signalData,
+      from,
+      callerName,
+      callerAvatar,
+      callType
+    });
+  });
+
+  socket.on('answer_call', (data) => {
+    const { to, signal } = data;
+    console.log(`[WebRTC] Call answered by user, relaying signal to ${to}`);
+    
+    const key = getCallKey(socket.userId, to);
+    if (key && activeCalls.has(key)) {
+      const call = activeCalls.get(key);
+      call.answered = true;
+      call.answeredTime = Date.now();
+      if (call.timeoutId) clearTimeout(call.timeoutId);
+    }
+
+    // Dismiss incoming call modal on other tabs of the recipient
+    io.to(socket.userId.toString()).emit('dismiss_incoming_call');
+
+    io.to(to.toString()).emit('call_accepted', { signal });
+  });
+
+  socket.on('ice_candidate', (data) => {
+    const { to, candidate } = data;
+    io.to(to.toString()).emit('ice_candidate', { candidate });
+  });
+
+  socket.on('end_call', async (data) => {
+    const { to } = data;
+    if (to) {
+      console.log(`[WebRTC] Call ended signal sent to ${to}`);
+      io.to(to.toString()).emit('call_ended');
+
+      const key = getCallKey(socket.userId, to);
+      if (key && activeCalls.has(key)) {
+        const call = activeCalls.get(key);
+        if (call.timeoutId) clearTimeout(call.timeoutId);
+        activeCalls.delete(key);
+
+        if (call.answered && call.answeredTime) {
+          const duration = Math.round((Date.now() - call.answeredTime) / 1000);
+          await createCallLogMessage(call.caller, call.receiver, call.callType, 'completed', duration);
+        } else {
+          await createCallLogMessage(call.caller, call.receiver, call.callType, 'missed', 0);
+        }
+      }
+    }
+  });
+
+  socket.on('reject_call', async (data) => {
+    const { to } = data;
+    if (to) {
+      console.log(`[WebRTC] Call rejected signal sent to ${to}`);
+      io.to(to.toString()).emit('call_rejected');
+      
+      // Dismiss incoming call on all user's tabs
+      io.to(socket.userId.toString()).emit('dismiss_incoming_call');
+
+      const key = getCallKey(socket.userId, to);
+      if (key && activeCalls.has(key)) {
+        const call = activeCalls.get(key);
+        if (call.timeoutId) clearTimeout(call.timeoutId);
+        activeCalls.delete(key);
+        await createCallLogMessage(call.caller, call.receiver, call.callType, 'missed', 0);
+      }
+    }
+  });
+
+  socket.on('toggle_media', (data) => {
+    const { to, isMuted, isVideoOff } = data;
+    if (to) {
+      io.to(to.toString()).emit('peer_media_toggle', { isMuted, isVideoOff });
+    }
+  });
 });
 
 // 404 Undefined Route Handler

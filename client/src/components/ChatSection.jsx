@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, MoreHorizontal, Send, User, ArrowLeft, Search, Plus, Edit3, Trash2, Download, Loader2, Globe, Smile, X, Trash, Paperclip, FileText, Reply, Play, Check, CheckCheck, Clock, Mic, Pause, Forward, RefreshCw } from 'lucide-react';
+import { MessageSquare, MoreHorizontal, Send, User, ArrowLeft, Search, Plus, Edit3, Trash2, Download, Loader2, Globe, Smile, X, Trash, Paperclip, FileText, Reply, Play, Check, CheckCheck, Clock, Mic, Pause, Forward, RefreshCw, Phone, Video } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import useSocket from '../hooks/useSocket';
 import { useSocketStatus } from '../context/SocketContext';
+import { useCall } from '../context/CallContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import apiClient from '../api/apiClient';
 import toast from 'react-hot-toast';
@@ -98,6 +99,7 @@ const ChatSection = () => {
   const { user, token } = useAuth();
   const socket = useSocket();
   const { isConnected } = useSocketStatus();
+  const { startCall, callStatus } = useCall();
   const [selectedContact, setSelectedContact] = useState(null);
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
@@ -898,6 +900,26 @@ const ChatSection = () => {
             </div>
           </div>
           <div className="flex gap-1 items-center">
+            {/* WebRTC Audio Call Button */}
+            <button 
+              onClick={() => startCall(selectedContact, 'audio')}
+              disabled={callStatus !== 'idle'}
+              title="Start Encrypted Audio Call"
+              className="p-2.5 rounded-full dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-emerald-400 transition-all disabled:opacity-30 cursor-pointer active:scale-95"
+            >
+              <Phone size={18} />
+            </button>
+
+            {/* WebRTC Video Call Button */}
+            <button 
+              onClick={() => startCall(selectedContact, 'video')}
+              disabled={callStatus !== 'idle'}
+              title="Start Encrypted Video Call"
+              className="p-2.5 rounded-full dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-accent-primary transition-all disabled:opacity-30 cursor-pointer active:scale-95"
+            >
+              <Video size={18} />
+            </button>
+
             <button onClick={() => setIsSearchingMessages(!isSearchingMessages)} className={`p-2.5 rounded-full transition-all ${isSearchingMessages ? 'bg-accent-primary text-white' : 'dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-text-main'}`}>
               <Search size={18} />
             </button>
@@ -1066,6 +1088,30 @@ const ChatSection = () => {
                            <a href={msg.content} target="_blank" rel="noreferrer" download={msg.fileName} className="p-2 dark:hover:bg-white/10 hover:bg-black/5 rounded-full transition-colors flex-shrink-0">
                              <Download size={16} className="text-text-main" />
                            </a>
+                        </div>
+                      ) : msg.type === 'call' ? (
+                        <div className="flex items-center gap-3 p-1 min-w-[200px]">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            msg.callDetails?.status === 'missed' || msg.callDetails?.status === 'declined'
+                              ? 'bg-red-500/20 text-red-500'
+                              : 'bg-emerald-500/20 text-emerald-500'
+                          }`}>
+                            {msg.callDetails?.callType === 'video' ? <Video size={18} /> : <Phone size={18} />}
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-xs font-extrabold tracking-wide uppercase">{msg.content}</p>
+                            <p className="text-[9px] opacity-60 font-semibold uppercase tracking-wider">
+                              {msg.callDetails?.status === 'missed' ? 'Missed Call' : msg.callDetails?.status === 'declined' ? 'Declined Call' : 'Call Completed'}
+                            </p>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => startCall(selectedContact, msg.callDetails?.callType || 'video')}
+                            className="p-2 rounded-full bg-accent-primary/20 hover:bg-accent-primary text-accent-primary hover:text-white transition-all cursor-pointer"
+                            title="Call Back"
+                          >
+                            {msg.callDetails?.callType === 'video' ? <Video size={14} /> : <Phone size={14} />}
+                          </button>
                         </div>
                       ) : (
                         <p className={`text-[15px] font-normal leading-relaxed break-words ${msg.deletedForEveryone ? 'italic opacity-50' : ''}`}>{msg.content}</p>

@@ -259,3 +259,24 @@ exports.clearChat = async (req, res) => {
     res.status(500).json({ message: 'Error clearing chat' });
   }
 };
+
+exports.getCallLogs = async (req, res) => {
+  try {
+    const callLogs = await Message.find({
+      $or: [
+        { sender: req.user._id },
+        { receiver: req.user._id }
+      ],
+      type: 'call',
+      deletedForMe: { $ne: req.user._id }
+    })
+    .populate('sender', 'name username email avatar')
+    .populate('receiver', 'name username email avatar')
+    .sort({ createdAt: -1 });
+
+    res.json(callLogs);
+  } catch (error) {
+    console.error('Get Call Logs Error:', error);
+    res.status(500).json({ message: 'Error fetching call logs' });
+  }
+};

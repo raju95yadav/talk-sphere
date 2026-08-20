@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogOut, User as UserIcon, LayoutDashboard, Settings, Globe, Plus, Moon, Sun, Sparkles } from 'lucide-react';
+import { LogOut, User as UserIcon, LayoutDashboard, Settings, Globe, Plus, Moon, Sun, Sparkles, Phone } from 'lucide-react';
 import apiClient from '../api/apiClient';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -10,6 +10,7 @@ import NoteSection from '../components/NoteSection';
 import ChatSection from '../components/ChatSection';
 import AIChatSection from '../components/AIChatSection';
 import ManagementSection from '../components/ManagementSection';
+import CallLogsSection from '../components/CallLogsSection';
 
 const Dashboard = () => {
   const { user, logout, token, refreshUser } = useAuth();
@@ -87,6 +88,7 @@ const Dashboard = () => {
 
   const tabs = [
     { name: 'MANAGEMENT HOME', icon: LayoutDashboard },
+    { name: 'CALL LOGS', icon: Phone },
     { name: 'AI ASSISTANT', icon: Sparkles },
     { name: 'MANAGEMENT', icon: Settings },
   ];
@@ -198,6 +200,16 @@ const Dashboard = () => {
                 <NoteSection />
               </div>
             </div>
+          </motion.div>
+        ) : activeTab === 'CALL LOGS' ? (
+          <motion.div 
+            key="call-logs"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="h-[calc(100vh-140px)] min-h-[500px] sm:h-[650px] lg:h-[800px] max-w-5xl mx-auto flex flex-col w-full"
+          >
+            <CallLogsSection />
           </motion.div>
         ) : activeTab === 'AI ASSISTANT' ? (
           <motion.div 

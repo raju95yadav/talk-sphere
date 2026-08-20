@@ -3,6 +3,8 @@ import { Toaster } from 'react-hot-toast';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import { CallProvider } from './context/CallContext';
+import CallModal from './components/CallModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './pages/Dashboard';
 import LoginPage from './pages/LoginPage';
@@ -29,14 +31,17 @@ function App() {
       <GoogleOAuthProvider clientId={googleClientId}>
         <AuthProvider>
           <SocketProvider>
-            <AppContent />
-            <Toaster position="bottom-right" toastOptions={{
-              style: {
-                background: 'var(--bg-card)',
-                color: 'var(--text-main)',
-                border: '1px solid var(--border-main)',
-              },
-            }} />
+            <CallProvider>
+              <AppContent />
+              <CallModal />
+              <Toaster position="bottom-right" toastOptions={{
+                style: {
+                  background: 'var(--bg-card)',
+                  color: 'var(--text-main)',
+                  border: '1px solid var(--border-main)',
+                },
+              }} />
+            </CallProvider>
           </SocketProvider>
         </AuthProvider>
       </GoogleOAuthProvider>
