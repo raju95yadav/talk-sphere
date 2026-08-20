@@ -660,6 +660,8 @@ export const CallProvider = ({ children }) => {
     };
 
     const handleDismissIncomingCall = () => {
+      // Do not reset call state if this tab has already accepted or initiated the call
+      if (callStatus === 'connected' || isCaller) return;
       console.log('[Multi-Tab] Incoming call answered/dismissed on another tab');
       resetCallState();
     };

@@ -444,7 +444,7 @@ io.on('connection', (socket) => {
     }
 
     // Dismiss incoming call modal on other tabs of the recipient
-    io.to(socket.userId.toString()).emit('dismiss_incoming_call');
+    socket.to(socket.userId.toString()).emit('dismiss_incoming_call');
 
     io.to(to.toString()).emit('call_accepted', { signal });
   });
@@ -482,8 +482,8 @@ io.on('connection', (socket) => {
       console.log(`[WebRTC] Call rejected signal sent to ${to}`);
       io.to(to.toString()).emit('call_rejected');
       
-      // Dismiss incoming call on all user's tabs
-      io.to(socket.userId.toString()).emit('dismiss_incoming_call');
+      // Dismiss incoming call on all user's other tabs
+      socket.to(socket.userId.toString()).emit('dismiss_incoming_call');
 
       const key = getCallKey(socket.userId, to);
       if (key && activeCalls.has(key)) {
