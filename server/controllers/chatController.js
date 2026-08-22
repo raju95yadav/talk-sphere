@@ -191,13 +191,19 @@ exports.getConversations = async (req, res) => {
     const unreadCounts = new Map();
 
     messages.forEach(msg => {
-      const otherUser = msg.sender.toString() === userId.toString() ? msg.receiver.toString() : msg.sender.toString();
+      if (!msg.sender || !msg.receiver) return;
+
+      const senderIdStr = msg.sender.toString();
+      const receiverIdStr = msg.receiver.toString();
+      const currentIdStr = userId.toString();
+
+      const otherUser = senderIdStr === currentIdStr ? receiverIdStr : senderIdStr;
       
       if (!conversationMap.has(otherUser)) {
         conversationMap.set(otherUser, msg);
       }
 
-      if (msg.receiver.toString() === userId.toString() && msg.status !== 'read') {
+      if (receiverIdStr === currentIdStr && msg.status !== 'read') {
         unreadCounts.set(otherUser, (unreadCounts.get(otherUser) || 0) + 1);
       }
     });
@@ -211,8 +217,9 @@ exports.getConversations = async (req, res) => {
       return {
         user,
         unreadCount: unreadCounts.get(user._id.toString()) || 0,
-        lastMessage: {
+        lastMessage: lastMessage ? {
           content: 
+            lastMessage.type === 'call' ? (lastMessage.content || '📞 Call') :
             lastMessage.type === 'image' ? '📷 Image' : 
             lastMessage.type === 'video' ? '🎥 Video' : 
             lastMessage.type === 'audio' ? '🎤 Voice Note' :
@@ -221,15 +228,15 @@ exports.getConversations = async (req, res) => {
           createdAt: lastMessage.createdAt,
           sender: lastMessage.sender,
           status: lastMessage.status
-        }
+        } : null
       };
-    });
+    }).filter(c => c.lastMessage !== null);
 
     conversations.sort((a, b) => new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt));
 
     res.json(conversations);
   } catch (error) {
-    console.error(error);
+    console.error('Get Conversations Error:', error);
     res.status(500).json({ message: 'Error fetching conversations' });
   }
 };

@@ -67,6 +67,7 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/notes', require('./routes/noteRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/chat', require('./routes/chatRoutes'));
+app.use('/api/groups', require('./routes/groupRoutes'));
 app.use('/api/ai', require('./routes/aiRoutes'));
 
 app.get('/', (req, res) => {
@@ -145,6 +146,12 @@ io.on('connection', (socket) => {
           io.to(msg.sender.toString()).emit('status_update', { messageId: msg._id, status: 'delivered' });
         });
       }
+      // Join all group rooms the user belongs to
+      const Group = require('./models/Group');
+      const userGroups = await Group.find({ 'members.user': userId }).select('_id');
+      userGroups.forEach(g => {
+        socket.join(`group_${g._id}`);
+      });
     } catch (err) {
       console.error('Error in socket join handler:', err.message || err);
     }
@@ -316,6 +323,74 @@ io.on('connection', (socket) => {
     io.to(receiverId).emit('stop_typing', { senderId: socket.userId });
   });
 
+  // Group Socket Handlers
+  socket.on('join_group_room', ({ groupId }) => {
+    if (groupId) socket.join(`group_${groupId}`);
+  });
+
+  socket.on('leave_group_room', ({ groupId }) => {
+    if (groupId) socket.leave(`group_${groupId}`);
+  });
+
+  socket.on('send_group_message', async (data) => {
+    const { groupId, content, type, repliedTo, fileName, fileSize, isForwarded, tempId } = data;
+    const finalSenderId = socket.userId;
+    if (!finalSenderId || !groupId) return console.error('Missing sender or groupId');
+
+    try {
+      const newMessage = new Message({
+        sender: finalSenderId,
+        group: groupId,
+        isGroup: true,
+        content,
+        type: type || 'text',
+        repliedTo: repliedTo || null,
+        fileName,
+        fileSize,
+        isForwarded: isForwarded || false
+      });
+      await newMessage.save();
+
+      let populatedMessage = await Message.findById(newMessage._id)
+        .populate('repliedTo', 'content type sender');
+
+      const sender = await User.findById(finalSenderId).select('name username avatar');
+      const messageData = {
+        _id: newMessage._id,
+        tempId: tempId || null,
+        sender: {
+          _id: sender._id,
+          username: sender?.username || sender?.name || 'User',
+          name: sender?.name || 'User',
+          avatar: sender?.avatar
+        },
+        groupId,
+        content,
+        type: newMessage.type,
+        repliedTo: populatedMessage.repliedTo,
+        fileName: newMessage.fileName,
+        fileSize: newMessage.fileSize,
+        isForwarded: newMessage.isForwarded,
+        createdAt: newMessage.createdAt,
+        status: 'sent',
+        reactions: []
+      };
+
+      socket.to(`group_${groupId}`).emit('receive_group_message', messageData);
+      socket.emit('group_message_sent', messageData);
+    } catch (err) {
+      console.error('Socket Group Message Error:', err);
+    }
+  });
+
+  socket.on('group_typing', ({ groupId }) => {
+    socket.to(`group_${groupId}`).emit('group_typing', { groupId, senderId: socket.userId });
+  });
+
+  socket.on('group_stop_typing', ({ groupId }) => {
+    socket.to(`group_${groupId}`).emit('group_stop_typing', { groupId, senderId: socket.userId });
+  });
+
   // Active Calls tracking Map (Session key -> Call metadata)
   const activeCalls = new Map();
 
@@ -378,53 +453,55 @@ io.on('connection', (socket) => {
   // WebRTC Signaling Handlers
   socket.on('call_user', (data) => {
     const { userToCall, signalData, from, callerName, callerAvatar, callType } = data;
-    console.log(`[WebRTC] Incoming call signal from ${from} to ${userToCall} (${callType})`);
+    const callerId = (from || socket.userId)?.toString();
+    const receiverId = userToCall?.toString();
+
+    console.log(`[WebRTC] Incoming call signal from ${callerId} to ${receiverId} (${callType})`);
     
+    if (!callerId || !receiverId) return;
+
     // Check if target user is already engaged in another call
     let isTargetBusy = false;
     for (const [_, activeCall] of activeCalls.entries()) {
-      if (activeCall.caller === userToCall.toString() || activeCall.receiver === userToCall.toString()) {
+      if (activeCall.caller === receiverId || activeCall.receiver === receiverId) {
         isTargetBusy = true;
         break;
       }
     }
 
     if (isTargetBusy) {
-      console.log(`[WebRTC] Target user ${userToCall} is busy on another call`);
+      console.log(`[WebRTC] Target user ${receiverId} is busy on another call`);
       socket.emit('user_busy', { message: 'User is on another call' });
       return;
     }
 
-    const key = getCallKey(from, userToCall);
-    if (key) {
-      // Set 35-second ringing timeout
-      const timeoutId = setTimeout(async () => {
-        if (activeCalls.has(key)) {
-          const timedOutCall = activeCalls.get(key);
-          if (!timedOutCall.answered) {
-            console.log(`[WebRTC] Call timed out (35s) for key ${key}`);
-            activeCalls.delete(key);
-            io.to(from.toString()).emit('call_timeout');
-            io.to(userToCall.toString()).emit('call_timeout');
-            await createCallLogMessage(timedOutCall.caller, timedOutCall.receiver, timedOutCall.callType, 'missed', 0);
-          }
-        }
-      }, 35000);
+    const key = `${callerId}_${receiverId}`;
+    
+    // Set 35-second ringing timeout (only fires if NOT answered)
+    const timeoutId = setTimeout(async () => {
+      const currentCall = activeCalls.get(key);
+      if (currentCall && !currentCall.answered) {
+        console.log(`[WebRTC] Call timed out (35s) for key ${key}`);
+        activeCalls.delete(key);
+        io.to(callerId).emit('call_timeout');
+        io.to(receiverId).emit('call_timeout');
+        await createCallLogMessage(currentCall.caller, currentCall.receiver, currentCall.callType, 'missed', 0);
+      }
+    }, 35000);
 
-      activeCalls.set(key, {
-        caller: from.toString(),
-        receiver: userToCall.toString(),
-        callType: callType || 'video',
-        startTime: Date.now(),
-        answered: false,
-        answeredTime: null,
-        timeoutId
-      });
-    }
+    activeCalls.set(key, {
+      caller: callerId,
+      receiver: receiverId,
+      callType: callType || 'video',
+      startTime: Date.now(),
+      answered: false,
+      answeredTime: null,
+      timeoutId
+    });
 
-    io.to(userToCall.toString()).emit('incoming_call', {
+    io.to(receiverId).emit('incoming_call', {
       signal: signalData,
-      from,
+      from: callerId,
       callerName,
       callerAvatar,
       callType
@@ -433,37 +510,57 @@ io.on('connection', (socket) => {
 
   socket.on('answer_call', (data) => {
     const { to, signal } = data;
-    console.log(`[WebRTC] Call answered by user, relaying signal to ${to}`);
+    const calleeId = socket.userId?.toString();
+    const callerId = to?.toString();
+
+    console.log(`[WebRTC] Call answered by ${calleeId} for caller ${callerId}`);
     
-    const key = getCallKey(socket.userId, to);
-    if (key && activeCalls.has(key)) {
-      const call = activeCalls.get(key);
-      call.answered = true;
-      call.answeredTime = Date.now();
-      if (call.timeoutId) clearTimeout(call.timeoutId);
+    // Search active calls by matching caller and receiver pair
+    for (const [key, call] of activeCalls.entries()) {
+      if (
+        (call.caller === callerId && call.receiver === calleeId) ||
+        (call.caller === calleeId && call.receiver === callerId)
+      ) {
+        call.answered = true;
+        call.answeredTime = Date.now();
+        if (call.timeoutId) {
+          clearTimeout(call.timeoutId);
+          call.timeoutId = null;
+        }
+        console.log(`[WebRTC] 35s ringing timeout successfully cleared for active call key: ${key}`);
+      }
     }
 
     // Dismiss incoming call modal on other tabs of the recipient
-    socket.to(socket.userId.toString()).emit('dismiss_incoming_call');
+    if (calleeId) socket.to(calleeId).emit('dismiss_incoming_call');
 
-    io.to(to.toString()).emit('call_accepted', { signal });
+    if (callerId) io.to(callerId).emit('call_accepted', { signal });
   });
 
   socket.on('ice_candidate', (data) => {
     const { to, candidate } = data;
-    io.to(to.toString()).emit('ice_candidate', { candidate });
+    if (to) io.to(to.toString()).emit('ice_candidate', { candidate });
   });
 
   socket.on('end_call', async (data) => {
     const { to } = data;
-    if (to) {
-      console.log(`[WebRTC] Call ended signal sent to ${to}`);
-      io.to(to.toString()).emit('call_ended');
+    if (!to) return;
 
-      const key = getCallKey(socket.userId, to);
-      if (key && activeCalls.has(key)) {
-        const call = activeCalls.get(key);
-        if (call.timeoutId) clearTimeout(call.timeoutId);
+    const currentId = socket.userId?.toString();
+    const targetId = to?.toString();
+
+    console.log(`[WebRTC] Call ended signal sent between ${currentId} and ${targetId}`);
+    io.to(targetId).emit('call_ended');
+
+    for (const [key, call] of activeCalls.entries()) {
+      if (
+        (call.caller === currentId && call.receiver === targetId) ||
+        (call.caller === targetId && call.receiver === currentId)
+      ) {
+        if (call.timeoutId) {
+          clearTimeout(call.timeoutId);
+          call.timeoutId = null;
+        }
         activeCalls.delete(key);
 
         if (call.answered && call.answeredTime) {
@@ -478,17 +575,25 @@ io.on('connection', (socket) => {
 
   socket.on('reject_call', async (data) => {
     const { to } = data;
-    if (to) {
-      console.log(`[WebRTC] Call rejected signal sent to ${to}`);
-      io.to(to.toString()).emit('call_rejected');
-      
-      // Dismiss incoming call on all user's other tabs
-      socket.to(socket.userId.toString()).emit('dismiss_incoming_call');
+    if (!to) return;
 
-      const key = getCallKey(socket.userId, to);
-      if (key && activeCalls.has(key)) {
-        const call = activeCalls.get(key);
-        if (call.timeoutId) clearTimeout(call.timeoutId);
+    const currentId = socket.userId?.toString();
+    const targetId = to?.toString();
+
+    console.log(`[WebRTC] Call rejected signal sent between ${currentId} and ${targetId}`);
+    io.to(targetId).emit('call_rejected');
+    
+    if (currentId) socket.to(currentId).emit('dismiss_incoming_call');
+
+    for (const [key, call] of activeCalls.entries()) {
+      if (
+        (call.caller === currentId && call.receiver === targetId) ||
+        (call.caller === targetId && call.receiver === currentId)
+      ) {
+        if (call.timeoutId) {
+          clearTimeout(call.timeoutId);
+          call.timeoutId = null;
+        }
         activeCalls.delete(key);
         await createCallLogMessage(call.caller, call.receiver, call.callType, 'missed', 0);
       }

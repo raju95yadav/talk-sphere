@@ -10,8 +10,17 @@ const messageSchema = new mongoose.Schema({
   receiver: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: function() { return !this.isGroup; },
     alias: 'receiverId'
+  },
+  group: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Group',
+    default: null
+  },
+  isGroup: {
+    type: Boolean,
+    default: false
   },
   content: {
     type: String,

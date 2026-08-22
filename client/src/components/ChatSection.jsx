@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, MoreHorizontal, Send, User, ArrowLeft, Search, Plus, Edit3, Trash2, Download, Loader2, Globe, Smile, X, Trash, Paperclip, FileText, Reply, Play, Check, CheckCheck, Clock, Mic, Pause, Forward, RefreshCw, Phone, Video } from 'lucide-react';
+import { MessageSquare, MoreHorizontal, Send, User, ArrowLeft, Search, Plus, Edit3, Trash2, Download, Loader2, Globe, Smile, X, Trash, Paperclip, FileText, Reply, Play, Check, CheckCheck, Clock, Mic, Pause, Forward, RefreshCw, Phone, Video, Users, Shield, ShieldCheck, Crown, LogOut, Settings, UserPlus, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import useSocket from '../hooks/useSocket';
 import { useSocketStatus } from '../context/SocketContext';
@@ -127,10 +127,29 @@ const ChatSection = () => {
   const [messageSearchResults, setMessageSearchResults] = useState(null);
   const [forwardingMessage, setForwardingMessage] = useState(null);
   const [tick, setTick] = useState(0);
+
+  // Group Chats & RBAC States
+  const [groups, setGroups] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [showGroupInfoModal, setShowGroupInfoModal] = useState(false);
+  const [showAddGroupMemberModal, setShowAddGroupMemberModal] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupDescription, setNewGroupDescription] = useState('');
+  const [newGroupAvatar, setNewGroupAvatar] = useState('');
+  const [newGroupMemberIds, setNewGroupMemberIds] = useState([]);
+  const [addMemberSelectedIds, setAddMemberSelectedIds] = useState([]);
+  const [groupTypingUsers, setGroupTypingUsers] = useState({});
+  const selectedGroupRef = useRef(null);
+
+  useEffect(() => {
+    selectedGroupRef.current = selectedGroup;
+  }, [selectedGroup]);
   
   // Reference tick to satisfy linter for forced updates
   const _tickRef = tick;
   const typingTimeoutRef = useRef(null);
+  const isEmittingTypingRef = useRef(false);
   const selectedContactRef = useRef(null);
   const scrollRef = useRef();
   const mediaRecorderRef = useRef(null);
@@ -287,18 +306,71 @@ const ChatSection = () => {
       console.error('Message search failed', err);
     }
   };
+  const getCurrentUserGroupRole = (group) => {
+    if (!group || !group.members || !currentUserId) return 'Member';
+    const m = group.members.find(mem => (mem.user?._id || mem.user).toString() === currentUserId.toString());
+    return m ? m.role : 'Member';
+  };
+
+  const fetchGroups = async () => {
+    try {
+      const res = await apiClient.get('/api/groups');
+      setGroups(res.data);
+      if (selectedGroup) {
+        const isStillMember = res.data.some(g => (g._id || g.id)?.toString() === (selectedGroup._id || selectedGroup.id)?.toString());
+        if (!isStillMember) {
+          setSelectedGroup(null);
+          setChatHistory([]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch groups');
+    }
+  };
+
+  const fetchGroupHistory = async (groupId) => {
+    try {
+      const res = await apiClient.get(`/api/groups/${groupId}/messages`);
+      const history = res.data.map(m => ({
+        ...m,
+        isSent: (m.sender?._id || m.sender).toString() === currentUserId?.toString()
+      }));
+      setChatHistory(history);
+    } catch (err) {
+      if (err.response?.status === 403 || err.response?.status === 404) {
+        setSelectedGroup(null);
+        setChatHistory([]);
+      }
+    }
+  };
 
   useEffect(() => {
     if (token) {
       fetchConversations();
+      fetchGroups();
       if (view === 'discover') fetchAllUsers();
     }
   }, [token, view]);
 
   useEffect(() => {
+    if (selectedGroup) {
+      setSelectedContact(null);
+      fetchGroupHistory(selectedGroup._id);
+      setIsTyping(false);
+      isEmittingTypingRef.current = false;
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (socket) {
+        socket.emit('join_group_room', { groupId: selectedGroup._id });
+      }
+    }
+  }, [selectedGroup]);
+
+  useEffect(() => {
     if (selectedContact) {
       fetchHistory(selectedContact._id);
       setIsTyping(false);
+      isEmittingTypingRef.current = false;
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       setConversations(prev => prev.map(c => 
         c.user._id === selectedContact._id ? { ...c, unreadCount: 0 } : c
       ));
@@ -486,6 +558,91 @@ const ChatSection = () => {
         }
         fetchAllUsers();
       });
+
+      // Group Socket Listeners
+      socket.on('receive_group_message', (data) => {
+        const currGroup = selectedGroupRef.current;
+        if (currGroup && currGroup._id.toString() === data.groupId.toString()) {
+          setChatHistory(prev => {
+            if (prev.some(m => m._id === data._id || (m.tempId && m.tempId === data.tempId))) return prev;
+            return [...prev, {
+              ...data,
+              isSent: (data.sender?._id || data.sender).toString() === currentUserId?.toString()
+            }];
+          });
+        } else {
+          toast(`Group Message: ${data.content.slice(0, 30)}`, { icon: '👥' });
+        }
+        fetchGroups();
+      });
+
+      socket.on('group_message_sent', (data) => {
+        setChatHistory(prev => {
+          const index = prev.findIndex(m => m._id === data.tempId || m.tempId === data.tempId || m._id === data._id);
+          if (index !== -1) {
+            const newHist = [...prev];
+            newHist[index] = { ...data, isSent: true };
+            return newHist;
+          }
+          if (prev.some(m => m._id === data._id)) return prev;
+          return [...prev, { ...data, isSent: true }];
+        });
+        fetchGroups();
+      });
+
+      socket.on('added_to_group', (groupData) => {
+        toast.success(`You were added to group "${groupData.name}"`);
+        socket.emit('join_group_room', { groupId: groupData._id });
+        fetchGroups();
+      });
+
+      socket.on('group_updated', (updatedGroup) => {
+        setGroups(prev => prev.map(g => g._id === updatedGroup._id ? updatedGroup : g));
+        if (selectedGroupRef.current && selectedGroupRef.current._id === updatedGroup._id) {
+          setSelectedGroup(updatedGroup);
+        }
+      });
+
+      socket.on('group_message_deleted', ({ messageId, groupId }) => {
+        if (selectedGroupRef.current && selectedGroupRef.current._id === groupId) {
+          setChatHistory(prev => prev.map(m => m._id === messageId ? {
+            ...m,
+            content: 'This message was deleted',
+            deletedForEveryone: true,
+            fileName: null,
+            fileSize: null,
+            type: 'text'
+          } : m));
+        }
+      });
+
+      socket.on('group_typing', ({ groupId, senderId }) => {
+        if (selectedGroupRef.current && selectedGroupRef.current._id === groupId && senderId !== currentUserId) {
+          setIsTyping(true);
+        }
+        setGroupTypingUsers(prev => ({
+          ...prev,
+          [groupId]: { ...(prev[groupId] || {}), [senderId]: true }
+        }));
+      });
+
+      socket.on('group_stop_typing', ({ groupId, senderId }) => {
+        if (selectedGroupRef.current && selectedGroupRef.current._id === groupId && senderId !== currentUserId) {
+          setIsTyping(false);
+        }
+        setGroupTypingUsers(prev => ({
+          ...prev,
+          [groupId]: { ...(prev[groupId] || {}), [senderId]: false }
+        }));
+      });
+
+      socket.on('removed_from_group', ({ groupId, groupName }) => {
+        toast.error(`You were removed from ${groupName}`);
+        fetchGroups();
+        if (selectedGroupRef.current && selectedGroupRef.current._id === groupId) {
+          setSelectedGroup(null);
+        }
+      });
     }
     return () => {
       if (socket) {
@@ -501,31 +658,76 @@ const ChatSection = () => {
         socket.off('messages_read');
         socket.off('user_profile_updated');
         socket.off('new_friend_request');
+        socket.off('receive_group_message');
+        socket.off('group_message_sent');
+        socket.off('added_to_group');
+        socket.off('group_updated');
+        socket.off('group_message_deleted');
+        socket.off('group_typing');
+        socket.off('group_stop_typing');
+        socket.off('removed_from_group');
       }
     };
   }, [socket]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory]);
+  }, [chatHistory, isTyping]);
 
   const handleTyping = (e) => {
-    setMessage(e.target.value);
-    if (!socket || !selectedContact) return;
+    const val = e.target.value;
+    setMessage(val);
+    if (!socket) return;
 
-    if (e.target.value.trim() === '') {
+    if (selectedGroup) {
+      if (val.trim() === '') {
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        if (isEmittingTypingRef.current) {
+          socket.emit('group_stop_typing', { groupId: selectedGroup._id });
+          isEmittingTypingRef.current = false;
+        }
+        return;
+      }
+
+      if (!isEmittingTypingRef.current) {
+        socket.emit('group_typing', { groupId: selectedGroup._id });
+        isEmittingTypingRef.current = true;
+      }
+
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      socket.emit('stop_typing', { receiverId: selectedContact._id });
+      typingTimeoutRef.current = setTimeout(() => {
+        if (isEmittingTypingRef.current) {
+          socket.emit('group_stop_typing', { groupId: selectedGroup._id });
+          isEmittingTypingRef.current = false;
+        }
+      }, 1800);
       return;
     }
 
-    socket.emit('typing', { receiverId: selectedContact._id });
+    if (!selectedContact) return;
+
+    if (val.trim() === '') {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (isEmittingTypingRef.current) {
+        socket.emit('stop_typing', { receiverId: selectedContact._id });
+        isEmittingTypingRef.current = false;
+      }
+      return;
+    }
+
+    if (!isEmittingTypingRef.current) {
+      socket.emit('typing', { receiverId: selectedContact._id });
+      isEmittingTypingRef.current = true;
+    }
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     typingTimeoutRef.current = setTimeout(() => {
-      socket.emit('stop_typing', { receiverId: selectedContact._id });
-    }, 2000);
+      if (isEmittingTypingRef.current) {
+        socket.emit('stop_typing', { receiverId: selectedContact._id });
+        isEmittingTypingRef.current = false;
+      }
+    }, 1800);
   };
 
   const handleRetryMessage = (msg) => {
@@ -548,10 +750,63 @@ const ChatSection = () => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!message || !selectedContact || !socket) return;
+    if (!message || !socket) return;
+
+    if (selectedGroup) {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (isEmittingTypingRef.current) {
+        socket.emit('group_stop_typing', { groupId: selectedGroup._id });
+        isEmittingTypingRef.current = false;
+      }
+
+      if (editingMessage) {
+        // Edit group message
+        socket.emit('edit_message', { messageId: editingMessage._id, content: message, receiverId: selectedGroup._id });
+        setChatHistory(prev => prev.map(m => m._id === editingMessage._id ? { ...m, content: message, isEdited: true, editedAt: new Date() } : m));
+        setEditingMessage(null);
+        setMessage('');
+        return;
+      }
+
+      const tempId = 'group-msg-' + Date.now();
+      const msgData = {
+        groupId: selectedGroup._id,
+        content: message,
+        type: 'text',
+        repliedTo: replyingTo?._id || null,
+        tempId
+      };
+
+      socket.emit('send_group_message', msgData);
+      setChatHistory(prev => [...prev, {
+        _id: tempId,
+        groupId: selectedGroup._id,
+        content: message,
+        type: 'text',
+        sender: {
+          _id: currentUserId,
+          username: user?.username || user?.name || 'User',
+          name: user?.name || 'User',
+          avatar: user?.avatar
+        },
+        isSent: true,
+        createdAt: new Date(),
+        reactions: [],
+        repliedTo: replyingTo,
+        status: 'sending'
+      }]);
+      setMessage('');
+      setReplyingTo(null);
+      return;
+    }
+
+    if (!selectedContact) return;
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    socket.emit('stop_typing', { receiverId: selectedContact._id });
+    if (isEmittingTypingRef.current) {
+      socket.emit('stop_typing', { receiverId: selectedContact._id });
+      isEmittingTypingRef.current = false;
+    }
 
     if (editingMessage) {
       socket.emit('edit_message', { messageId: editingMessage._id, content: message, receiverId: selectedContact._id });
@@ -851,12 +1106,337 @@ const ChatSection = () => {
     }
   };
 
-  const handleReact = (msgId, emoji) => {
-    socket.emit('react_to_message', { messageId: msgId, emoji, userId: currentUserId, receiverId: selectedContact._id });
-    setShowEmojiPicker(null);
+  const handleCreateGroup = async (e) => {
+    e.preventDefault();
+    if (!newGroupName.trim()) return toast.error('Group name required');
+
+    try {
+      const res = await apiClient.post('/api/groups', {
+        name: newGroupName,
+        description: newGroupDescription,
+        avatar: newGroupAvatar,
+        memberIds: newGroupMemberIds
+      });
+
+      toast.success(`Group "${res.data.name}" created!`);
+      setShowCreateGroupModal(false);
+      setNewGroupName('');
+      setNewGroupDescription('');
+      setNewGroupAvatar('');
+      setNewGroupMemberIds([]);
+      fetchGroups();
+      setSelectedGroup(res.data);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create group');
+    }
   };
 
-  const emojis = ['❤️', '😂', '😮', '😢', '😡', '👍', '🔥'];
+  const handleUpdateMemberRole = async (memberId, newRole) => {
+    if (!selectedGroup) return;
+    try {
+      const res = await apiClient.patch(`/api/groups/${selectedGroup._id}/members/${memberId}/role`, { role: newRole });
+      toast.success(`Role updated to ${newRole}`);
+      setSelectedGroup(res.data);
+      fetchGroups();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update role');
+    }
+  };
+
+  const handleRemoveMember = async (memberId, memberName) => {
+    if (!selectedGroup) return;
+    if (!window.confirm(`Remove ${memberName} from ${selectedGroup.name}?`)) return;
+
+    try {
+      const res = await apiClient.delete(`/api/groups/${selectedGroup._id}/members/${memberId}`);
+      toast.success('Member removed');
+      setSelectedGroup(res.data.group);
+      fetchGroups();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to remove member');
+    }
+  };
+
+  const handleLeaveGroup = async () => {
+    if (!selectedGroup) return;
+    if (!window.confirm(`Leave group ${selectedGroup.name}?`)) return;
+
+    try {
+      await apiClient.delete(`/api/groups/${selectedGroup._id}/members/${currentUserId}`);
+      toast.success(`Left ${selectedGroup.name}`);
+      setSelectedGroup(null);
+      setShowGroupInfoModal(false);
+      fetchGroups();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to leave group');
+    }
+  };
+
+  const handleAddGroupMembersSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedGroup || addMemberSelectedIds.length === 0) return;
+
+    try {
+      const res = await apiClient.post(`/api/groups/${selectedGroup._id}/members`, {
+        memberIds: addMemberSelectedIds
+      });
+      toast.success('Members added!');
+      setSelectedGroup(res.data);
+      setShowAddGroupMemberModal(false);
+      setAddMemberSelectedIds([]);
+      fetchGroups();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to add members');
+    }
+  };
+
+  const handleDeleteGroupMessage = async (msgId) => {
+    if (!selectedGroup) return;
+    try {
+      await apiClient.delete(`/api/groups/${selectedGroup._id}/messages/${msgId}`);
+      setChatHistory(prev => prev.map(m => m._id === msgId ? {
+        ...m,
+        content: 'This message was deleted',
+        deletedForEveryone: true,
+        fileName: null,
+        fileSize: null,
+        type: 'text'
+      } : m));
+      toast.success('Group message deleted for everyone');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete message');
+    }
+  };
+
+  // Selected Group Chat View
+  if (selectedGroup) {
+    const currentUserRole = getCurrentUserGroupRole(selectedGroup);
+    return (
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        className="fixed inset-0 z-[60] bg-bg-main flex flex-col overflow-hidden"
+      >
+        <div className="p-4 pt-[calc(16px+env(safe-area-inset-top))] border-b border-border-main flex items-center justify-between bg-bg-card/80 backdrop-blur-md relative z-50">
+          <div className="flex items-center gap-3">
+            <button onClick={() => {
+              setSelectedGroup(null); 
+              setEditingMessage(null); 
+              setMessage('');
+            }} className="p-2 dark:hover:bg-white/10 hover:bg-black/5 rounded-full text-text-muted hover:text-text-main transition-colors">
+              <ArrowLeft size={22} />
+            </button>
+            <div className="relative">
+              <div className="w-11 h-11 rounded-2xl bg-accent-primary/20 flex items-center justify-center border border-border-main overflow-hidden">
+                 {selectedGroup.avatar ? (
+                   <img src={selectedGroup.avatar} className="w-full h-full object-cover" alt="avatar" />
+                 ) : (
+                   <div className="w-full h-full bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center text-white font-black text-lg">
+                     {selectedGroup.name?.slice(0, 2).toUpperCase()}
+                   </div>
+                 )}
+              </div>
+              <div className="absolute -bottom-1 -right-1 bg-accent-primary text-white text-[9px] px-1 rounded-full font-bold">
+                {selectedGroup.members?.length || 0}
+              </div>
+            </div>
+            <div>
+              <h4 className="font-bold text-base text-text-main tracking-tight leading-tight flex items-center gap-2">
+                {selectedGroup.name}
+                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                  currentUserRole === 'Admin' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' :
+                  currentUserRole === 'Moderator' ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' :
+                  'bg-white/10 text-text-muted border-border-main'
+                }`}>
+                  {currentUserRole}
+                </span>
+              </h4>
+              <p className="text-xs text-text-muted mt-0.5 font-bold uppercase tracking-wider">
+                {isTyping ? (
+                  <span className="text-accent-primary animate-pulse">Someone is typing...</span>
+                ) : (
+                  `${selectedGroup.members?.length || 0} Members • Group Transmission`
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 items-center">
+            <button 
+              onClick={() => setShowGroupInfoModal(true)}
+              className="p-2.5 rounded-xl bg-accent-primary/10 text-accent-primary hover:bg-accent-primary hover:text-white transition-all flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+              title="Group Settings & Member Roles (RBAC)"
+            >
+              <ShieldCheck size={18} />
+              <span className="hidden sm:inline">Group Info</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Group Message Stream */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar bg-bg-main relative">
+          <AnimatePresence initial={false}>
+            {chatHistory.length === 0 ? (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col items-center justify-center opacity-20 space-y-4">
+                <Users size={48} className="text-accent-primary" />
+                <p className="text-[10px] font-black uppercase tracking-[0.3em]">Encrypted Group Channel Initiated</p>
+              </motion.div>
+            ) : (
+              chatHistory.map((msg, i) => (
+                <motion.div 
+                  key={msg._id || i}
+                  initial={{ opacity: 0, scale: 0.9, y: 15 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  className={`flex ${msg.isSent ? 'justify-end' : 'justify-start'} relative z-10`}
+                >
+                  <div className={`max-w-[85%] md:max-w-[65%] relative group ${msg.isSent ? 'text-right' : 'text-left'}`}>
+                    {!msg.isSent && (
+                      <div className="flex items-center gap-2 mb-1 pl-1">
+                        <span className="text-[10px] font-black text-accent-primary tracking-wide">
+                          {msg.sender?.username || msg.sender?.name || 'Member'}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className={`px-4 py-2.5 rounded-2xl shadow-lg inline-block relative min-w-[100px] transition-all ${
+                      msg.isSent 
+                        ? 'bg-gradient-to-br from-accent-primary to-accent-primary/80 text-white rounded-br-sm shadow-accent-primary/20' 
+                        : 'bg-bg-card-secondary text-text-main rounded-bl-sm border border-border-main'
+                    }`}>
+                      <p className={`text-[15px] font-normal leading-relaxed break-words ${msg.deletedForEveryone ? 'italic opacity-50' : ''}`}>{msg.content}</p>
+
+                      <div className="flex items-center justify-end gap-2 mt-1">
+                        <p className="text-[9px] font-bold uppercase opacity-40">
+                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+
+                    {!msg.deletedForEveryone && (
+                      <div className={`absolute top-1/2 -translate-y-1/2 ${msg.isSent ? 'right-full mr-2' : 'left-full ml-2'} opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 bg-bg-card/90 border border-border-main rounded-xl p-1 shadow-xl z-20`}>
+                        {(msg.isSent || currentUserRole === 'Admin') && (
+                          <button 
+                            title="Delete globally for everyone (Admin)" 
+                            onClick={() => handleDeleteGroupMessage(msg._id)} 
+                            className="p-1.5 hover:bg-red-500/20 text-text-muted hover:text-red-500 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
+          <div ref={scrollRef} />
+        </div>
+
+        {/* Group Input Footer */}
+        <form onSubmit={handleSendMessage} className="p-3 pb-[calc(12px+env(safe-area-inset-bottom))] md:p-5 bg-bg-card/80 backdrop-blur-xl border-t border-border-main flex gap-2 items-center relative z-20">
+          <input 
+            type="text" 
+            value={message} 
+            onChange={handleTyping} 
+            placeholder={`Message ${selectedGroup.name}...`}
+            className="flex-1 bg-bg-card-secondary border border-border-main rounded-full px-5 py-3 text-sm text-text-main outline-none focus:border-accent-primary transition-all"
+          />
+          <button type="submit" disabled={!message.trim()} className="w-11 h-11 rounded-full bg-accent-primary text-white flex items-center justify-center shadow-lg hover:scale-105 transition-all">
+            <Send size={18} />
+          </button>
+        </form>
+
+        {/* Render Group Info Modal */}
+        {showGroupInfoModal && (
+          <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-lg bg-bg-card border border-border-main rounded-3xl overflow-hidden shadow-2xl p-6 space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar">
+              <div className="flex justify-between items-center border-b border-border-main pb-4">
+                <h3 className="text-base font-black uppercase tracking-widest text-accent-primary flex items-center gap-2">
+                  <ShieldCheck size={20} /> Group Info & Role Access (RBAC)
+                </h3>
+                <button onClick={() => setShowGroupInfoModal(false)} className="p-2 rounded-full dark:hover:bg-white/10 hover:bg-black/5 text-text-muted">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-4 bg-bg-card-secondary p-4 rounded-2xl border border-border-main">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center text-white font-black text-2xl overflow-hidden">
+                  {selectedGroup.avatar ? <img src={selectedGroup.avatar} className="w-full h-full object-cover" /> : selectedGroup.name.slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-lg">{selectedGroup.name}</h4>
+                  <p className="text-xs text-text-muted">{selectedGroup.description || 'No description set'}</p>
+                  <p className="text-[10px] text-accent-primary font-black uppercase mt-1">Your Role: {currentUserRole}</p>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                {(currentUserRole === 'Admin' || currentUserRole === 'Moderator') && (
+                  <button onClick={() => { fetchAllUsers(); setShowAddGroupMemberModal(true); }} className="flex-1 py-2.5 rounded-xl bg-accent-primary text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg hover:scale-105 transition-all cursor-pointer">
+                    <UserPlus size={16} /> Add Members
+                  </button>
+                )}
+                <button onClick={handleLeaveGroup} className="py-2.5 px-4 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 font-bold text-xs flex items-center justify-center gap-2 hover:bg-red-500 hover:text-white transition-all">
+                  <LogOut size={16} /> Leave Group
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <h5 className="text-xs font-black uppercase tracking-wider text-text-muted">Members ({selectedGroup.members?.length || 0})</h5>
+                <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                  {selectedGroup.members?.map((m) => {
+                    const memberUser = m.user;
+                    const isMe = memberUser?._id?.toString() === currentUserId?.toString();
+                    return (
+                      <div key={memberUser?._id || Math.random()} className="flex items-center justify-between p-3 rounded-2xl bg-bg-card-secondary border border-border-main">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-accent-primary/20 flex items-center justify-center overflow-hidden border border-border-main">
+                            {memberUser?.avatar ? <img src={memberUser.avatar} className="w-full h-full object-cover" /> : <User size={18} className="text-accent-primary" />}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold">{memberUser?.username || memberUser?.name} {isMe && '(You)'}</p>
+                            <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                              m.role === 'Admin' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' :
+                              m.role === 'Moderator' ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' :
+                              'bg-white/10 text-text-muted border-border-main'
+                            }`}>
+                              {m.role}
+                            </span>
+                          </div>
+                        </div>
+
+                        {currentUserRole === 'Admin' && !isMe && (
+                          <div className="flex items-center gap-2">
+                            <select 
+                              value={m.role}
+                              onChange={(e) => handleUpdateMemberRole(memberUser._id, e.target.value)}
+                              className="bg-bg-card border border-border-main text-xs font-bold rounded-lg px-2 py-1 outline-none text-text-main"
+                            >
+                              <option value="Member">Member</option>
+                              <option value="Moderator">Moderator</option>
+                              <option value="Admin">Admin</option>
+                            </select>
+                            <button 
+                              onClick={() => handleRemoveMember(memberUser._id, memberUser.username || memberUser.name)}
+                              className="p-1.5 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+                              title="Remove Member"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </motion.div>
+    );
+  }
 
   if (selectedContact) {
     return (
@@ -892,7 +1472,14 @@ const ChatSection = () => {
               <h4 className="font-bold text-base text-text-main tracking-tight leading-tight">{selectedContact.username || selectedContact.name}</h4>
               <p className="text-xs text-text-muted mt-0.5 font-bold uppercase tracking-wider">
                 {isTyping ? (
-                  <span className="text-accent-primary animate-pulse">typing...</span>
+                  <span className="inline-flex items-center gap-1.5 text-accent-primary font-extrabold normal-case text-xs tracking-normal">
+                    <span>typing</span>
+                    <span className="inline-flex items-center gap-0.5">
+                      <span className="w-1 h-1 rounded-full bg-accent-primary animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                      <span className="w-1 h-1 rounded-full bg-accent-primary animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                      <span className="w-1 h-1 rounded-full bg-accent-primary animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                    </span>
+                  </span>
                 ) : (
                   getPresenceText(selectedContact)
                 )}
@@ -1124,20 +1711,40 @@ const ChatSection = () => {
                         </p>
                         {msg.isSent && (
                           <div className="ml-1 flex items-center gap-1">
-                            {msg.status === 'sending' && <Clock size={10} className="dark:text-white/40 text-black/40" />}
-                            {msg.status === 'sent' && <Check size={10} className="dark:text-white/40 text-black/40" />}
-                            {msg.status === 'delivered' && <CheckCheck size={10} className="dark:text-white/40 text-black/40" />}
-                            {msg.status === 'read' && <CheckCheck size={10} className="text-blue-400" />}
-                            {msg.status === 'failed' && (
-                              <button 
-                                type="button"
-                                onClick={() => handleRetryMessage(msg)}
-                                className="text-red-400 hover:text-red-300 p-0.5"
-                                title="Failed to send. Click to retry."
-                              >
-                                <RefreshCw size={10} />
-                              </button>
-                            )}
+                            <AnimatePresence mode="wait">
+                              {msg.status === 'sending' && (
+                                <motion.span key="sending" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} title="Sending...">
+                                  <Clock size={11} className="dark:text-white/40 text-black/40 animate-spin" style={{ animationDuration: '3s' }} />
+                                </motion.span>
+                              )}
+                              {msg.status === 'sent' && (
+                                <motion.span key="sent" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} title="Sent">
+                                  <Check size={11} className="dark:text-white/50 text-black/50" />
+                                </motion.span>
+                              )}
+                              {msg.status === 'delivered' && (
+                                <motion.span key="delivered" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} title="Delivered">
+                                  <CheckCheck size={11} className="dark:text-white/60 text-black/60" />
+                                </motion.span>
+                              )}
+                              {msg.status === 'read' && (
+                                <motion.span key="read" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1.15, opacity: 1 }} transition={{ type: "spring", stiffness: 400, damping: 15 }} title="Read by recipient">
+                                  <CheckCheck size={11} className="text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.6)]" />
+                                </motion.span>
+                              )}
+                              {msg.status === 'failed' && (
+                                <motion.span key="failed" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+                                  <button 
+                                    type="button"
+                                    onClick={() => handleRetryMessage(msg)}
+                                    className="text-red-400 hover:text-red-300 p-0.5"
+                                    title="Failed to send. Click to retry."
+                                  >
+                                    <RefreshCw size={11} />
+                                  </button>
+                                </motion.span>
+                              )}
+                            </AnimatePresence>
                           </div>
                         )}
                       </div>
@@ -1192,6 +1799,47 @@ const ChatSection = () => {
                   </div>
                 </motion.div>
               ))
+            )}
+          </AnimatePresence>
+
+          {/* Animated Typing Indicator Bubble */}
+          <AnimatePresence>
+            {isTyping && (
+              <motion.div
+                initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                className="flex justify-start items-center gap-3 relative z-10 py-1"
+              >
+                <div className="w-8 h-8 rounded-full bg-accent-primary/20 flex items-center justify-center border border-border-main overflow-hidden shadow-sm flex-shrink-0">
+                  {selectedContact.avatar ? (
+                    <img src={selectedContact.avatar} className="w-full h-full object-cover" alt="avatar" />
+                  ) : (
+                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedContact.username || selectedContact.name}`} alt="avatar" />
+                  )}
+                </div>
+                <div className="bg-bg-card-secondary text-text-main px-4 py-2.5 rounded-2xl rounded-bl-sm border border-border-main shadow-md flex items-center gap-2">
+                  <span className="text-xs font-semibold text-text-muted">{selectedContact.username || selectedContact.name} is typing</span>
+                  <div className="flex items-center gap-1 ml-0.5">
+                    <motion.span
+                      animate={{ y: [0, -4, 0] }}
+                      transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
+                      className="w-1.5 h-1.5 rounded-full bg-accent-primary"
+                    />
+                    <motion.span
+                      animate={{ y: [0, -4, 0] }}
+                      transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut", delay: 0.15 }}
+                      className="w-1.5 h-1.5 rounded-full bg-accent-primary"
+                    />
+                    <motion.span
+                      animate={{ y: [0, -4, 0] }}
+                      transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+                      className="w-1.5 h-1.5 rounded-full bg-accent-primary"
+                    />
+                  </div>
+                </div>
+              </motion.div>
             )}
           </AnimatePresence>
           <div ref={scrollRef} />
@@ -1550,16 +2198,22 @@ const ChatSection = () => {
     <div className="glass-card flex flex-col h-full overflow-hidden">
       <div className="p-6 border-b border-border-main space-y-4">
         <div className="flex justify-between items-center">
-          <div className="flex bg-bg-card-secondary p-1 rounded-xl">
+          <div className="flex bg-bg-card-secondary p-1 rounded-xl gap-1">
              <button 
-               onClick={() => setView('transmissions')}
-               className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all ${view === 'transmissions' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
+               onClick={() => { setView('transmissions'); setSelectedGroup(null); }}
+               className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all ${view === 'transmissions' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
              >
                Transmissions
              </button>
              <button 
-               onClick={() => setView('discover')}
-               className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all ${view === 'discover' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
+               onClick={() => { setView('groups'); setSelectedContact(null); }}
+               className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1 ${view === 'groups' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
+             >
+               Groups {groups.length > 0 && <span className="px-1.5 py-0.5 rounded-full bg-white/20 text-[8px]">{groups.length}</span>}
+             </button>
+             <button 
+               onClick={() => { setView('discover'); setSelectedGroup(null); }}
+               className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all ${view === 'discover' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
              >
                Discover
              </button>
@@ -1630,7 +2284,49 @@ const ChatSection = () => {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-        {view === 'transmissions' ? (
+        {view === 'groups' ? (
+          <div className="space-y-3">
+            <button 
+              onClick={() => { fetchAllUsers(); setShowCreateGroupModal(true); }}
+              className="w-full py-3 rounded-2xl bg-accent-primary text-white font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-accent-primary/20 hover:scale-[1.02] active:scale-95 transition-all mb-4 cursor-pointer"
+            >
+              <Plus size={18} /> Create Group
+            </button>
+            {groups.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 opacity-30 space-y-3">
+                <Users size={40} className="text-accent-primary" />
+                <p className="text-[10px] font-black uppercase tracking-widest">No groups joined</p>
+              </div>
+            ) : (
+              groups.map((g) => (
+                <motion.div 
+                  key={g._id}
+                  whileHover={{ x: 5 }}
+                  onClick={() => setSelectedGroup(g)}
+                  className="flex items-center justify-between p-4 rounded-2xl dark:hover:bg-white/5 hover:bg-black/5 transition-all cursor-pointer border border-transparent hover:border-border-main group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-accent-primary/20 flex items-center justify-center border border-border-main overflow-hidden text-accent-primary font-black text-lg">
+                      {g.avatar ? <img src={g.avatar} className="w-full h-full object-cover" /> : g.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-text-main flex items-center gap-2">
+                        {g.name}
+                        <span className="text-[8px] font-black bg-accent-primary/10 text-accent-primary px-1.5 py-0.5 rounded-full">
+                          {g.members?.length} M
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-text-muted truncate max-w-[160px]">
+                        {g.lastMessage ? `${g.lastMessage.sender?.username || 'Member'}: ${g.lastMessage.content}` : g.description || 'Group transmission'}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronDown size={16} className="text-text-muted -rotate-90 group-hover:text-accent-primary transition-all" />
+                </motion.div>
+              ))
+            )}
+          </div>
+        ) : view === 'transmissions' ? (
           conversations.length === 0 && !isSearching ? (
             <div className="flex flex-col items-center justify-center py-32 opacity-20">
                <div className="w-20 h-20 bg-accent-primary/20 rounded-full flex items-center justify-center mb-4">
@@ -1663,14 +2359,23 @@ const ChatSection = () => {
                     <div className="flex items-center gap-1 mt-0.5">
                       {conv.lastMessage.sender === currentUserId && (
                         <div className="flex items-center flex-shrink-0 gap-0.5 text-accent-primary">
-                          {conv.lastMessage.status === 'read' ? <CheckCheck size={12} className="text-blue-400" /> : 
-                           conv.lastMessage.status === 'delivered' ? <CheckCheck size={12} className="dark:text-white/40 text-black/40" /> : 
-                           <Check size={12} className="dark:text-white/40 text-black/40" />}
+                          {conv.lastMessage.status === 'read' ? (
+                            <CheckCheck size={12} className="text-sky-400 drop-shadow-[0_0_4px_rgba(56,189,248,0.5)]" />
+                          ) : conv.lastMessage.status === 'delivered' ? (
+                            <CheckCheck size={12} className="dark:text-white/50 text-black/50" />
+                          ) : (
+                            <Check size={12} className="dark:text-white/50 text-black/50" />
+                          )}
                           <span className="text-[9px] font-black uppercase tracking-wider ml-0.5 mr-1">You:</span>
                         </div>
                       )}
                       {typingStatuses[conv.user._id] ? (
-                        <span className="text-accent-primary animate-pulse font-bold text-[11px]">typing...</span>
+                        <span className="text-accent-primary font-bold text-[11px] flex items-center gap-1">
+                          <span>typing</span>
+                          <span className="inline-flex gap-0.5">
+                            <span className="w-1 h-1 rounded-full bg-accent-primary animate-ping"></span>
+                          </span>
+                        </span>
                       ) : (
                         <p className="text-[11px] text-text-muted font-medium truncate flex-1">{conv.lastMessage.content}</p>
                       )}
@@ -1764,6 +2469,122 @@ const ChatSection = () => {
           </div>
         )}
       </div>
+
+      {/* Create Group Modal */}
+      {showCreateGroupModal && (
+        <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-md bg-bg-card border border-border-main rounded-3xl overflow-hidden shadow-2xl p-6 space-y-4">
+            <div className="flex justify-between items-center border-b border-border-main pb-3">
+              <h3 className="text-sm font-black uppercase tracking-widest text-accent-primary flex items-center gap-2">
+                <Users size={18} /> Create New Group
+              </h3>
+              <button onClick={() => setShowCreateGroupModal(false)} className="p-1.5 rounded-full dark:hover:bg-white/10 hover:bg-black/5 text-text-muted">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateGroup} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black uppercase text-text-muted">Group Name</label>
+                <input 
+                  type="text" 
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder="e.g. Cyber Squad"
+                  className="w-full bg-bg-card-secondary border border-border-main rounded-xl p-3 text-sm text-text-main outline-none focus:border-accent-primary mt-1"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase text-text-muted">Description (Optional)</label>
+                <input 
+                  type="text" 
+                  value={newGroupDescription}
+                  onChange={(e) => setNewGroupDescription(e.target.value)}
+                  placeholder="Group mission..."
+                  className="w-full bg-bg-card-secondary border border-border-main rounded-xl p-3 text-sm text-text-main outline-none focus:border-accent-primary mt-1"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase text-text-muted">Add Initial Members</label>
+                <div className="max-h-40 overflow-y-auto space-y-1.5 mt-1 custom-scrollbar">
+                  {allUsers.map((u) => (
+                    <label key={u._id} className="flex items-center justify-between p-2 rounded-xl bg-bg-card-secondary border border-border-main cursor-pointer hover:border-accent-primary/50">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-accent-primary/20 overflow-hidden">
+                          {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" /> : <User size={14} className="text-accent-primary" />}
+                        </div>
+                        <span className="text-xs font-bold">{u.username || u.name}</span>
+                      </div>
+                      <input 
+                        type="checkbox"
+                        checked={newGroupMemberIds.includes(u._id)}
+                        onChange={(e) => {
+                          if (e.target.checked) setNewGroupMemberIds(prev => [...prev, u._id]);
+                          else setNewGroupMemberIds(prev => prev.filter(id => id !== u._id));
+                        }}
+                        className="accent-accent-primary"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <button type="submit" className="w-full py-3 rounded-xl bg-accent-primary text-white font-bold text-xs uppercase tracking-widest shadow-lg hover:scale-105 transition-all">
+                Create Group
+              </button>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Add Members Modal */}
+      {showAddGroupMemberModal && selectedGroup && (
+        <div className="fixed inset-0 z-[130] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-md bg-bg-card border border-border-main rounded-3xl p-6 space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-border-main pb-3">
+              <h3 className="text-sm font-black uppercase tracking-widest text-accent-primary flex items-center gap-2">
+                <UserPlus size={18} /> Add Members to {selectedGroup.name}
+              </h3>
+              <button onClick={() => setShowAddGroupMemberModal(false)} className="p-1.5 rounded-full dark:hover:bg-white/10 hover:bg-black/5 text-text-muted">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddGroupMembersSubmit} className="space-y-4">
+              <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar">
+                {allUsers
+                  .filter(u => !selectedGroup.members?.some(m => (m.user?._id || m.user).toString() === u._id.toString()))
+                  .map((u) => (
+                    <label key={u._id} className="flex items-center justify-between p-2.5 rounded-xl bg-bg-card-secondary border border-border-main cursor-pointer hover:border-accent-primary">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-accent-primary/20 overflow-hidden">
+                          {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" /> : <User size={16} className="text-accent-primary" />}
+                        </div>
+                        <span className="text-xs font-bold">{u.username || u.name}</span>
+                      </div>
+                      <input 
+                        type="checkbox"
+                        checked={addMemberSelectedIds.includes(u._id)}
+                        onChange={(e) => {
+                          if (e.target.checked) setAddMemberSelectedIds(prev => [...prev, u._id]);
+                          else setAddMemberSelectedIds(prev => prev.filter(id => id !== u._id));
+                        }}
+                        className="accent-accent-primary"
+                      />
+                    </label>
+                  ))}
+              </div>
+
+              <button type="submit" disabled={addMemberSelectedIds.length === 0} className="w-full py-3 rounded-xl bg-accent-primary text-white font-bold text-xs uppercase tracking-widest shadow-lg hover:scale-105 transition-all disabled:opacity-40">
+                Confirm Add Members
+              </button>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
