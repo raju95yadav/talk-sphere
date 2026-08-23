@@ -6,9 +6,12 @@ import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import toast from 'react-hot-toast';
 
+import useSocket from '../hooks/useSocket';
+
 const CallLogsSection = () => {
   const { user } = useAuth();
   const { startCall, callStatus } = useCall();
+  const socket = useSocket();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -32,6 +35,33 @@ const CallLogsSection = () => {
   useEffect(() => {
     fetchCallLogs();
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewCallLog = (newLog) => {
+      console.log('[CallLogs] Real-time call log received:', newLog);
+      if (!newLog || !newLog._id) return;
+      setLogs(prevLogs => {
+        if (prevLogs.some(l => l._id === newLog._id)) {
+          return prevLogs.map(l => l._id === newLog._id ? newLog : l);
+        }
+        return [newLog, ...prevLogs];
+      });
+    };
+
+    socket.on('receive_call_log', handleNewCallLog);
+    socket.on('receive-call-log', handleNewCallLog);
+    socket.on('update-call-history', handleNewCallLog);
+    socket.on('update_call_history', handleNewCallLog);
+
+    return () => {
+      socket.off('receive_call_log', handleNewCallLog);
+      socket.off('receive-call-log', handleNewCallLog);
+      socket.off('update-call-history', handleNewCallLog);
+      socket.off('update_call_history', handleNewCallLog);
+    };
+  }, [socket]);
 
   const filteredLogs = logs.filter(log => {
     const isSender = log.sender?._id === currentUserId;

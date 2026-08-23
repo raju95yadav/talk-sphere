@@ -228,6 +228,32 @@ io.on('connection', (socket) => {
   socket.on('disconnect', async () => {
     const userId = socket.userId?.toString();
     
+    if (userId) {
+      // Clean up any active call in progress for this disconnected user
+      for (const [key, call] of activeCalls.entries()) {
+        if (call.caller === userId || call.receiver === userId) {
+          console.log(`[WebRTC] User ${userId} disconnected during active call (key: ${key})`);
+          if (call.timeoutId) {
+            clearTimeout(call.timeoutId);
+            call.timeoutId = null;
+          }
+          activeCalls.delete(key);
+
+          const otherPeerId = call.caller === userId ? call.receiver : call.caller;
+          if (otherPeerId) {
+            io.to(otherPeerId).emit('call_ended');
+          }
+
+          if (call.answered && call.answeredTime) {
+            const duration = Math.max(1, Math.round((Date.now() - call.answeredTime) / 1000));
+            await createCallLogMessage(call.caller, call.receiver, call.callType, 'completed', duration);
+          } else {
+            await createCallLogMessage(call.caller, call.receiver, call.callType, 'missed', 0);
+          }
+        }
+      }
+    }
+
     if (userId && onlineUsers.has(userId)) {
       const userSockets = onlineUsers.get(userId);
       userSockets.delete(socket.id);
@@ -391,12 +417,70 @@ io.on('connection', (socket) => {
     socket.to(`group_${groupId}`).emit('group_stop_typing', { groupId, senderId: socket.userId });
   });
 
+  socket.on('react_to_group_message', async (data) => {
+    const { messageId, groupId, emoji, userId } = data;
+    try {
+      const message = await Message.findById(messageId);
+      if (message) {
+        message.reactions = message.reactions.filter(r => r.user.toString() !== userId);
+        message.reactions.push({ user: userId, emoji });
+        await message.save();
+        
+        io.to(`group_${groupId}`).emit('group_message_reaction', { messageId, groupId, reactions: message.reactions });
+      }
+    } catch (err) {
+      console.error('Group Reaction Error:', err);
+    }
+  });
+
+  socket.on('edit_group_message', async (data) => {
+    const { messageId, groupId, content } = data;
+    try {
+      const message = await Message.findByIdAndUpdate(messageId, { 
+        content, 
+        isEdited: true,
+        editedAt: new Date()
+      }, { new: true });
+      if (message) {
+        io.to(`group_${groupId}`).emit('group_message_edited', { messageId, groupId, content, editedAt: message.editedAt });
+      }
+    } catch (err) {
+      console.error('Edit Group Message Error:', err);
+    }
+  });
+
+  socket.on('delete_group_message', async (data) => {
+    const { messageId, groupId, type } = data;
+    try {
+      const message = await Message.findById(messageId);
+      if (!message) return;
+
+      if (type === 'me') {
+        message.deletedForMe.push(socket.userId);
+        await message.save();
+      } else {
+        message.deletedForEveryone = true;
+        message.content = 'This message was deleted';
+        message.fileName = null;
+        message.fileSize = null;
+        message.type = 'text';
+        await message.save();
+        io.to(`group_${groupId}`).emit('group_message_deleted', { messageId, groupId, type: 'everyone' });
+      }
+    } catch (err) {
+      console.error('Delete Group Message Error:', err);
+    }
+  });
+
   // Active Calls tracking Map (Session key -> Call metadata)
   const activeCalls = new Map();
 
-  const getCallKey = (user1, user2) => {
-    if (!user1 || !user2) return null;
-    return [user1.toString(), user2.toString()].sort().join('_');
+  const getUserIdStr = (userObj) => {
+    if (!userObj) return null;
+    if (typeof userObj === 'string') return userObj;
+    if (userObj._id) return userObj._id.toString();
+    if (userObj.id) return userObj.id.toString();
+    return userObj.toString();
   };
 
   const createCallLogMessage = async (senderId, receiverId, callType, callStatus, duration = 0) => {
@@ -428,12 +512,15 @@ io.on('connection', (socket) => {
 
       await newMessage.save();
 
-      const sender = await User.findById(senderId).select('name username avatar');
+      const populatedLog = await Message.findById(newMessage._id)
+        .populate('sender', 'name username email avatar')
+        .populate('receiver', 'name username email avatar');
+
       const messageData = {
         _id: newMessage._id,
         sender: senderId,
-        senderName: sender?.username || sender?.name || 'User',
-        senderAvatar: sender?.avatar,
+        senderName: populatedLog?.sender?.username || populatedLog?.sender?.name || 'User',
+        senderAvatar: populatedLog?.sender?.avatar,
         receiver: receiverId,
         content,
         type: 'call',
@@ -445,6 +532,16 @@ io.on('connection', (socket) => {
 
       io.to(receiverId.toString()).emit('receive_message', messageData);
       io.to(senderId.toString()).emit('message_sent', messageData);
+
+      // Emit real-time call log update to both caller and receiver
+      if (populatedLog) {
+        io.to(senderId.toString()).emit('receive_call_log', populatedLog);
+        io.to(receiverId.toString()).emit('receive_call_log', populatedLog);
+        io.to(senderId.toString()).emit('receive-call-log', populatedLog);
+        io.to(receiverId.toString()).emit('receive-call-log', populatedLog);
+        io.to(senderId.toString()).emit('update-call-history', populatedLog);
+        io.to(receiverId.toString()).emit('update-call-history', populatedLog);
+      }
     } catch (err) {
       console.error('Error logging call message:', err);
     }
@@ -453,8 +550,8 @@ io.on('connection', (socket) => {
   // WebRTC Signaling Handlers
   socket.on('call_user', (data) => {
     const { userToCall, signalData, from, callerName, callerAvatar, callType } = data;
-    const callerId = (from || socket.userId)?.toString();
-    const receiverId = userToCall?.toString();
+    const callerId = getUserIdStr(from) || socket.userId?.toString();
+    const receiverId = getUserIdStr(userToCall);
 
     console.log(`[WebRTC] Incoming call signal from ${callerId} to ${receiverId} (${callType})`);
     
@@ -506,12 +603,20 @@ io.on('connection', (socket) => {
       callerAvatar,
       callType
     });
+
+    io.to(`group_${receiverId}`).emit('incoming_call', {
+      signal: signalData,
+      from: callerId,
+      callerName,
+      callerAvatar,
+      callType
+    });
   });
 
   socket.on('answer_call', (data) => {
     const { to, signal } = data;
     const calleeId = socket.userId?.toString();
-    const callerId = to?.toString();
+    const callerId = getUserIdStr(to);
 
     console.log(`[WebRTC] Call answered by ${calleeId} for caller ${callerId}`);
     
@@ -534,12 +639,18 @@ io.on('connection', (socket) => {
     // Dismiss incoming call modal on other tabs of the recipient
     if (calleeId) socket.to(calleeId).emit('dismiss_incoming_call');
 
-    if (callerId) io.to(callerId).emit('call_accepted', { signal });
+    if (callerId) {
+      io.to(callerId).emit('call_accepted', { signal });
+      io.to(callerId).emit('call-accepted', { signal });
+      io.to(callerId).emit('call_answered', { signal });
+      io.to(callerId).emit('call-answered', { signal });
+    }
   });
 
   socket.on('ice_candidate', (data) => {
     const { to, candidate } = data;
-    if (to) io.to(to.toString()).emit('ice_candidate', { candidate });
+    const targetId = getUserIdStr(to);
+    if (targetId) io.to(targetId).emit('ice_candidate', { candidate });
   });
 
   socket.on('end_call', async (data) => {
@@ -547,10 +658,10 @@ io.on('connection', (socket) => {
     if (!to) return;
 
     const currentId = socket.userId?.toString();
-    const targetId = to?.toString();
+    const targetId = getUserIdStr(to);
 
     console.log(`[WebRTC] Call ended signal sent between ${currentId} and ${targetId}`);
-    io.to(targetId).emit('call_ended');
+    if (targetId) io.to(targetId).emit('call_ended');
 
     for (const [key, call] of activeCalls.entries()) {
       if (
@@ -564,7 +675,7 @@ io.on('connection', (socket) => {
         activeCalls.delete(key);
 
         if (call.answered && call.answeredTime) {
-          const duration = Math.round((Date.now() - call.answeredTime) / 1000);
+          const duration = Math.max(1, Math.round((Date.now() - call.answeredTime) / 1000));
           await createCallLogMessage(call.caller, call.receiver, call.callType, 'completed', duration);
         } else {
           await createCallLogMessage(call.caller, call.receiver, call.callType, 'missed', 0);
@@ -578,10 +689,10 @@ io.on('connection', (socket) => {
     if (!to) return;
 
     const currentId = socket.userId?.toString();
-    const targetId = to?.toString();
+    const targetId = getUserIdStr(to);
 
     console.log(`[WebRTC] Call rejected signal sent between ${currentId} and ${targetId}`);
-    io.to(targetId).emit('call_rejected');
+    if (targetId) io.to(targetId).emit('call_rejected');
     
     if (currentId) socket.to(currentId).emit('dismiss_incoming_call');
 
@@ -595,15 +706,16 @@ io.on('connection', (socket) => {
           call.timeoutId = null;
         }
         activeCalls.delete(key);
-        await createCallLogMessage(call.caller, call.receiver, call.callType, 'missed', 0);
+        await createCallLogMessage(call.caller, call.receiver, call.callType, 'declined', 0);
       }
     }
   });
 
   socket.on('toggle_media', (data) => {
     const { to, isMuted, isVideoOff } = data;
-    if (to) {
-      io.to(to.toString()).emit('peer_media_toggle', { isMuted, isVideoOff });
+    const targetId = getUserIdStr(to);
+    if (targetId) {
+      io.to(targetId).emit('peer_media_toggle', { isMuted, isVideoOff });
     }
   });
 });

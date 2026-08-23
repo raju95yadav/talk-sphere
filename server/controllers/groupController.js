@@ -66,15 +66,23 @@ exports.getUserGroups = async (req, res) => {
       .populate('members.user', 'username name avatar isOnline lastSeen')
       .sort({ updatedAt: -1 });
 
-    // Attach last message for each group
+    // Attach last message & unread count for each group
     const groupsWithLastMessage = await Promise.all(
       groups.map(async (group) => {
         const lastMsg = await Message.findOne({ group: group._id, deletedForMe: { $ne: req.user._id } })
           .sort({ createdAt: -1 })
           .populate('sender', 'username name');
 
+        const unreadCount = await Message.countDocuments({
+          group: group._id,
+          sender: { $ne: req.user._id },
+          readBy: { $ne: req.user._id },
+          deletedForMe: { $ne: req.user._id }
+        });
+
         return {
           ...group.toObject(),
+          unreadCount,
           lastMessage: lastMsg ? {
             _id: lastMsg._id,
             content: lastMsg.type === 'text' ? lastMsg.content : `📷 ${lastMsg.type.toUpperCase()}`,
@@ -90,6 +98,21 @@ exports.getUserGroups = async (req, res) => {
   } catch (err) {
     console.error('Get User Groups Error:', err);
     res.status(500).json({ message: 'Failed to fetch groups' });
+  }
+};
+
+// Mark all messages in a group as read for current user
+exports.markGroupMessagesRead = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    await Message.updateMany(
+      { group: groupId, sender: { $ne: req.user._id }, readBy: { $ne: req.user._id } },
+      { $addToSet: { readBy: req.user._id } }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Mark Group Read Error:', err);
+    res.status(500).json({ message: 'Failed to mark group messages read' });
   }
 };
 
@@ -332,5 +355,38 @@ exports.deleteGroupMessage = async (req, res) => {
   } catch (err) {
     console.error('Delete Group Message Error:', err);
     res.status(500).json({ message: 'Failed to delete group message' });
+  }
+};
+
+// Upload & update group avatar (RBAC: Admin or Moderator)
+exports.uploadGroupAvatar = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    if (!req.file) return res.status(400).json({ message: 'No image file uploaded' });
+
+    const group = await Group.findById(groupId);
+    if (!group) return res.status(404).json({ message: 'Group not found' });
+
+    const userRole = getMemberRole(group, req.user._id);
+    if (userRole !== 'Admin' && userRole !== 'Moderator') {
+      return res.status(403).json({ message: 'Permission denied: Only Admins or Moderators can update group avatar' });
+    }
+
+    group.avatar = req.file.path;
+    await group.save();
+
+    const updatedGroup = await Group.findById(groupId)
+      .populate('creator', 'username name avatar')
+      .populate('members.user', 'username name avatar isOnline lastSeen');
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`group_${groupId}`).emit('group_updated', updatedGroup);
+    }
+
+    res.json(updatedGroup);
+  } catch (err) {
+    console.error('Upload Group Avatar Error:', err);
+    res.status(500).json({ message: 'Failed to upload group avatar' });
   }
 };

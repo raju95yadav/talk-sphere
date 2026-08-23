@@ -147,6 +147,7 @@ export const CallProvider = ({ children }) => {
   const localStreamRef = useRef(null);
   const pendingCandidatesRef = useRef([]);
   const durationTimerRef = useRef(null);
+  const ringingTimeoutRef = useRef(null);
   const screenTrackRef = useRef(null);
 
   // Audio Analyser refs
@@ -229,6 +230,11 @@ export const CallProvider = ({ children }) => {
     ringtone.stop();
     stopAudioAnalyser();
     
+    if (ringingTimeoutRef.current) {
+      clearTimeout(ringingTimeoutRef.current);
+      ringingTimeoutRef.current = null;
+    }
+
     if (durationTimerRef.current) {
       clearInterval(durationTimerRef.current);
       durationTimerRef.current = null;
@@ -266,6 +272,16 @@ export const CallProvider = ({ children }) => {
     setDurationSec(0);
     pendingCandidatesRef.current = [];
   }, []);
+
+  // End Ongoing Call
+  const endCall = useCallback((notifyPeer = true) => {
+    const peerId = targetUser?._id || targetUser?.id || incomingCallData?.from;
+    if (notifyPeer && peerId && socket) {
+      socket.emit('end_call', { to: peerId });
+    }
+    resetCallState();
+    toast('Call ended');
+  }, [targetUser, incomingCallData, socket, resetCallState]);
 
   // Format seconds -> 00:00
   const formattedDuration = useCallback(() => {
@@ -307,13 +323,13 @@ export const CallProvider = ({ children }) => {
       console.log('[WebRTC] Connection state changed:', pc.connectionState);
       if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
         toast('Call connection terminated');
-        resetCallState();
+        endCall(true);
       }
     };
 
     pcRef.current = pc;
     return pc;
-  }, [socket, resetCallState]);
+  }, [socket, endCall]);
 
   // Handle incoming media stream
   const getMediaStream = async (audioOnly, audioDeviceId, videoDeviceId) => {
@@ -401,8 +417,20 @@ export const CallProvider = ({ children }) => {
       setIsCaller(true);
       setCallStatus('calling');
 
+      if (ringingTimeoutRef.current) {
+        clearTimeout(ringingTimeoutRef.current);
+      }
+
+      // 30-second ringing timeout for caller
+      ringingTimeoutRef.current = setTimeout(() => {
+        console.log('[WebRTC] Ringing timed out after 30s on caller side');
+        toast.error('Call unanswered (Timed out)');
+        endCall(true);
+      }, 30000);
+
+      const targetId = userToCall._id || userToCall.id;
       const stream = await getMediaStream(type === 'audio', selectedAudioInput, selectedVideoInput);
-      const pc = createPeerConnection(userToCall._id);
+      const pc = createPeerConnection(targetId);
 
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
@@ -410,7 +438,7 @@ export const CallProvider = ({ children }) => {
       await pc.setLocalDescription(offer);
 
       socket.emit('call_user', {
-        userToCall: userToCall._id,
+        userToCall: targetId,
         signalData: offer,
         from: currentUserId,
         callerName: user?.username || user?.name || 'User',
@@ -477,16 +505,6 @@ export const CallProvider = ({ children }) => {
     toast('Call declined');
   };
 
-  // End Ongoing Call
-  const endCall = useCallback((notifyPeer = true) => {
-    const peerId = targetUser?._id || incomingCallData?.from;
-    if (notifyPeer && peerId && socket) {
-      socket.emit('end_call', { to: peerId });
-    }
-    resetCallState();
-    toast('Call ended');
-  }, [targetUser, incomingCallData, socket, resetCallState]);
-
   // Toggle Microphone
   const toggleAudio = () => {
     if (localStreamRef.current) {
@@ -496,7 +514,7 @@ export const CallProvider = ({ children }) => {
         const newMutedState = !audioTrack.enabled;
         setIsMuted(newMutedState);
 
-        const peerId = targetUser?._id || incomingCallData?.from;
+        const peerId = targetUser?._id || targetUser?.id || incomingCallData?.from;
         if (socket && peerId) {
           socket.emit('toggle_media', { to: peerId, isMuted: newMutedState, isVideoOff });
         }
@@ -513,7 +531,7 @@ export const CallProvider = ({ children }) => {
       const newVideoOffState = !videoTrack.enabled;
       setIsVideoOff(newVideoOffState);
 
-      const peerId = targetUser?._id || incomingCallData?.from;
+      const peerId = targetUser?._id || targetUser?.id || incomingCallData?.from;
       if (socket && peerId) {
         socket.emit('toggle_media', { to: peerId, isMuted, isVideoOff: newVideoOffState });
       }
@@ -529,7 +547,7 @@ export const CallProvider = ({ children }) => {
           pc.addTrack(newVideoTrack, localStreamRef.current);
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
-          const peerId = targetUser?._id || incomingCallData?.from;
+          const peerId = targetUser?._id || targetUser?.id || incomingCallData?.from;
           if (socket && peerId) {
             socket.emit('call_user', {
               userToCall: peerId,
@@ -615,6 +633,14 @@ export const CallProvider = ({ children }) => {
     const handleCallAccepted = async (data) => {
       console.log('[WebRTC] Call accepted by remote peer');
       ringtone.stop();
+
+      // Immediately clear caller-side ringing timeout
+      if (ringingTimeoutRef.current) {
+        clearTimeout(ringingTimeoutRef.current);
+        ringingTimeoutRef.current = null;
+        console.log('[WebRTC] Ringing timeout cleared on caller side');
+      }
+
       setCallStatus('connected');
       
       if (pcRef.current) {
@@ -673,6 +699,9 @@ export const CallProvider = ({ children }) => {
 
     socket.on('incoming_call', handleIncomingCall);
     socket.on('call_accepted', handleCallAccepted);
+    socket.on('call-accepted', handleCallAccepted);
+    socket.on('call_answered', handleCallAccepted);
+    socket.on('call-answered', handleCallAccepted);
     socket.on('ice_candidate', handleIceCandidate);
     socket.on('call_rejected', handleCallRejected);
     socket.on('call_ended', handleCallEnded);
@@ -684,6 +713,9 @@ export const CallProvider = ({ children }) => {
     return () => {
       socket.off('incoming_call', handleIncomingCall);
       socket.off('call_accepted', handleCallAccepted);
+      socket.off('call-accepted', handleCallAccepted);
+      socket.off('call_answered', handleCallAccepted);
+      socket.off('call-answered', handleCallAccepted);
       socket.off('ice_candidate', handleIceCandidate);
       socket.off('call_rejected', handleCallRejected);
       socket.off('call_ended', handleCallEnded);
@@ -692,7 +724,7 @@ export const CallProvider = ({ children }) => {
       socket.off('dismiss_incoming_call', handleDismissIncomingCall);
       socket.off('peer_media_toggle', handlePeerMediaToggle);
     };
-  }, [socket, callStatus, resetCallState, startDurationTimer]);
+  }, [socket, callStatus, isCaller, resetCallState, startDurationTimer]);
 
   return (
     <CallContext.Provider value={{

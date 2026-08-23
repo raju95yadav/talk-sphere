@@ -11,6 +11,8 @@ import WaveSurfer from 'wavesurfer.js';
 import { useTheme } from '../context/ThemeContext';
 
 
+const emojis = ['❤️', '👍', '😂', '😮', '😢', '🔥', '👏', '🎉'];
+
 const formatTime = (time) => {
   const minutes = Math.floor(time / 60);
   const seconds = Math.floor(time % 60);
@@ -141,6 +143,26 @@ const ChatSection = () => {
   const [addMemberSelectedIds, setAddMemberSelectedIds] = useState([]);
   const [groupTypingUsers, setGroupTypingUsers] = useState({});
   const selectedGroupRef = useRef(null);
+  const groupAvatarInputRef = useRef(null);
+
+  const handleGroupAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !selectedGroup) return;
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    try {
+      const res = await apiClient.post(`/api/groups/${selectedGroup._id}/avatar`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setSelectedGroup(res.data);
+      setGroups(prev => prev.map(g => (g._id || g.id)?.toString() === res.data._id?.toString() ? res.data : g));
+      toast.success('Group Profile Picture Updated!');
+    } catch (err) {
+      toast.error('Failed to update group avatar');
+    }
+  };
 
   useEffect(() => {
     selectedGroupRef.current = selectedGroup;
@@ -312,6 +334,25 @@ const ChatSection = () => {
     return m ? m.role : 'Member';
   };
 
+  const getOnlineGroupMembersCount = (group) => {
+    if (!group || !group.members) return 0;
+    return group.members.filter(m => {
+      const u = m.user;
+      if (!u) return false;
+      const memId = (u._id || u).toString();
+      return u.isOnline || conversations.some(c => c.user._id?.toString() === memId && c.user.isOnline) || allUsers.some(au => au._id?.toString() === memId && au.isOnline);
+    }).length;
+  };
+
+  const getTypingMemberName = (group) => {
+    if (!group || !group._id || !groupTypingUsers[(group._id || group.id).toString()]) return null;
+    const groupTypingMap = groupTypingUsers[(group._id || group.id).toString()];
+    const typingIds = Object.keys(groupTypingMap).filter(id => groupTypingMap[id] && id !== currentUserId?.toString());
+    if (typingIds.length === 0) return null;
+    const member = group.members?.find(m => (m.user?._id || m.user)?.toString() === typingIds[0]);
+    return member?.user?.username || member?.user?.name || 'Member';
+  };
+
   const fetchGroups = async () => {
     try {
       const res = await apiClient.get('/api/groups');
@@ -354,13 +395,16 @@ const ChatSection = () => {
 
   useEffect(() => {
     if (selectedGroup) {
+      const gId = (selectedGroup._id || selectedGroup.id)?.toString();
       setSelectedContact(null);
-      fetchGroupHistory(selectedGroup._id);
+      fetchGroupHistory(gId);
       setIsTyping(false);
       isEmittingTypingRef.current = false;
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      apiClient.put(`/api/groups/${gId}/read`).catch(() => {});
+      setGroups(prev => prev.map(g => (g._id || g.id)?.toString() === gId ? { ...g, unreadCount: 0 } : g));
       if (socket) {
-        socket.emit('join_group_room', { groupId: selectedGroup._id });
+        socket.emit('join_group_room', { groupId: gId });
       }
     }
   }, [selectedGroup]);
@@ -562,7 +606,8 @@ const ChatSection = () => {
       // Group Socket Listeners
       socket.on('receive_group_message', (data) => {
         const currGroup = selectedGroupRef.current;
-        if (currGroup && currGroup._id.toString() === data.groupId.toString()) {
+        const targetGId = (data.groupId || data.group)?.toString();
+        if (currGroup && (currGroup._id || currGroup.id)?.toString() === targetGId) {
           setChatHistory(prev => {
             if (prev.some(m => m._id === data._id || (m.tempId && m.tempId === data.tempId))) return prev;
             return [...prev, {
@@ -570,8 +615,20 @@ const ChatSection = () => {
               isSent: (data.sender?._id || data.sender).toString() === currentUserId?.toString()
             }];
           });
+          apiClient.put(`/api/groups/${targetGId}/read`).catch(() => {});
         } else {
-          toast(`Group Message: ${data.content.slice(0, 30)}`, { icon: '👥' });
+          toast(`Group Message: ${data.content?.slice(0, 30) || 'Media'}`, { icon: '👥' });
+          setGroups(prev => prev.map(g => (g._id || g.id)?.toString() === targetGId ? {
+            ...g,
+            unreadCount: (g.unreadCount || 0) + 1,
+            lastMessage: {
+              _id: data._id,
+              content: data.content,
+              type: data.type,
+              sender: data.sender,
+              createdAt: data.createdAt
+            }
+          } : g));
         }
         fetchGroups();
       });
@@ -590,6 +647,20 @@ const ChatSection = () => {
         fetchGroups();
       });
 
+      socket.on('group_message_reaction', ({ messageId, groupId, reactions }) => {
+        const currGroup = selectedGroupRef.current;
+        if (currGroup && (currGroup._id || currGroup.id)?.toString() === (groupId)?.toString()) {
+          setChatHistory(prev => prev.map(m => (m._id || m.id)?.toString() === messageId?.toString() ? { ...m, reactions } : m));
+        }
+      });
+
+      socket.on('group_message_edited', ({ messageId, groupId, content, editedAt }) => {
+        const currGroup = selectedGroupRef.current;
+        if (currGroup && (currGroup._id || currGroup.id)?.toString() === (groupId)?.toString()) {
+          setChatHistory(prev => prev.map(m => (m._id || m.id)?.toString() === messageId?.toString() ? { ...m, content, isEdited: true, editedAt } : m));
+        }
+      });
+
       socket.on('added_to_group', (groupData) => {
         toast.success(`You were added to group "${groupData.name}"`);
         socket.emit('join_group_room', { groupId: groupData._id });
@@ -597,15 +668,16 @@ const ChatSection = () => {
       });
 
       socket.on('group_updated', (updatedGroup) => {
-        setGroups(prev => prev.map(g => g._id === updatedGroup._id ? updatedGroup : g));
-        if (selectedGroupRef.current && selectedGroupRef.current._id === updatedGroup._id) {
+        setGroups(prev => prev.map(g => (g._id || g.id)?.toString() === updatedGroup._id?.toString() ? updatedGroup : g));
+        if (selectedGroupRef.current && (selectedGroupRef.current._id || selectedGroupRef.current.id)?.toString() === updatedGroup._id?.toString()) {
           setSelectedGroup(updatedGroup);
         }
       });
 
       socket.on('group_message_deleted', ({ messageId, groupId }) => {
-        if (selectedGroupRef.current && selectedGroupRef.current._id === groupId) {
-          setChatHistory(prev => prev.map(m => m._id === messageId ? {
+        const currGroup = selectedGroupRef.current;
+        if (currGroup && (currGroup._id || currGroup.id)?.toString() === (groupId)?.toString()) {
+          setChatHistory(prev => prev.map(m => (m._id || m.id)?.toString() === messageId?.toString() ? {
             ...m,
             content: 'This message was deleted',
             deletedForEveryone: true,
@@ -617,7 +689,8 @@ const ChatSection = () => {
       });
 
       socket.on('group_typing', ({ groupId, senderId }) => {
-        if (selectedGroupRef.current && selectedGroupRef.current._id === groupId && senderId !== currentUserId) {
+        const currGroup = selectedGroupRef.current;
+        if (currGroup && (currGroup._id || currGroup.id)?.toString() === (groupId)?.toString() && senderId !== currentUserId) {
           setIsTyping(true);
         }
         setGroupTypingUsers(prev => ({
@@ -627,7 +700,8 @@ const ChatSection = () => {
       });
 
       socket.on('group_stop_typing', ({ groupId, senderId }) => {
-        if (selectedGroupRef.current && selectedGroupRef.current._id === groupId && senderId !== currentUserId) {
+        const currGroup = selectedGroupRef.current;
+        if (currGroup && (currGroup._id || currGroup.id)?.toString() === (groupId)?.toString() && senderId !== currentUserId) {
           setIsTyping(false);
         }
         setGroupTypingUsers(prev => ({
@@ -639,7 +713,7 @@ const ChatSection = () => {
       socket.on('removed_from_group', ({ groupId, groupName }) => {
         toast.error(`You were removed from ${groupName}`);
         fetchGroups();
-        if (selectedGroupRef.current && selectedGroupRef.current._id === groupId) {
+        if (selectedGroupRef.current && (selectedGroupRef.current._id || selectedGroupRef.current.id)?.toString() === (groupId)?.toString()) {
           setSelectedGroup(null);
         }
       });
@@ -660,6 +734,8 @@ const ChatSection = () => {
         socket.off('new_friend_request');
         socket.off('receive_group_message');
         socket.off('group_message_sent');
+        socket.off('group_message_reaction');
+        socket.off('group_message_edited');
         socket.off('added_to_group');
         socket.off('group_updated');
         socket.off('group_message_deleted');
@@ -919,13 +995,20 @@ const ChatSection = () => {
     const tempId = 'upload-' + Date.now();
     const localUrl = URL.createObjectURL(file);
 
-    // Optimistic media bubble rendered immediately
+    const isGroup = !!selectedGroup;
+    const targetId = isGroup ? selectedGroup._id : selectedContact?._id;
+    if (!targetId) return;
+
     const optimisticMsg = {
       _id: tempId,
-      sender: currentUserId,
-      senderName: user?.username || user?.name || 'User',
-      senderAvatar: user?.avatar,
-      receiver: selectedContact._id,
+      sender: isGroup ? {
+        _id: currentUserId,
+        username: user?.username || user?.name || 'User',
+        name: user?.name || 'User',
+        avatar: user?.avatar
+      } : currentUserId,
+      groupId: isGroup ? selectedGroup._id : null,
+      receiver: isGroup ? null : selectedContact?._id,
       content: localUrl,
       type: 'audio',
       fileName: 'Voice Note',
@@ -958,23 +1041,33 @@ const ChatSection = () => {
         }
       });
       
-      const msgData = {
-        senderId: currentUserId,
-        receiverId: selectedContact._id,
-        content: res.data.url,
-        type: 'audio',
-        fileName: 'Voice Note',
-        fileSize: res.data.size,
-        repliedTo: optimisticMsg.repliedTo?._id || null,
-        tempId
-      };
-
-      if (!isConnected) {
-        setChatHistory(prev => prev.map(m => m._id === tempId ? { ...m, status: 'failed' } : m));
-        return;
+      if (isGroup) {
+        socket.emit('send_group_message', {
+          groupId: selectedGroup._id,
+          content: res.data.url,
+          type: 'audio',
+          fileName: 'Voice Note',
+          fileSize: res.data.size,
+          repliedTo: optimisticMsg.repliedTo?._id || null,
+          tempId
+        });
+      } else {
+        const msgData = {
+          senderId: currentUserId,
+          receiverId: selectedContact._id,
+          content: res.data.url,
+          type: 'audio',
+          fileName: 'Voice Note',
+          fileSize: res.data.size,
+          repliedTo: optimisticMsg.repliedTo?._id || null,
+          tempId
+        };
+        if (!isConnected) {
+          setChatHistory(prev => prev.map(m => m._id === tempId ? { ...m, status: 'failed' } : m));
+          return;
+        }
+        socket.emit('send_message', msgData);
       }
-
-      socket.emit('send_message', msgData);
       setChatHistory(prev => prev.map(m => m._id === tempId ? { ...m, content: res.data.url, status: 'sending' } : m));
     } catch (err) {
       setChatHistory(prev => prev.map(m => m._id === tempId ? { ...m, status: 'failed' } : m));
@@ -992,8 +1085,9 @@ const ChatSection = () => {
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
-    if (!file || !selectedContact) return;
+    if (!file || (!selectedContact && !selectedGroup)) return;
 
+    const isGroup = !!selectedGroup;
     const tempId = 'upload-' + Date.now();
     const type = file.type.startsWith('image/') ? 'image' : 
                  file.type.startsWith('video/') ? 'video' :
@@ -1002,10 +1096,14 @@ const ChatSection = () => {
     const localUrl = URL.createObjectURL(file);
     const optimisticMsg = {
       _id: tempId,
-      sender: currentUserId,
-      senderName: user?.username || user?.name || 'User',
-      senderAvatar: user?.avatar,
-      receiver: selectedContact._id,
+      sender: isGroup ? {
+        _id: currentUserId,
+        username: user?.username || user?.name || 'User',
+        name: user?.name || 'User',
+        avatar: user?.avatar
+      } : currentUserId,
+      groupId: isGroup ? selectedGroup._id : null,
+      receiver: isGroup ? null : selectedContact?._id,
       content: localUrl,
       type,
       fileName: file.name,
@@ -1038,23 +1136,33 @@ const ChatSection = () => {
         }
       });
       
-      const msgData = {
-        senderId: currentUserId,
-        receiverId: selectedContact._id,
-        content: res.data.url,
-        type: res.data.type,
-        fileName: res.data.name,
-        fileSize: res.data.size,
-        repliedTo: optimisticMsg.repliedTo?._id || null,
-        tempId
-      };
-
-      if (!isConnected) {
-        setChatHistory(prev => prev.map(m => m._id === tempId ? { ...m, status: 'failed' } : m));
-        return;
+      if (isGroup) {
+        socket.emit('send_group_message', {
+          groupId: selectedGroup._id,
+          content: res.data.url,
+          type: res.data.type,
+          fileName: res.data.name,
+          fileSize: res.data.size,
+          repliedTo: optimisticMsg.repliedTo?._id || null,
+          tempId
+        });
+      } else {
+        const msgData = {
+          senderId: currentUserId,
+          receiverId: selectedContact._id,
+          content: res.data.url,
+          type: res.data.type,
+          fileName: res.data.name,
+          fileSize: res.data.size,
+          repliedTo: optimisticMsg.repliedTo?._id || null,
+          tempId
+        };
+        if (!isConnected) {
+          setChatHistory(prev => prev.map(m => m._id === tempId ? { ...m, status: 'failed' } : m));
+          return;
+        }
+        socket.emit('send_message', msgData);
       }
-
-      socket.emit('send_message', msgData);
       setChatHistory(prev => prev.map(m => m._id === tempId ? { ...m, content: res.data.url, status: 'sending' } : m));
       toast.success(`${res.data.type === 'image' ? 'Image' : res.data.type === 'video' ? 'Video' : 'File'} Transmitted`);
     } catch (err) {
@@ -1065,32 +1173,60 @@ const ChatSection = () => {
     }
   };
 
+  const handleReact = (msgId, emoji) => {
+    if (selectedGroup) {
+      socket?.emit('react_to_group_message', { messageId: msgId, groupId: selectedGroup._id, emoji, userId: currentUserId });
+    } else if (selectedContact) {
+      socket?.emit('react_to_message', { messageId: msgId, emoji, userId: currentUserId, receiverId: selectedContact._id });
+    }
+    setShowEmojiPicker(null);
+  };
+
   const handleDeleteMessage = (msgId, type) => {
-    socket.emit('delete_message', { messageId: msgId, receiverId: selectedContact._id, type });
-    if (type === 'me') {
-      setChatHistory(prev => prev.filter(m => m._id !== msgId));
-    } else {
-      setChatHistory(prev => prev.map(m => m._id === msgId ? { ...m, content: 'This message was deleted', deletedForEveryone: true, fileName: null, fileSize: null, type: 'text' } : m));
+    if (selectedGroup) {
+      socket?.emit('delete_group_message', { messageId: msgId, groupId: selectedGroup._id, type });
+      if (type === 'me') {
+        setChatHistory(prev => prev.filter(m => m._id !== msgId));
+      } else {
+        setChatHistory(prev => prev.map(m => m._id === msgId ? { ...m, content: 'This message was deleted', deletedForEveryone: true, fileName: null, fileSize: null, type: 'text' } : m));
+      }
+    } else if (selectedContact) {
+      socket?.emit('delete_message', { messageId: msgId, receiverId: selectedContact._id, type });
+      if (type === 'me') {
+        setChatHistory(prev => prev.filter(m => m._id !== msgId));
+      } else {
+        setChatHistory(prev => prev.map(m => m._id === msgId ? { ...m, content: 'This message was deleted', deletedForEveryone: true, fileName: null, fileSize: null, type: 'text' } : m));
+      }
     }
     toast.success('Message Deleted');
   };
 
-  const handleForwardMessage = (contact) => {
-    if (!forwardingMessage) return;
+  const handleForwardMessage = (target) => {
+    if (!forwardingMessage || !socket) return;
 
-    const msgData = {
-      senderId: currentUserId,
-      receiverId: contact._id,
-      content: forwardingMessage.content,
-      type: forwardingMessage.type,
-      fileName: forwardingMessage.fileName,
-      fileSize: forwardingMessage.fileSize,
-      isForwarded: true
-    };
-
-    socket.emit('send_message', msgData);
+    if (target.isGroup || target.members) {
+      socket.emit('send_group_message', {
+        groupId: target._id,
+        content: forwardingMessage.content,
+        type: forwardingMessage.type,
+        fileName: forwardingMessage.fileName,
+        fileSize: forwardingMessage.fileSize,
+        isForwarded: true
+      });
+      toast.success(`Message forwarded to ${target.name}`);
+    } else {
+      socket.emit('send_message', {
+        senderId: currentUserId,
+        receiverId: target._id || target.id,
+        content: forwardingMessage.content,
+        type: forwardingMessage.type,
+        fileName: forwardingMessage.fileName,
+        fileSize: forwardingMessage.fileSize,
+        isForwarded: true
+      });
+      toast.success(`Message forwarded to ${target.username || target.name}`);
+    }
     setForwardingMessage(null);
-    toast.success(`Message forwarded to ${contact.username || contact.name}`);
   };
 
   const handleClearChat = async () => {
@@ -1218,6 +1354,7 @@ const ChatSection = () => {
         exit={{ opacity: 0, scale: 0.9 }}
         className="fixed inset-0 z-[60] bg-bg-main flex flex-col overflow-hidden"
       >
+        {/* Group Chat Header */}
         <div className="p-4 pt-[calc(16px+env(safe-area-inset-top))] border-b border-border-main flex items-center justify-between bg-bg-card/80 backdrop-blur-md relative z-50">
           <div className="flex items-center gap-3">
             <button onClick={() => {
@@ -1253,15 +1390,42 @@ const ChatSection = () => {
                 </span>
               </h4>
               <p className="text-xs text-text-muted mt-0.5 font-bold uppercase tracking-wider">
-                {isTyping ? (
-                  <span className="text-accent-primary animate-pulse">Someone is typing...</span>
+                {getTypingMemberName(selectedGroup) ? (
+                  <span className="inline-flex items-center gap-1.5 text-accent-primary font-extrabold normal-case text-xs tracking-normal">
+                    <span>{getTypingMemberName(selectedGroup)} is typing</span>
+                    <span className="inline-flex items-center gap-0.5">
+                      <span className="w-1 h-1 rounded-full bg-accent-primary animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                      <span className="w-1 h-1 rounded-full bg-accent-primary animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                      <span className="w-1 h-1 rounded-full bg-accent-primary animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                    </span>
+                  </span>
                 ) : (
-                  `${selectedGroup.members?.length || 0} Members • Group Transmission`
+                  `${selectedGroup.members?.length || 0} Members • ${getOnlineGroupMembersCount(selectedGroup)} Online`
                 )}
               </p>
             </div>
           </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-1 items-center">
+            {/* Group WebRTC Audio Call Button */}
+            <button 
+              onClick={() => startCall({ _id: selectedGroup._id, username: selectedGroup.name, avatar: selectedGroup.avatar, isGroup: true }, 'audio')}
+              disabled={callStatus !== 'idle'}
+              title="Start Encrypted Group Audio Call"
+              className="p-2.5 rounded-full dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-emerald-400 transition-all disabled:opacity-30 cursor-pointer active:scale-95"
+            >
+              <Phone size={18} />
+            </button>
+
+            {/* Group WebRTC Video Call Button */}
+            <button 
+              onClick={() => startCall({ _id: selectedGroup._id, username: selectedGroup.name, avatar: selectedGroup.avatar, isGroup: true }, 'video')}
+              disabled={callStatus !== 'idle'}
+              title="Start Encrypted Group Video Call"
+              className="p-2.5 rounded-full dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-accent-primary transition-all disabled:opacity-30 cursor-pointer active:scale-95"
+            >
+              <Video size={18} />
+            </button>
+
             <button 
               onClick={() => setShowGroupInfoModal(true)}
               className="p-2.5 rounded-xl bg-accent-primary/10 text-accent-primary hover:bg-accent-primary hover:text-white transition-all flex items-center gap-1.5 text-xs font-bold cursor-pointer"
@@ -1303,26 +1467,106 @@ const ChatSection = () => {
                         ? 'bg-gradient-to-br from-accent-primary to-accent-primary/80 text-white rounded-br-sm shadow-accent-primary/20' 
                         : 'bg-bg-card-secondary text-text-main rounded-bl-sm border border-border-main'
                     }`}>
-                      <p className={`text-[15px] font-normal leading-relaxed break-words ${msg.deletedForEveryone ? 'italic opacity-50' : ''}`}>{msg.content}</p>
+
+                      {/* Replying to Preview inside bubble */}
+                      {msg.repliedTo && (
+                        <div className="mb-2 p-2 rounded-xl bg-black/20 border-l-2 border-accent-primary text-left text-xs opacity-90">
+                          <p className="font-extrabold text-[10px] uppercase text-accent-primary">Replying to message</p>
+                          <p className="truncate opacity-80">{msg.repliedTo.content || 'Media'}</p>
+                        </div>
+                      )}
+
+                      {/* Forwarded Tag */}
+                      {msg.isForwarded && (
+                        <div className="flex items-center gap-1 opacity-70 mb-1">
+                          <Forward size={10} className="italic" />
+                          <span className="text-[9px] font-black uppercase italic tracking-widest">Forwarded</span>
+                        </div>
+                      )}
+
+                      {/* Message Content Type Branching */}
+                      {msg.type === 'image' ? (
+                        <div className="overflow-hidden rounded-xl cursor-pointer my-1 group/img relative" onClick={() => setSelectedImage(msg.content)}>
+                          <img src={msg.content} className="max-w-full max-h-72 object-cover rounded-xl transition-transform duration-300 group-hover/img:scale-105" alt="Group Media" />
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                            <Maximize2 size={20} className="text-white drop-shadow-md" />
+                          </div>
+                        </div>
+                      ) : msg.type === 'video' ? (
+                        <div className="overflow-hidden rounded-xl my-1 max-w-full">
+                          <video src={msg.content} controls className="max-w-full max-h-72 rounded-xl" />
+                        </div>
+                      ) : msg.type === 'audio' ? (
+                        <VoiceNotePlayer src={msg.content} isDarkMode={true} />
+                      ) : msg.type === 'file' || msg.type === 'document' ? (
+                        <div className="flex items-center gap-3 p-2 bg-black/20 rounded-xl my-1 border border-white/10">
+                           <div className="p-2.5 bg-accent-primary/20 rounded-lg text-accent-primary flex-shrink-0">
+                              <FileText size={20} />
+                           </div>
+                           <div className="text-left overflow-hidden flex-1">
+                             <p className="text-sm font-bold truncate leading-tight">{msg.fileName || 'Document'}</p>
+                             <p className="text-[10px] opacity-50 uppercase font-black mt-0.5">{msg.fileSize || 'File'}</p>
+                           </div>
+                           <a href={msg.content} target="_blank" rel="noreferrer" download={msg.fileName} className="p-2 dark:hover:bg-white/10 hover:bg-black/5 rounded-full transition-colors flex-shrink-0">
+                             <Download size={16} className="text-text-main" />
+                           </a>
+                        </div>
+                      ) : (
+                        <p className={`text-[15px] font-normal leading-relaxed break-words ${msg.deletedForEveryone ? 'italic opacity-50' : ''}`}>{msg.content}</p>
+                      )}
 
                       <div className="flex items-center justify-end gap-2 mt-1">
+                        {msg.isEdited && <p className="text-[7px] font-bold uppercase opacity-30 italic">Edited</p>}
                         <p className="text-[9px] font-bold uppercase opacity-40">
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
+
+                      {/* Emoji Reactions */}
+                      {msg.reactions && msg.reactions.length > 0 && (
+                        <div className="absolute -bottom-2 right-2 flex -space-x-1">
+                          {msg.reactions.map((r, ri) => (
+                            <span key={ri} className="text-[10px] bg-bg-card rounded-full px-1.5 py-0.5 border border-border-main shadow-lg" title={r.emoji}>{r.emoji}</span>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
+                    {/* Options Bar on Hover */}
                     {!msg.deletedForEveryone && (
                       <div className={`absolute top-1/2 -translate-y-1/2 ${msg.isSent ? 'right-full mr-2' : 'left-full ml-2'} opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 bg-bg-card/90 border border-border-main rounded-xl p-1 shadow-xl z-20`}>
+                        <button onClick={() => setReplyingTo(msg)} title="Reply" className="p-1.5 hover:bg-accent-primary/20 text-text-muted hover:text-text-main rounded-lg transition-colors">
+                          <Reply size={14} />
+                        </button>
+                        <button onClick={() => setForwardingMessage(msg)} title="Forward" className="p-1.5 hover:bg-accent-primary/20 text-text-muted hover:text-text-main rounded-lg transition-colors">
+                          <Forward size={14} />
+                        </button>
+                        <button onClick={() => setShowEmojiPicker(msg._id)} title="React" className="p-1.5 hover:bg-accent-primary/20 text-text-muted hover:text-text-main rounded-lg transition-colors">
+                          <Smile size={14} />
+                        </button>
+                        {msg.isSent && msg.type === 'text' && (
+                          <button onClick={() => { setEditingMessage(msg); setMessage(msg.content); }} title="Edit" className="p-1.5 hover:bg-accent-primary/20 text-text-muted hover:text-text-main rounded-lg transition-colors">
+                            <Edit3 size={14} />
+                          </button>
+                        )}
+                        <button title="Delete for me" onClick={() => handleDeleteMessage(msg._id, 'me')} className="p-1.5 hover:bg-red-500/20 text-text-muted hover:text-red-500 rounded-lg transition-colors">
+                          <Trash size={14} />
+                        </button>
                         {(msg.isSent || currentUserRole === 'Admin') && (
-                          <button 
-                            title="Delete globally for everyone (Admin)" 
-                            onClick={() => handleDeleteGroupMessage(msg._id)} 
-                            className="p-1.5 hover:bg-red-500/20 text-text-muted hover:text-red-500 rounded-lg transition-colors"
-                          >
+                          <button title="Delete for everyone" onClick={() => handleDeleteMessage(msg._id, 'everyone')} className="p-1.5 hover:bg-red-500/20 text-text-muted hover:text-red-500 rounded-lg transition-colors">
                             <Trash2 size={14} />
                           </button>
                         )}
+                      </div>
+                    )}
+
+                    {/* Emoji Picker Overlay */}
+                    {showEmojiPicker === msg._id && (
+                      <div className="absolute bottom-full mb-2 left-0 z-30 bg-bg-card border border-border-main p-2 rounded-2xl flex gap-2 shadow-2xl animate-in fade-in slide-in-from-bottom-2">
+                         {emojis.map(e => (
+                           <button key={e} onClick={() => handleReact(msg._id, e)} className="text-lg hover:scale-125 transition-transform">{e}</button>
+                         ))}
+                         <button onClick={() => setShowEmojiPicker(null)} className="p-1 dark:hover:bg-white/10 hover:bg-black/5 rounded-full text-text-muted"><X size={12}/></button>
                       </div>
                     )}
                   </div>
@@ -1333,19 +1577,66 @@ const ChatSection = () => {
           <div ref={scrollRef} />
         </div>
 
+        {/* Reply Context Bar */}
+        {replyingTo && (
+          <div className="px-4 py-3 bg-bg-card border-t border-border-main flex justify-between items-center animate-in slide-in-from-bottom-2">
+            <div className="flex items-center gap-3 border-l-4 border-accent-primary pl-3">
+              <Reply size={16} className="text-accent-primary" />
+              <div className="overflow-hidden">
+                <p className="text-[10px] font-black uppercase text-accent-primary">Replying in {selectedGroup.name}</p>
+                <p className="text-xs text-text-muted truncate max-w-md">{replyingTo.content || 'Media'}</p>
+              </div>
+            </div>
+            <button onClick={() => setReplyingTo(null)} className="p-1.5 dark:hover:bg-white/10 hover:bg-black/5 rounded-full text-text-muted transition-colors"><X size={18} /></button>
+          </div>
+        )}
+
         {/* Group Input Footer */}
-        <form onSubmit={handleSendMessage} className="p-3 pb-[calc(12px+env(safe-area-inset-bottom))] md:p-5 bg-bg-card/80 backdrop-blur-xl border-t border-border-main flex gap-2 items-center relative z-20">
-          <input 
-            type="text" 
-            value={message} 
-            onChange={handleTyping} 
-            placeholder={`Message ${selectedGroup.name}...`}
-            className="flex-1 bg-bg-card-secondary border border-border-main rounded-full px-5 py-3 text-sm text-text-main outline-none focus:border-accent-primary transition-all"
-          />
-          <button type="submit" disabled={!message.trim()} className="w-11 h-11 rounded-full bg-accent-primary text-white flex items-center justify-center shadow-lg hover:scale-105 transition-all">
-            <Send size={18} />
-          </button>
-        </form>
+        {isRecording ? (
+          <div className="p-3 pb-[calc(12px+env(safe-area-inset-bottom))] md:p-5 bg-bg-card/80 backdrop-blur-xl border-t border-border-main flex gap-2 md:gap-4 items-center relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
+            <button onClick={cancelRecording} className="p-2 md:p-3 rounded-full text-red-500 hover:bg-red-500/20 transition-all flex-shrink-0">
+              <Trash2 size={20} />
+            </button>
+            <div className="flex-1 flex items-center justify-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse"></div>
+              <span className="text-red-500 font-mono font-bold text-lg tracking-widest">{formatDuration(recordingDuration)}</span>
+              <span className="text-[10px] text-text-muted uppercase font-black tracking-widest ml-2">Recording Voice Note...</span>
+            </div>
+            <button onClick={stopRecording} className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-accent-primary text-white shadow-xl flex items-center justify-center transition-all flex-shrink-0 hover:scale-110 active:scale-95 shadow-accent-primary/20">
+              <Send size={18} className="ml-0.5" />
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSendMessage} className="p-3 pb-[calc(12px+env(safe-area-inset-bottom))] md:p-5 bg-bg-card/80 backdrop-blur-xl border-t border-border-main flex gap-2 md:gap-3 items-center relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
+            <input type="file" id="group-chat-file" className="hidden" onChange={handleFileUpload} />
+            <button type="button" onClick={() => document.getElementById('group-chat-file').click()} disabled={isUploading} className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-bg-card-secondary text-text-muted hover:text-text-main dark:hover:bg-white/10 hover:bg-black/5 flex items-center justify-center transition-all flex-shrink-0 relative overflow-hidden">
+              {isUploading ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-accent-primary/20">
+                  <span className="text-[8px] font-black text-white">{uploadProgress}%</span>
+                  <div className="absolute bottom-0 left-0 h-1 bg-accent-primary transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                </div>
+              ) : <Paperclip size={18} />}
+            </button>
+            <div className="flex-1 relative group">
+              <input 
+                type="text" 
+                value={message} 
+                onChange={handleTyping} 
+                placeholder={editingMessage ? "Update message..." : `Message ${selectedGroup.name}...`} 
+                className="w-full bg-bg-card-secondary border border-border-main group-focus-within:border-accent-primary/50 group-focus-within:bg-bg-card rounded-full px-5 py-3 md:py-3.5 text-sm font-medium text-text-main outline-none transition-all duration-300 placeholder:text-text-muted/50 shadow-inner" 
+              />
+            </div>
+            {message.trim() ? (
+              <button type="submit" disabled={!message.trim()} className="w-10 h-10 md:w-12 md:h-12 rounded-full text-white shadow-xl flex items-center justify-center transition-all flex-shrink-0 duration-300 bg-gradient-to-r from-accent-primary to-accent-primary/80 hover:scale-110 active:scale-95 shadow-accent-primary/20">
+                <Send size={18} className="ml-0.5" />
+              </button>
+            ) : (
+              <button type="button" onClick={startRecording} className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-bg-card-secondary text-text-muted hover:text-text-main dark:hover:bg-white/10 hover:bg-black/5 hover:scale-110 active:scale-95">
+                <Mic size={18} />
+              </button>
+            )}
+          </form>
+        )}
 
         {/* Render Group Info Modal */}
         {showGroupInfoModal && (
@@ -1361,9 +1652,25 @@ const ChatSection = () => {
               </div>
 
               <div className="flex items-center gap-4 bg-bg-card-secondary p-4 rounded-2xl border border-border-main">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center text-white font-black text-2xl overflow-hidden">
+                <div className="relative group w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center text-white font-black text-2xl overflow-hidden shadow-lg border border-border-main">
                   {selectedGroup.avatar ? <img src={selectedGroup.avatar} className="w-full h-full object-cover" /> : selectedGroup.name.slice(0, 2).toUpperCase()}
+                  {(currentUserRole === 'Admin' || currentUserRole === 'Moderator') && (
+                    <div 
+                      onClick={() => groupAvatarInputRef.current?.click()}
+                      className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all cursor-pointer"
+                      title="Change Group Profile Picture"
+                    >
+                      <Camera size={20} className="text-white" />
+                    </div>
+                  )}
                 </div>
+                <input 
+                  type="file" 
+                  ref={groupAvatarInputRef} 
+                  className="hidden" 
+                  accept="image/*" 
+                  onChange={handleGroupAvatarUpload} 
+                />
                 <div>
                   <h4 className="font-extrabold text-lg">{selectedGroup.name}</h4>
                   <p className="text-xs text-text-muted">{selectedGroup.description || 'No description set'}</p>
@@ -1463,7 +1770,7 @@ const ChatSection = () => {
                  {selectedContact.avatar ? (
                    <img src={selectedContact.avatar} className="w-full h-full object-cover" alt="avatar" />
                  ) : (
-                   <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedContact.username || selectedContact.name}`} alt="avatar" />
+                   <User size={22} className="text-accent-primary" />
                  )}
               </div>
               <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-bg-card ${selectedContact.isOnline ? 'bg-green-500' : 'bg-gray-500'}`}></div>
@@ -1816,7 +2123,7 @@ const ChatSection = () => {
                   {selectedContact.avatar ? (
                     <img src={selectedContact.avatar} className="w-full h-full object-cover" alt="avatar" />
                   ) : (
-                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedContact.username || selectedContact.name}`} alt="avatar" />
+                    <User size={22} className="text-accent-primary" />
                   )}
                 </div>
                 <div className="bg-bg-card-secondary text-text-main px-4 py-2.5 rounded-2xl rounded-bl-sm border border-border-main shadow-md flex items-center gap-2">
@@ -1880,7 +2187,7 @@ const ChatSection = () => {
                             {conv.user.avatar ? (
                               <img src={conv.user.avatar} className="w-full h-full object-cover" />
                             ) : (
-                              <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${conv.user.username || conv.user.name}`} />
+                              <User size={20} className="text-accent-primary" />
                             )}
                           </div>
                           <span className="font-bold text-sm flex-1">{conv.user.username || conv.user.name}</span>
@@ -2196,29 +2503,33 @@ const ChatSection = () => {
 
   return (
     <div className="glass-card flex flex-col h-full overflow-hidden">
-      <div className="p-6 border-b border-border-main space-y-4">
-        <div className="flex justify-between items-center">
-          <div className="flex bg-bg-card-secondary p-1 rounded-xl gap-1">
+      <div className="p-3.5 sm:p-5 md:p-6 border-b border-border-main space-y-4">
+        <div className="flex justify-between items-center gap-2">
+          <div className="flex bg-bg-card-secondary p-1 rounded-xl gap-1 min-w-0 flex-1 overflow-x-auto custom-scrollbar-none">
              <button 
                onClick={() => { setView('transmissions'); setSelectedGroup(null); }}
-               className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all ${view === 'transmissions' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
+               className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[9px] xs:text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${view === 'transmissions' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
              >
                Transmissions
              </button>
              <button 
                onClick={() => { setView('groups'); setSelectedContact(null); }}
-               className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1 ${view === 'groups' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
+               className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[9px] xs:text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 whitespace-nowrap ${view === 'groups' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
              >
-               Groups {groups.length > 0 && <span className="px-1.5 py-0.5 rounded-full bg-white/20 text-[8px]">{groups.length}</span>}
+               Groups {groups.reduce((acc, g) => acc + (g.unreadCount || 0), 0) > 0 ? (
+                 <span className="px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[8px] font-black animate-pulse">{groups.reduce((acc, g) => acc + (g.unreadCount || 0), 0)}</span>
+               ) : groups.length > 0 ? (
+                 <span className="px-1.5 py-0.5 rounded-full bg-white/20 text-[8px]">{groups.length}</span>
+               ) : null}
              </button>
              <button 
                onClick={() => { setView('discover'); setSelectedGroup(null); }}
-               className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all ${view === 'discover' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
+               className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[9px] xs:text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${view === 'discover' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
              >
                Discover
              </button>
           </div>
-          <button onClick={() => setIsSearching(!isSearching)} className={`p-2.5 rounded-xl transition-all ${isSearching ? 'bg-accent-primary text-white' : 'bg-accent-primary/10 text-accent-primary hover:bg-accent-primary/20'}`}>
+          <button onClick={() => setIsSearching(!isSearching)} className={`p-2 sm:p-2.5 rounded-xl transition-all shrink-0 ${isSearching ? 'bg-accent-primary text-white' : 'bg-accent-primary/10 text-accent-primary hover:bg-accent-primary/20'}`}>
             <Search size={18} />
           </button>
         </div>
@@ -2298,32 +2609,67 @@ const ChatSection = () => {
                 <p className="text-[10px] font-black uppercase tracking-widest">No groups joined</p>
               </div>
             ) : (
-              groups.map((g) => (
-                <motion.div 
-                  key={g._id}
-                  whileHover={{ x: 5 }}
-                  onClick={() => setSelectedGroup(g)}
-                  className="flex items-center justify-between p-4 rounded-2xl dark:hover:bg-white/5 hover:bg-black/5 transition-all cursor-pointer border border-transparent hover:border-border-main group"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-accent-primary/20 flex items-center justify-center border border-border-main overflow-hidden text-accent-primary font-black text-lg">
-                      {g.avatar ? <img src={g.avatar} className="w-full h-full object-cover" /> : g.name.slice(0, 2).toUpperCase()}
+              groups.map((g) => {
+                const gOnlineCount = getOnlineGroupMembersCount(g);
+                const typingName = getTypingMemberName(g);
+                const unread = g.unreadCount || 0;
+
+                return (
+                  <motion.div 
+                    key={g._id || g.id}
+                    whileHover={{ x: 5 }}
+                    onClick={() => setSelectedGroup(g)}
+                    className="flex items-center justify-between p-4 rounded-2xl dark:hover:bg-white/5 hover:bg-black/5 transition-all cursor-pointer border border-transparent hover:border-border-main group"
+                  >
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className="relative">
+                        <div className="w-12 h-12 rounded-2xl bg-accent-primary/20 flex items-center justify-center border border-border-main overflow-hidden text-accent-primary font-black text-lg shadow-xl">
+                          {g.avatar ? <img src={g.avatar} className="w-full h-full object-cover" /> : g.name?.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-[2.5px] border-bg-card ${gOnlineCount > 0 ? 'bg-green-500' : 'bg-gray-500'} shadow-lg`}></div>
+                      </div>
+                      <div className="overflow-hidden flex-1 min-w-0">
+                        <div className="flex justify-between items-baseline mb-0.5">
+                          <h4 className="font-bold text-sm tracking-tight truncate flex items-center gap-1.5">
+                            {g.name}
+                            <span className="text-[8px] font-black bg-accent-primary/10 text-accent-primary px-1.5 py-0.5 rounded-full">
+                              {g.members?.length} M
+                            </span>
+                          </h4>
+                          {g.lastMessage && (
+                            <span className="text-[10px] text-text-muted font-bold ml-2 flex-shrink-0">
+                              {new Date(g.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {typingName ? (
+                            <p className="text-[11px] font-bold text-accent-primary flex items-center gap-1.5 animate-pulse">
+                              <span>{typingName} is typing</span>
+                              <span className="inline-flex items-center gap-0.5">
+                                <span className="w-1 h-1 rounded-full bg-accent-primary animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                <span className="w-1 h-1 rounded-full bg-accent-primary animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                <span className="w-1 h-1 rounded-full bg-accent-primary animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                              </span>
+                            </p>
+                          ) : (
+                            <p className="text-[11px] text-text-muted truncate max-w-[180px]">
+                              {g.lastMessage ? `${g.lastMessage.sender?.username || 'Member'}: ${g.lastMessage.content}` : g.description || 'Group transmission'}
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-bold text-sm text-text-main flex items-center gap-2">
-                        {g.name}
-                        <span className="text-[8px] font-black bg-accent-primary/10 text-accent-primary px-1.5 py-0.5 rounded-full">
-                          {g.members?.length} M
-                        </span>
-                      </h4>
-                      <p className="text-[11px] text-text-muted truncate max-w-[160px]">
-                        {g.lastMessage ? `${g.lastMessage.sender?.username || 'Member'}: ${g.lastMessage.content}` : g.description || 'Group transmission'}
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronDown size={16} className="text-text-muted -rotate-90 group-hover:text-accent-primary transition-all" />
-                </motion.div>
-              ))
+                    {unread > 0 ? (
+                      <div className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center shadow-lg shadow-red-500/40 animate-in zoom-in-50 ml-2 flex-shrink-0">
+                        {unread > 99 ? '99+' : unread}
+                      </div>
+                    ) : (
+                      <ChevronDown size={16} className="text-text-muted -rotate-90 group-hover:text-accent-primary transition-all ml-2 flex-shrink-0" />
+                    )}
+                  </motion.div>
+                );
+              })
             )}
           </div>
         ) : view === 'transmissions' ? (
@@ -2349,7 +2695,7 @@ const ChatSection = () => {
                        {conv.user.avatar ? (
                          <img src={conv.user.avatar} className="w-full h-full object-cover" alt="avatar" />
                        ) : (
-                         <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${conv.user.username || conv.user.name}`} alt="avatar" />
+                         <User size={26} className="text-accent-primary" />
                        )}
                     </div>
                     <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-[3px] border-bg-card ${conv.user.isOnline ? 'bg-green-500' : 'bg-gray-500'} shadow-lg`}></div>
@@ -2432,7 +2778,7 @@ const ChatSection = () => {
                          {u.avatar ? (
                            <img src={u.avatar} className="w-full h-full object-cover" alt="avatar" />
                          ) : (
-                           <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${u.username || u.name}`} alt="avatar" />
+                           <User size={24} className="text-accent-primary" />
                          )}
                       </div>
                       <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-[3px] border-bg-card ${u.isOnline ? 'bg-green-500' : 'bg-gray-500'} shadow-lg`}></div>
