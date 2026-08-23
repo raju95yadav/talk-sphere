@@ -120,17 +120,25 @@ const NoteSection = () => {
   const handleStartShare = (note) => {
     setSharingNote(note);
     setShareSearch('');
+    setUsers([]);
+    setShareLoading(false);
+  };
+
+  const handleShareSearchChange = async (val) => {
+    setShareSearch(val);
+    if (!val || !val.trim()) {
+      setUsers([]);
+      return;
+    }
     setShareLoading(true);
-    apiClient.get('/api/users')
-      .then(res => {
-        setUsers(res.data);
-      })
-      .catch(() => {
-        toast.error('Failed to load users list');
-      })
-      .finally(() => {
-        setShareLoading(false);
-      });
+    try {
+      const res = await apiClient.get(`/api/users?search=${encodeURIComponent(val.trim())}`);
+      setUsers(res.data);
+    } catch (err) {
+      console.error('Share search failed');
+    } finally {
+      setShareLoading(false);
+    }
   };
 
   const handleCancelShare = () => {
@@ -148,10 +156,7 @@ const NoteSection = () => {
     }
   };
 
-  const filteredUsers = users.filter(u => 
-    u.name?.toLowerCase().includes(shareSearch.toLowerCase()) ||
-    u.username?.toLowerCase().includes(shareSearch.toLowerCase())
-  );
+  const filteredUsers = users;
 
   return (
     <div className="glass-card flex flex-col h-full overflow-hidden p-6 relative">
@@ -299,9 +304,9 @@ const NoteSection = () => {
 
             <input 
               type="text" 
-              placeholder="SEARCH USER..."
+              placeholder="ENTER EXACT USERNAME OR GMAIL..."
               value={shareSearch}
-              onChange={(e) => setShareSearch(e.target.value)}
+              onChange={(e) => handleShareSearchChange(e.target.value)}
               className="w-full bg-bg-card-secondary border border-border-main rounded-xl px-4 py-2 text-xs text-text-main placeholder-text-muted focus:border-accent-primary outline-none transition-all uppercase tracking-wider font-bold mb-4"
             />
 

@@ -110,6 +110,22 @@ const ChatSection = () => {
   const [allUsers, setAllUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [groupSearchQuery, setGroupSearchQuery] = useState('');
+  const [groupSearchResults, setGroupSearchResults] = useState([]);
+
+  const handleGroupUserSearch = async (val) => {
+    setGroupSearchQuery(val);
+    if (!val || !val.trim()) {
+      setGroupSearchResults([]);
+      return;
+    }
+    try {
+      const res = await apiClient.get(`/api/users?search=${encodeURIComponent(val.trim())}`);
+      setGroupSearchResults(res.data);
+    } catch (err) {
+      console.error('Group user search failed');
+    }
+  };
   const [isUploading, setIsUploading] = useState(false);
   const [view, setView] = useState('transmissions'); 
   const [editingMessage, setEditingMessage] = useState(null);
@@ -299,12 +315,12 @@ const ChatSection = () => {
 
   const handleSearch = async (val) => {
     setSearchQuery(val);
-    if (val.length < 2) {
+    if (!val || !val.trim()) {
       setSearchResults([]);
       return;
     }
     try {
-      const res = await apiClient.get(`/api/users?search=${val}`);
+      const res = await apiClient.get(`/api/users?search=${encodeURIComponent(val.trim())}`);
       setSearchResults(res.data);
     } catch (err) {
       console.error('Search failed');
@@ -340,7 +356,7 @@ const ChatSection = () => {
       const u = m.user;
       if (!u) return false;
       const memId = (u._id || u).toString();
-      return u.isOnline || conversations.some(c => c.user._id?.toString() === memId && c.user.isOnline) || allUsers.some(au => au._id?.toString() === memId && au.isOnline);
+      return u.isOnline || conversations.some(c => c.user._id?.toString() === memId && c.user.isOnline);
     }).length;
   };
 
@@ -389,9 +405,8 @@ const ChatSection = () => {
     if (token) {
       fetchConversations();
       fetchGroups();
-      if (view === 'discover') fetchAllUsers();
     }
-  }, [token, view]);
+  }, [token]);
 
   useEffect(() => {
     if (selectedGroup) {
@@ -1680,7 +1695,7 @@ const ChatSection = () => {
 
               <div className="flex gap-2">
                 {(currentUserRole === 'Admin' || currentUserRole === 'Moderator') && (
-                  <button onClick={() => { fetchAllUsers(); setShowAddGroupMemberModal(true); }} className="flex-1 py-2.5 rounded-xl bg-accent-primary text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg hover:scale-105 transition-all cursor-pointer">
+                  <button onClick={() => { setGroupSearchQuery(''); setGroupSearchResults([]); setShowAddGroupMemberModal(true); }} className="flex-1 py-2.5 rounded-xl bg-accent-primary text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg hover:scale-105 transition-all cursor-pointer">
                     <UserPlus size={16} /> Add Members
                   </button>
                 )}
@@ -2508,25 +2523,19 @@ const ChatSection = () => {
           <div className="flex bg-bg-card-secondary p-1 rounded-xl gap-1 min-w-0 flex-1 overflow-x-auto custom-scrollbar-none">
              <button 
                onClick={() => { setView('transmissions'); setSelectedGroup(null); }}
-               className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[9px] xs:text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${view === 'transmissions' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
+               className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-[9px] xs:text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${view === 'transmissions' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
              >
                Transmissions
              </button>
              <button 
                onClick={() => { setView('groups'); setSelectedContact(null); }}
-               className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[9px] xs:text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 whitespace-nowrap ${view === 'groups' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
+               className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-[9px] xs:text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 whitespace-nowrap ${view === 'groups' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
              >
                Groups {groups.reduce((acc, g) => acc + (g.unreadCount || 0), 0) > 0 ? (
                  <span className="px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[8px] font-black animate-pulse">{groups.reduce((acc, g) => acc + (g.unreadCount || 0), 0)}</span>
                ) : groups.length > 0 ? (
                  <span className="px-1.5 py-0.5 rounded-full bg-white/20 text-[8px]">{groups.length}</span>
                ) : null}
-             </button>
-             <button 
-               onClick={() => { setView('discover'); setSelectedGroup(null); }}
-               className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[9px] xs:text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${view === 'discover' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-text-muted hover:text-text-main'}`}
-             >
-               Discover
              </button>
           </div>
           <button onClick={() => setIsSearching(!isSearching)} className={`p-2 sm:p-2.5 rounded-xl transition-all shrink-0 ${isSearching ? 'bg-accent-primary text-white' : 'bg-accent-primary/10 text-accent-primary hover:bg-accent-primary/20'}`}>
@@ -2540,7 +2549,7 @@ const ChatSection = () => {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-accent-primary transition-colors" size={16} />
               <input 
                 type="text" 
-                placeholder="SEARCH GLOBAL SPHERE..." 
+                placeholder="ENTER EXACT USERNAME OR GMAIL..." 
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
                 className="w-full bg-bg-card-secondary border border-border-main rounded-xl py-3 pl-12 pr-4 text-text-main text-[10px] font-black uppercase tracking-widest focus:border-accent-primary outline-none transition-all"
@@ -2548,46 +2557,28 @@ const ChatSection = () => {
             </div>
             {searchResults.length > 0 ? (
               <div className="bg-bg-card-secondary/50 rounded-xl border border-border-main overflow-hidden max-h-60 overflow-y-auto">
-                <p className="p-3 text-[8px] font-black text-accent-primary uppercase tracking-[0.2em] bg-bg-card-secondary border-b border-border-main">Results found</p>
+                <p className="p-3 text-[8px] font-black text-accent-primary uppercase tracking-[0.2em] bg-bg-card-secondary border-b border-border-main">Exact User Match Found</p>
                 {searchResults.map(u => (
-                  <div key={u._id} onClick={() => { setSelectedContact(u); setIsSearching(false); setSearchResults([]); }} className="p-4 hover:bg-accent-primary/10 cursor-pointer flex items-center justify-between transition-colors border-b border-border-main/50 last:border-0 group">
+                  <div key={u._id} onClick={() => { setSelectedContact(u); setView('transmissions'); setIsSearching(false); setSearchResults([]); }} className="p-4 hover:bg-accent-primary/10 cursor-pointer flex items-center justify-between transition-colors border-b border-border-main/50 last:border-0 group">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-accent-primary/20 flex items-center justify-center overflow-hidden border border-border-main group-hover:rotate-6 transition-transform">
                         {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" /> : <User size={18} className="text-accent-primary" />}
                       </div>
                       <div>
                         <p className="text-sm font-bold tracking-tight">{u.username || u.name}</p>
-                        <p className="text-[10px] text-text-muted uppercase tracking-widest">{u.isOnline ? 'Online' : 'Offline'}</p>
+                        {u.email && <p className="text-[10px] text-text-muted">{u.email}</p>}
+                        <p className="text-[9px] text-accent-primary font-bold uppercase tracking-wider">{u.isOnline ? 'Online' : 'Offline'}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          if (window.confirm(`Hide ${u.username || u.name} from global directory?`)) {
-                            try {
-                              await apiClient.post(`/api/users/hide/${u._id}`);
-                              toast.success('User removed');
-                              setSearchResults(prev => prev.filter(item => item._id !== u._id));
-                              fetchAllUsers();
-                            } catch (err) {
-                              toast.error('Failed to remove user');
-                            }
-                          }
-                        }}
-                        className="p-1.5 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all opacity-0 group-hover:opacity-100 z-10"
-                        title="Remove User"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                      <Plus size={14} className="text-text-muted group-hover:text-accent-primary group-hover:scale-125 transition-all" />
-                    </div>
+                    <button className="px-3 py-1.5 rounded-lg bg-accent-primary text-white text-[10px] font-black uppercase tracking-wider shadow-md hover:scale-105 transition-all">
+                      Chat & Call
+                    </button>
                   </div>
                 ))}
               </div>
-            ) : searchQuery.length > 1 && (
-              <div className="p-8 text-center bg-bg-card-secondary rounded-xl border border-dashed border-border-main">
-                <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">No users found matching your query</p>
+            ) : searchQuery.trim().length > 0 && (
+              <div className="p-6 text-center bg-bg-card-secondary rounded-xl border border-dashed border-border-main">
+                <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">No registered user found with this exact username or email address.</p>
               </div>
             )}
           </motion.div>
@@ -2598,7 +2589,7 @@ const ChatSection = () => {
         {view === 'groups' ? (
           <div className="space-y-3">
             <button 
-              onClick={() => { fetchAllUsers(); setShowCreateGroupModal(true); }}
+              onClick={() => { setGroupSearchQuery(''); setGroupSearchResults([]); setShowCreateGroupModal(true); }}
               className="w-full py-3 rounded-2xl bg-accent-primary text-white font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-accent-primary/20 hover:scale-[1.02] active:scale-95 transition-all mb-4 cursor-pointer"
             >
               <Plus size={18} /> Create Group
@@ -2757,63 +2748,7 @@ const ChatSection = () => {
               </motion.div>
             ))
           )
-        ) : (
-          <div className="space-y-2">
-            {allUsers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-32 opacity-20">
-                 <Globe size={40} className="text-accent-primary mb-4" />
-                 <p className="text-[10px] font-black uppercase tracking-[0.2em]">Searching for lifeforms...</p>
-              </div>
-            ) : (
-              allUsers.map((u) => (
-                <motion.div 
-                  key={u._id} 
-                  whileHover={{ x: 5 }}
-                  onClick={() => setSelectedContact(u)}
-                  className="flex items-center justify-between p-4 rounded-2xl dark:hover:bg-white/5 hover:bg-black/5 transition-all cursor-pointer group border border-transparent hover:border-border-main"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <div className="w-12 h-12 rounded-xl bg-bg-card-secondary flex items-center justify-center border border-border-main overflow-hidden shadow-xl">
-                         {u.avatar ? (
-                           <img src={u.avatar} className="w-full h-full object-cover" alt="avatar" />
-                         ) : (
-                           <User size={24} className="text-accent-primary" />
-                         )}
-                      </div>
-                      <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-[3px] border-bg-card ${u.isOnline ? 'bg-green-500' : 'bg-gray-500'} shadow-lg`}></div>
-                    </div>
-                    <div>
-                      <h4 className="font-black text-[10px] uppercase tracking-wider">{u.username || u.name}</h4>
-                      <p className="text-[8px] text-text-muted font-bold uppercase tracking-widest mt-0.5">{u.isOnline ? 'Active Connection' : 'Off-grid'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        if (window.confirm(`Hide ${u.username || u.name} from Discover list?`)) {
-                          try {
-                            await apiClient.post(`/api/users/hide/${u._id}`);
-                            toast.success('User removed');
-                            fetchAllUsers();
-                          } catch (err) {
-                            toast.error('Failed to remove user');
-                          }
-                        }
-                      }}
-                      className="p-1.5 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all opacity-0 group-hover:opacity-100 z-10"
-                      title="Remove User"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                    <Plus size={16} className="text-text-muted group-hover:text-accent-primary" />
-                  </div>
-                </motion.div>
-              ))
-            )}
-          </div>
-        )}
+        ) : null}
       </div>
 
       {/* Create Group Modal */}
@@ -2854,27 +2789,47 @@ const ChatSection = () => {
               </div>
 
               <div>
-                <label className="text-[10px] font-black uppercase text-text-muted">Add Initial Members</label>
-                <div className="max-h-40 overflow-y-auto space-y-1.5 mt-1 custom-scrollbar">
-                  {allUsers.map((u) => (
-                    <label key={u._id} className="flex items-center justify-between p-2 rounded-xl bg-bg-card-secondary border border-border-main cursor-pointer hover:border-accent-primary/50">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-accent-primary/20 overflow-hidden">
-                          {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" /> : <User size={14} className="text-accent-primary" />}
+                <label className="text-[10px] font-black uppercase text-text-muted">Search & Add Members</label>
+                <input
+                  type="text"
+                  placeholder="ENTER EXACT USERNAME OR GMAIL..."
+                  value={groupSearchQuery}
+                  onChange={(e) => handleGroupUserSearch(e.target.value)}
+                  className="w-full bg-bg-card-secondary border border-border-main rounded-xl p-2.5 text-xs text-text-main outline-none focus:border-accent-primary mt-1 mb-2 font-bold"
+                />
+                <div className="max-h-40 overflow-y-auto space-y-1.5 custom-scrollbar">
+                  {(() => {
+                    const contacts = conversations.map(c => c.user);
+                    const combined = [...contacts];
+                    groupSearchResults.forEach(su => {
+                      if (!combined.some(u => u._id === su._id)) combined.push(su);
+                    });
+                    if (combined.length === 0) {
+                      return <p className="text-[10px] text-text-muted text-center py-4 uppercase font-bold">No contacts or searched user found</p>;
+                    }
+                    return combined.map((u) => (
+                      <label key={u._id} className="flex items-center justify-between p-2 rounded-xl bg-bg-card-secondary border border-border-main cursor-pointer hover:border-accent-primary/50">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-accent-primary/20 overflow-hidden flex items-center justify-center">
+                            {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" /> : <User size={14} className="text-accent-primary" />}
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold">{u.username || u.name}</p>
+                            {u.email && <p className="text-[9px] text-text-muted">{u.email}</p>}
+                          </div>
                         </div>
-                        <span className="text-xs font-bold">{u.username || u.name}</span>
-                      </div>
-                      <input 
-                        type="checkbox"
-                        checked={newGroupMemberIds.includes(u._id)}
-                        onChange={(e) => {
-                          if (e.target.checked) setNewGroupMemberIds(prev => [...prev, u._id]);
-                          else setNewGroupMemberIds(prev => prev.filter(id => id !== u._id));
-                        }}
-                        className="accent-accent-primary"
-                      />
-                    </label>
-                  ))}
+                        <input 
+                          type="checkbox"
+                          checked={newGroupMemberIds.includes(u._id)}
+                          onChange={(e) => {
+                            if (e.target.checked) setNewGroupMemberIds(prev => [...prev, u._id]);
+                            else setNewGroupMemberIds(prev => prev.filter(id => id !== u._id));
+                          }}
+                          className="accent-accent-primary"
+                        />
+                      </label>
+                    ));
+                  })()}
                 </div>
               </div>
 
@@ -2900,16 +2855,34 @@ const ChatSection = () => {
             </div>
 
             <form onSubmit={handleAddGroupMembersSubmit} className="space-y-4">
+              <input
+                type="text"
+                placeholder="ENTER EXACT USERNAME OR GMAIL..."
+                value={groupSearchQuery}
+                onChange={(e) => handleGroupUserSearch(e.target.value)}
+                className="w-full bg-bg-card-secondary border border-border-main rounded-xl p-2.5 text-xs text-text-main outline-none focus:border-accent-primary font-bold"
+              />
               <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar">
-                {allUsers
-                  .filter(u => !selectedGroup.members?.some(m => (m.user?._id || m.user).toString() === u._id.toString()))
-                  .map((u) => (
+                {(() => {
+                  const contacts = conversations.map(c => c.user);
+                  const combined = [...contacts];
+                  groupSearchResults.forEach(su => {
+                    if (!combined.some(u => u._id === su._id)) combined.push(su);
+                  });
+                  const filtered = combined.filter(u => !selectedGroup.members?.some(m => (m.user?._id || m.user).toString() === u._id.toString()));
+                  if (filtered.length === 0) {
+                    return <p className="text-[10px] text-text-muted text-center py-6 uppercase font-bold">No non-member candidates found</p>;
+                  }
+                  return filtered.map((u) => (
                     <label key={u._id} className="flex items-center justify-between p-2.5 rounded-xl bg-bg-card-secondary border border-border-main cursor-pointer hover:border-accent-primary">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-accent-primary/20 overflow-hidden">
+                        <div className="w-8 h-8 rounded-lg bg-accent-primary/20 overflow-hidden flex items-center justify-center">
                           {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" /> : <User size={16} className="text-accent-primary" />}
                         </div>
-                        <span className="text-xs font-bold">{u.username || u.name}</span>
+                        <div>
+                          <p className="text-xs font-bold">{u.username || u.name}</p>
+                          {u.email && <p className="text-[9px] text-text-muted">{u.email}</p>}
+                        </div>
                       </div>
                       <input 
                         type="checkbox"
@@ -2921,7 +2894,8 @@ const ChatSection = () => {
                         className="accent-accent-primary"
                       />
                     </label>
-                  ))}
+                  ));
+                })()}
               </div>
 
               <button type="submit" disabled={addMemberSelectedIds.length === 0} className="w-full py-3 rounded-xl bg-accent-primary text-white font-bold text-xs uppercase tracking-widest shadow-lg hover:scale-105 transition-all disabled:opacity-40">

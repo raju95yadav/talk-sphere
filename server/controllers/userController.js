@@ -96,32 +96,38 @@ exports.getUserStats = async (req, res) => {
   }
 };
 
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 exports.getAllUsers = async (req, res) => {
   try {
     const { search } = req.query;
+    
+    // Privacy protection: If search query is missing or empty, do not return any users
+    if (!search || !search.trim()) {
+      return res.json([]);
+    }
+
+    const queryStr = search.trim();
     
     // Fetch current user to get their hiddenUsers array
     const currentUser = await User.findById(req.user._id).select('hiddenUsers');
     const hiddenList = currentUser?.hiddenUsers || [];
     
-    // Exclude the current user and any users they have hidden
+    // Match exact username or exact email (case-insensitive)
+    const exactRegex = new RegExp(`^${escapeRegex(queryStr)}$`, 'i');
     let query = { 
       _id: { 
         $ne: req.user._id,
         $nin: hiddenList
-      } 
+      },
+      $or: [
+        { username: exactRegex },
+        { email: exactRegex }
+      ]
     };
 
-    if (search) {
-      query.$or = [
-        { username: { $regex: search, $options: 'i' } },
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
-      ];
-    }
-
     const users = await User.find(query)
-      .select('username name avatar isOnline lastSeen')
+      .select('username name email avatar isOnline lastSeen')
       .limit(20);
 
     res.json(users);
