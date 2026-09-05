@@ -1369,6 +1369,16 @@ const ChatSection = () => {
         exit={{ opacity: 0, scale: 0.9 }}
         className="fixed inset-0 z-[60] bg-bg-main flex flex-col overflow-hidden"
       >
+        {/* Dedicated Transmissions & Groups Background Layer */}
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+          <img
+            src="/image6.png"
+            alt="Group Chat Background"
+            className="w-full h-full object-cover object-center opacity-25 dark:opacity-20 filter contrast-125 brightness-90"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-bg-main/90 via-bg-main/50 to-bg-main/80" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_15%,_var(--bg-main)_88%)]" />
+        </div>
         {/* Group Chat Header */}
         <div className="p-4 pt-[calc(16px+env(safe-area-inset-top))] border-b border-border-main flex items-center justify-between bg-bg-card/80 backdrop-blur-md relative z-50">
           <div className="flex items-center gap-3">
@@ -1768,6 +1778,16 @@ const ChatSection = () => {
         exit={{ opacity: 0, scale: 0.9 }}
         className="fixed inset-0 z-[60] bg-bg-main flex flex-col overflow-hidden"
       >
+        {/* Dedicated Transmissions & Groups Background Layer */}
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+          <img
+            src="/image6.png"
+            alt="Direct Chat Background"
+            className="w-full h-full object-cover object-center opacity-25 dark:opacity-20 filter contrast-125 brightness-90"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-bg-main/90 via-bg-main/50 to-bg-main/80" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_15%,_var(--bg-main)_88%)]" />
+        </div>
         <div className="p-4 pt-[calc(16px+env(safe-area-inset-top))] border-b border-border-main flex items-center justify-between bg-bg-card/80 backdrop-blur-md relative z-50">
           <div className="flex items-center gap-3">
             <button onClick={() => {
@@ -2517,8 +2537,20 @@ const ChatSection = () => {
   }
 
   return (
-    <div className="glass-card flex flex-col h-full overflow-hidden">
-      <div className="p-3.5 sm:p-5 md:p-6 border-b border-border-main space-y-4">
+    <div className="glass-card flex flex-col h-full overflow-hidden relative">
+      {/* Dedicated Transmissions & Groups Social/Matrix Background Layer */}
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <img
+          src="/image6.png"
+          alt="Transmissions & Groups Social Matrix Background"
+          className="w-full h-full object-cover object-center opacity-30 dark:opacity-25 filter contrast-125 brightness-90"
+        />
+        {/* Cyber Gradient & Radial Vignette for Depth and Readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-bg-main/90 via-bg-main/45 to-bg-main/80" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_15%,_var(--bg-main)_88%)]" />
+      </div>
+
+      <div className="p-3.5 sm:p-5 md:p-6 border-b border-border-main space-y-4 relative z-10">
         <div className="flex justify-between items-center gap-2">
           <div className="flex bg-bg-card-secondary p-1 rounded-xl gap-1 min-w-0 flex-1 overflow-x-auto custom-scrollbar-none">
              <button 
@@ -2585,7 +2617,7 @@ const ChatSection = () => {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar relative z-10">
         {view === 'groups' ? (
           <div className="space-y-3">
             <button 

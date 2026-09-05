@@ -384,6 +384,18 @@ const AIChatSection = () => {
 
   return (
     <div className="glass-card flex h-full overflow-hidden shadow-2xl relative w-full border border-border-main/50 font-sans min-w-0">
+      {/* Dedicated AI Assistant Neural Background Image Layer */}
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <img
+          src="/image2.png"
+          alt="AI Assistant Neural Core"
+          className="w-full h-full object-cover object-center opacity-35 dark:opacity-30 filter contrast-125 brightness-95"
+        />
+        {/* Dynamic Gradient and Radial Vignette for high readability and futuristic depth */}
+        <div className="absolute inset-0 bg-gradient-to-t from-bg-main/90 via-bg-main/40 to-bg-main/80" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_15%,_var(--bg-main)_88%)]" />
+      </div>
+
       {/* Mobile Backdrop */}
       {isSidebarOpen && (
         <div 
@@ -399,7 +411,7 @@ const AIChatSection = () => {
           width: isSidebarOpen ? '270px' : '0px',
           opacity: isSidebarOpen ? 1 : 0
         }}
-        className="bg-bg-card-secondary border-r border-border-main flex flex-col overflow-hidden transition-all duration-300 z-30 absolute md:relative inset-y-0 left-0 h-full shadow-2xl md:shadow-none shrink-0"
+        className="bg-bg-card-secondary/85 backdrop-blur-xl border-r border-border-main flex flex-col overflow-hidden transition-all duration-300 z-30 absolute md:relative inset-y-0 left-0 h-full shadow-2xl md:shadow-none shrink-0"
       >
         <div className="p-4 border-b border-border-main flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -465,9 +477,9 @@ const AIChatSection = () => {
       </motion.div>
 
       {/* Main Workspace Column */}
-      <div className="flex-1 flex flex-col bg-bg-main/50 relative min-w-0 h-full overflow-hidden">
+      <div className="flex-1 flex flex-col bg-bg-main/30 backdrop-blur-xs relative z-10 min-w-0 h-full overflow-hidden">
         {/* Header Bar - Fully Responsive */}
-        <div className="p-2.5 sm:p-4 border-b border-border-main flex items-center justify-between bg-bg-card-secondary gap-1.5 sm:gap-3 min-w-0">
+        <div className="p-2.5 sm:p-4 border-b border-border-main flex items-center justify-between bg-bg-card-secondary/80 backdrop-blur-md gap-1.5 sm:gap-3 min-w-0">
           {/* Left Title & Status */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <button 

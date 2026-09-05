@@ -42,30 +42,42 @@ const ManagementSection = () => {
     }
   };
 
-  const inputClasses = "w-full bg-bg-card-secondary border border-border-main rounded-2xl py-4 px-6 text-sm font-bold text-text-main focus:border-accent-primary outline-none transition-all placeholder:text-text-muted/30";
+  const inputClasses = "w-full bg-bg-card-secondary/80 backdrop-blur-sm border border-border-main rounded-2xl py-4 px-6 text-sm font-bold text-text-main focus:border-accent-primary outline-none transition-all placeholder:text-text-muted/30";
 
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="lg:col-span-8 glass-card p-10 overflow-hidden relative"
+      className="lg:col-span-8 glass-card p-6 sm:p-8 md:p-10 overflow-hidden relative shadow-2xl"
     >
-      <div className="absolute top-0 right-0 p-8 opacity-5">
+      {/* Dedicated Cyber Security Background Layer */}
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <img
+          src="/image4.png"
+          alt="Management Security Background"
+          className="w-full h-full object-cover object-center opacity-25 dark:opacity-20 filter contrast-125 brightness-90"
+        />
+        {/* Cyber Gradient & Radial Vignette for Depth and Readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-bg-main/90 via-bg-main/45 to-bg-main/80" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_15%,_var(--bg-main)_88%)]" />
+      </div>
+
+      <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none z-0">
         <ShieldCheck size={200} />
       </div>
 
       <div className="relative z-10">
-        <div className="flex items-center gap-4 mb-10">
+        <div className="flex items-center gap-4 mb-6 sm:mb-10">
           <div className="p-3 bg-accent-primary/20 rounded-2xl text-accent-primary">
             <User size={24} />
           </div>
           <div>
-            <h3 className="text-xl font-black uppercase tracking-tight">IDENTITY MANAGEMENT</h3>
+            <h3 className="text-lg sm:text-xl font-black uppercase tracking-tight">IDENTITY MANAGEMENT</h3>
             <p className="text-[10px] text-text-muted font-bold uppercase tracking-[0.2em]">Update your global credentials</p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-text-muted uppercase tracking-widest px-2">Legal Name</label>

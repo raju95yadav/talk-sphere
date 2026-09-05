@@ -17,21 +17,21 @@
   --font-family: 'Outfit', sans-serif;
   
   /* Dark Mode (Default) */
-  --bg-main: #121218;
-  --bg-card: #1c1c24;
-  --bg-card-secondary: #252533;
+  --bg-main: #0c0d14;
+  --bg-card: rgba(22, 23, 34, 0.78);
+  --bg-card-secondary: rgba(30, 32, 46, 0.72);
   --text-main: #ffffff;
   --text-muted: #a0a0b8;
-  --border-main: rgba(255, 255, 255, 0.08);
+  --border-main: rgba(255, 255, 255, 0.1);
 }
 
 [data-theme='light'] {
   --bg-main: #f8fafc;
-  --bg-card: #ffffff;
-  --bg-card-secondary: #f1f5f9;
+  --bg-card: rgba(255, 255, 255, 0.88);
+  --bg-card-secondary: rgba(241, 245, 249, 0.85);
   --text-main: #0f172a;
   --text-muted: #64748b;
-  --border-main: rgba(0, 0, 0, 0.05);
+  --border-main: rgba(0, 0, 0, 0.06);
 }
 
 @layer base {
@@ -43,7 +43,8 @@
 
 @layer components {
   .glass-card {
-    @apply bg-bg-card backdrop-blur-xl border border-border-main rounded-3xl shadow-xl;
+    @apply bg-bg-card backdrop-blur-2xl border border-border-main rounded-3xl shadow-xl;
+    -webkit-backdrop-filter: blur(24px);
   }
   
   .btn-primary {

@@ -91,7 +91,19 @@ const CallLogsSection = () => {
   };
 
   return (
-    <div className="glass-card p-6 md:p-8 h-full flex flex-col relative overflow-hidden">
+    <div className="glass-card p-4 sm:p-6 md:p-8 h-full flex flex-col relative overflow-hidden shadow-2xl">
+      {/* Dedicated Call Logs Rotary Phone Background Layer */}
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <img
+          src="/image5.png"
+          alt="Call Logs Rotary Phone Background"
+          className="w-full h-full object-contain md:object-cover object-center opacity-25 dark:opacity-20 filter contrast-125 brightness-90"
+        />
+        {/* Subtle Cyber Gradient & Radial Vignette for Depth and Readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-bg-main/90 via-bg-main/50 to-bg-main/85" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_20%,_var(--bg-main)_90%)]" />
+      </div>
+
       {/* Background Accent Glow */}
       <div className="absolute top-0 right-0 w-80 h-80 bg-accent-secondary/10 blur-[100px] pointer-events-none rounded-full"></div>
 
@@ -108,7 +120,7 @@ const CallLogsSection = () => {
 
         <button 
           onClick={fetchCallLogs} 
-          className="p-2.5 rounded-xl bg-bg-card-secondary border border-border-main text-text-muted hover:text-accent-primary transition-all self-start sm:self-auto"
+          className="p-2.5 rounded-xl bg-bg-card-secondary border border-border-main text-text-muted hover:text-accent-primary transition-all self-start sm:self-auto active:scale-95 cursor-pointer shadow-sm"
           title="Refresh Call Logs"
         >
           <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -125,20 +137,20 @@ const CallLogsSection = () => {
             placeholder="SEARCH LOGS BY USERNAME..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-bg-card-secondary border border-border-main rounded-2xl py-3 pl-12 pr-4 text-[10px] font-black uppercase tracking-widest focus:border-accent-primary outline-none transition-all placeholder:text-text-muted/50 text-text-main"
+            className="w-full bg-bg-card-secondary/80 backdrop-blur-md border border-border-main rounded-2xl py-3 pl-12 pr-4 text-[10px] font-black uppercase tracking-widest focus:border-accent-primary outline-none transition-all placeholder:text-text-muted/50 text-text-main"
           />
         </div>
 
         {/* Filter Chips */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {['ALL', 'MISSED', 'AUDIO', 'VIDEO'].map((type) => (
             <button
               key={type}
               onClick={() => setFilterType(type)}
-              className={`py-1.5 px-4 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${
+              className={`py-1.5 px-3 sm:px-4 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 ${
                 filterType === type 
-                  ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' 
-                  : 'bg-bg-card-secondary border border-border-main text-text-muted hover:text-text-main'
+                  ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/25' 
+                  : 'bg-bg-card-secondary/80 backdrop-blur-md border border-border-main text-text-muted hover:text-text-main'
               }`}
             >
               {type}
@@ -174,31 +186,32 @@ const CallLogsSection = () => {
                 key={log._id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-4 bg-bg-card-secondary/70 border border-border-main rounded-2xl flex items-center justify-between gap-4 hover:border-accent-primary/50 transition-all group"
+                whileHover={{ y: -2 }}
+                className="p-3.5 sm:p-4 bg-bg-card-secondary/75 backdrop-blur-md border border-border-main rounded-2xl flex items-center justify-between gap-3 sm:gap-4 hover:border-accent-primary/50 hover:shadow-lg transition-all group"
               >
-                <div className="flex items-center gap-4 min-w-0">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                   {/* User Avatar */}
-                  <div className="w-12 h-12 rounded-2xl bg-bg-card border border-border-main overflow-hidden flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-bg-card border border-border-main overflow-hidden flex items-center justify-center shrink-0">
                     {peerAvatar ? (
                       <img src={peerAvatar} alt={peerName} className="w-full h-full object-cover" />
                     ) : (
-                      <User size={24} className="text-accent-primary" />
+                      <User size={22} className="text-accent-primary" />
                     )}
                   </div>
 
                   {/* Info */}
                   <div className="min-w-0">
-                    <h4 className="text-sm font-extrabold truncate text-text-main group-hover:text-accent-primary transition-colors">{peerName}</h4>
+                    <h4 className="text-xs sm:text-sm font-extrabold truncate text-text-main group-hover:text-accent-primary transition-colors">{peerName}</h4>
                     <div className="flex items-center gap-2 mt-1">
                       {isMissed ? (
-                        <PhoneMissed size={14} className="text-red-500 shrink-0" />
+                        <PhoneMissed size={13} className="text-red-500 shrink-0" />
                       ) : isSender ? (
-                        <PhoneOutgoing size={14} className="text-emerald-400 shrink-0" />
+                        <PhoneOutgoing size={13} className="text-emerald-400 shrink-0" />
                       ) : (
-                        <PhoneIncoming size={14} className="text-blue-400 shrink-0" />
+                        <PhoneIncoming size={13} className="text-blue-400 shrink-0" />
                       )}
                       
-                      <span className={`text-[10px] font-bold uppercase tracking-wider ${isMissed ? 'text-red-400' : 'text-text-muted'}`}>
+                      <span className={`text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider ${isMissed ? 'text-red-400' : 'text-text-muted'}`}>
                         {isMissed ? 'Missed Call' : isSender ? 'Outgoing Call' : 'Incoming Call'}
                         {duration && ` • ${duration}`}
                       </span>
@@ -207,7 +220,7 @@ const CallLogsSection = () => {
                 </div>
 
                 {/* Right side: Timestamp & Re-dial actions */}
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider hidden sm:inline">
                     {new Date(log.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })} {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
@@ -217,18 +230,18 @@ const CallLogsSection = () => {
                     <button
                       onClick={() => startCall(peer, 'audio')}
                       disabled={callStatus !== 'idle'}
-                      className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-30 cursor-pointer"
-                      title="Voice Re-dial"
+                      className="p-2 sm:p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-30 cursor-pointer active:scale-90"
+                      title="Audio Call"
                     >
-                      <Phone size={16} />
+                      <Phone size={14} />
                     </button>
                     <button
                       onClick={() => startCall(peer, 'video')}
                       disabled={callStatus !== 'idle'}
-                      className="p-2.5 rounded-xl bg-accent-primary/10 text-accent-primary hover:bg-accent-primary hover:text-white transition-all disabled:opacity-30 cursor-pointer"
-                      title="Video Re-dial"
+                      className="p-2 sm:p-2.5 rounded-xl bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition-all disabled:opacity-30 cursor-pointer active:scale-90"
+                      title="Video Call"
                     >
-                      <Video size={16} />
+                      <Video size={14} />
                     </button>
                   </div>
                 </div>

@@ -159,8 +159,20 @@ const NoteSection = () => {
   const filteredUsers = users;
 
   return (
-    <div className="glass-card flex flex-col h-full overflow-hidden p-6 relative">
-      <div className="flex justify-between items-center mb-6">
+    <div className="glass-card flex flex-col h-full overflow-hidden p-4 sm:p-6 relative">
+      {/* Dedicated Holographic Workstation Background Layer */}
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <img
+          src="/image3.png"
+          alt="Archived Notes Holographic Background"
+          className="w-full h-full object-cover object-center opacity-30 dark:opacity-25 filter contrast-125 brightness-95"
+        />
+        {/* Cyber Gradient & Radial Vignette for Depth and Readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-bg-main/90 via-bg-main/45 to-bg-main/80" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_15%,_var(--bg-main)_88%)]" />
+      </div>
+
+      <div className="flex justify-between items-center mb-6 relative z-10">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-accent-secondary/20 rounded-lg text-accent-secondary">
              <FileText size={18} />
@@ -182,7 +194,7 @@ const NoteSection = () => {
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             onSubmit={handleAddNote} 
-            className="mb-6 space-y-4 bg-bg-card-secondary p-4 rounded-2xl border border-border-main overflow-hidden"
+            className="mb-6 space-y-4 bg-bg-card-secondary/85 backdrop-blur-md p-4 rounded-2xl border border-border-main overflow-hidden relative z-10"
           >
             <input 
               type="text" 
@@ -207,7 +219,7 @@ const NoteSection = () => {
         )}
       </AnimatePresence>
 
-      <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar relative z-10">
         {loading ? (
           <div className="flex justify-center py-10"><Loader2 className="animate-spin text-accent-primary" /></div>
         ) : notes.length === 0 ? (
@@ -219,8 +231,9 @@ const NoteSection = () => {
           notes.map((note) => (
             <motion.div 
               layout
+              whileHover={{ y: -2 }}
               key={note._id} 
-              className={`flex flex-col p-4 rounded-2xl bg-bg-card-secondary transition-all border ${editingNoteId === note._id ? 'border-accent-primary' : 'border-border-main group dark:hover:bg-white/5 hover:bg-bg-card'}`}
+              className={`flex flex-col p-4 rounded-2xl bg-bg-card-secondary/80 backdrop-blur-md transition-all border ${editingNoteId === note._id ? 'border-accent-primary' : 'border-border-main group dark:hover:bg-white/10 hover:bg-bg-card'}`}
             >
               {editingNoteId === note._id ? (
                 <div className="space-y-3">
@@ -257,7 +270,7 @@ const NoteSection = () => {
                 <>
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-bold text-xs uppercase tracking-wider truncate mr-4">{note.title}</span>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    <div className="flex gap-1 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
                       <button onClick={() => handleStartShare(note)} className="p-1.5 dark:hover:bg-white/10 hover:bg-black/5 rounded text-text-muted hover:text-text-main transition-colors" title="Share Note"><Share2 size={14} /></button>
                       <button onClick={() => handleStartEdit(note)} className="p-1.5 dark:hover:bg-white/10 hover:bg-black/5 rounded text-text-muted hover:text-text-main transition-colors" title="Edit Note"><Edit3 size={14} /></button>
                       <button onClick={() => handleDeleteNote(note._id)} className="p-1.5 hover:bg-red-500/20 rounded text-text-muted hover:text-red-500 transition-colors" title="Delete Note"><Trash2 size={14} /></button>
@@ -275,7 +288,7 @@ const NoteSection = () => {
         )}
       </div>
       
-      <div className="mt-4 pt-4 border-t border-border-main flex justify-between items-center text-[9px] text-text-muted font-black uppercase tracking-[0.2em]">
+      <div className="mt-4 pt-4 border-t border-border-main flex justify-between items-center text-[9px] text-text-muted font-black uppercase tracking-[0.2em] relative z-10">
         <span>SYSTEM LOG</span>
         <span className="text-accent-primary">{notes.length} RECORDS</span>
       </div>
