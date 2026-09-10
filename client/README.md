@@ -1,16 +1,48 @@
-# React + Vite
+# Talk Sphere — Frontend Client 💻
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> Modern React 19 + Vite single-page application for the **Talk Sphere** unified real-time collaboration platform.
 
-Currently, two official plugins are available:
+For full system architecture, backend deployment, API documentation, and testing guides, refer to the [Root README.md](../README.md).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🛠️ Client Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+* **UI Framework**: [React 19](https://react.dev/) (`^19.2.5`)
+* **Build Tool**: [Vite 8](https://vitejs.dev/) (`^8.0.10`)
+* **Styling**: [Tailwind CSS v4](https://tailwindcss.com/) (`^4.2.4`) + PostCSS
+* **Icons**: [Lucide React](https://lucide.dev/) (`^1.14.0`)
+* **Animations**: [Framer Motion](https://www.framer.com/motion/) (`^12.38.0`)
+* **Real-Time Client**: [Socket.io Client](https://socket.io/) (`^4.8.3`)
+* **WebRTC**: [Simple-Peer](https://github.com/feross/simple-peer) (`^9.11.1`)
+* **Audio Waveforms**: [Wavesurfer.js](https://wavesurfer.xyz/) (`^7.12.7`)
+* **Markdown Rendering**: [React Markdown](https://github.com/remarkjs/react-markdown) (`^10.1.0`)
+* **Authentication**: [@react-oauth/google](https://www.npmjs.com/package/@react-oauth/google) (`^0.13.5`)
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 🚀 Quick Start
+
+### 1. Install Dependencies
+```bash
+npm install
+```
+
+### 2. Configure Environment (`.env`)
+Create a `.env` file in this directory:
+```env
+VITE_API_URL=http://localhost:5000
+VITE_GOOGLE_CLIENT_ID=your_google_oauth_client_id.apps.googleusercontent.com
+```
+
+### 3. Start Development Server
+```bash
+npm run dev
+```
+The client will be running at `http://localhost:5173`.
+
+### 4. Build for Production
+```bash
+npm run build
+npm run preview
+```
