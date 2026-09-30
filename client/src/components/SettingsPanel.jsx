@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import ProfileDisplayCard from './ProfileDisplayCard';
+import ProfileSettingsPage from './ProfileSettingsPage';
 
 // ─────────────────────────────────────────────────────────────
 // Settings menu item definitions
@@ -178,6 +179,7 @@ const SettingsRow = ({ item, onClick }) => {
 const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
   const { user, logout } = useAuth();
   const [query, setQuery] = useState('');
+  const [activePage, setActivePage] = useState(null); // null | 'profile'
 
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -364,7 +366,16 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
                       layout
                       exit={{ opacity: 0, y: -4, transition: { duration: 0.15 } }}
                     >
-                      <SettingsRow item={item} onClick={onNavigate} />
+                      <SettingsRow
+                        item={item}
+                        onClick={(id) => {
+                          if (id === 'profile') {
+                            setActivePage('profile');
+                          } else {
+                            onNavigate?.(id);
+                          }
+                        }}
+                      />
                     </motion.div>
                   ))
                 ) : (
@@ -423,6 +434,12 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
 
           {/* Bottom fade-out gradient */}
           <div className="pointer-events-none absolute bottom-0 inset-x-0 h-12 bg-gradient-to-t from-[#11141a] to-transparent" />
+
+          {/* ── Profile sub-page (slides in over list) ── */}
+          <ProfileSettingsPage
+            isOpen={activePage === 'profile'}
+            onBack={() => setActivePage(null)}
+          />
         </motion.aside>
       )}
     </AnimatePresence>

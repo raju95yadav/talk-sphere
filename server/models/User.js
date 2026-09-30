@@ -34,6 +34,12 @@ const userSchema = new mongoose.Schema({
     trim: true,
     default: ''
   },
+  bio: {
+    type: String,
+    trim: true,
+    default: '',
+    maxlength: 120
+  },
   contacts: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

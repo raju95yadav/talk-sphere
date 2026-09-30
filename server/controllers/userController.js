@@ -46,7 +46,7 @@ exports.updateAvatar = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, username, phoneNumber, age, address } = req.body;
+    const { name, username, phoneNumber, age, address, bio } = req.body;
     const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -72,6 +72,7 @@ exports.updateProfile = async (req, res) => {
       user.age = (age === '' || age === null || isNaN(Number(age))) ? null : Number(age);
     }
     if (address !== undefined) user.address = typeof address === 'string' ? address.trim() : address;
+    if (bio     !== undefined) user.bio     = typeof bio     === 'string' ? bio.trim().slice(0, 120) : bio;
 
     await user.save();
 
