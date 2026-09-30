@@ -9,6 +9,7 @@ import {
   Smartphone,
   UserPlus,
   Database,
+  RefreshCw,
   LogOut,
   ChevronRight,
 } from 'lucide-react';
@@ -17,6 +18,7 @@ import ProfileDisplayCard from './ProfileDisplayCard';
 import ProfileSettingsPage from './ProfileSettingsPage';
 import LinkedDevicesPage from './LinkedDevicesPage';
 import InviteFriendPage from './InviteFriendPage';
+import StorageDataPage from './StorageDataPage';
 
 // ─────────────────────────────────────────────────────────────
 // Settings menu item definitions
@@ -43,9 +45,9 @@ const SETTINGS_ITEMS = [
   },
   {
     id: 'storage-data',
-    icon: Database,
+    icon: RefreshCw,
     label: 'Storage and data',
-    description: 'Network usage, auto-download',
+    description: 'Network usage, auto-download, local cache',
   },
 ];
 
@@ -377,6 +379,8 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
                             setActivePage('linked-devices');
                           } else if (id === 'invite-friend') {
                             setActivePage('invite-friend');
+                          } else if (id === 'storage-data') {
+                            setActivePage('storage-data');
                           } else {
                             onNavigate?.(id);
                           }
@@ -456,6 +460,12 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
           {/* ── Invite a Friend sub-page ── */}
           <InviteFriendPage
             isOpen={activePage === 'invite-friend'}
+            onBack={() => setActivePage(null)}
+          />
+
+          {/* ── Storage & Data sub-page ── */}
+          <StorageDataPage
+            isOpen={activePage === 'storage-data'}
             onBack={() => setActivePage(null)}
           />
         </motion.aside>

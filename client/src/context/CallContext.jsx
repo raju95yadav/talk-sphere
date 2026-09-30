@@ -2,6 +2,12 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { useAuth } from './AuthContext';
 import useSocket from '../hooks/useSocket';
 import toast from 'react-hot-toast';
+import {
+  getWebRTCConstraints,
+  applyPeerConnectionBitrates,
+  addWebrtcDataTransferred,
+  loadStoragePrefs,
+} from '../utils/storagePrefs';
 
 const CallContext = createContext();
 
@@ -149,6 +155,8 @@ export const CallProvider = ({ children }) => {
   const durationTimerRef = useRef(null);
   const ringingTimeoutRef = useRef(null);
   const screenTrackRef = useRef(null);
+  const statsIntervalRef = useRef(null);
+  const callLastBytesRef = useRef(0);
 
   // Audio Analyser refs
   const audioContextRef = useRef(null);
@@ -240,6 +248,12 @@ export const CallProvider = ({ children }) => {
       durationTimerRef.current = null;
     }
 
+    if (statsIntervalRef.current) {
+      clearInterval(statsIntervalRef.current);
+      statsIntervalRef.current = null;
+    }
+    callLastBytesRef.current = 0;
+
     if (pcRef.current) {
       pcRef.current.ontrack = null;
       pcRef.current.onicecandidate = null;
@@ -290,13 +304,44 @@ export const CallProvider = ({ children }) => {
     return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
   }, [durationSec]);
 
-  // Start call timer when connected
+  // Start call timer and real-time WebRTC data tracker when connected
   const startDurationTimer = useCallback(() => {
     if (durationTimerRef.current) clearInterval(durationTimerRef.current);
+    if (statsIntervalRef.current) clearInterval(statsIntervalRef.current);
     setDurationSec(0);
+    callLastBytesRef.current = 0;
+
     durationTimerRef.current = setInterval(() => {
       setDurationSec(prev => prev + 1);
     }, 1000);
+
+    // Periodically track WebRTC data transfer (bytes transferred)
+    statsIntervalRef.current = setInterval(async () => {
+      if (!pcRef.current) return;
+      try {
+        const statsReport = await pcRef.current.getStats();
+        let currentTotal = 0;
+        statsReport.forEach(report => {
+          if (report.type === 'inbound-rtp' && typeof report.bytesReceived === 'number') {
+            currentTotal += report.bytesReceived;
+          }
+          if (report.type === 'outbound-rtp' && typeof report.bytesSent === 'number') {
+            currentTotal += report.bytesSent;
+          }
+        });
+        if (currentTotal > 0) {
+          if (callLastBytesRef.current > 0) {
+            const delta = currentTotal - callLastBytesRef.current;
+            if (delta > 0) {
+              addWebrtcDataTransferred(delta);
+            }
+          }
+          callLastBytesRef.current = currentTotal;
+        }
+      } catch (e) {
+        // Ignore stats errors
+      }
+    }, 2000);
   }, []);
 
   // Initialize RTCPeerConnection instance
@@ -331,15 +376,14 @@ export const CallProvider = ({ children }) => {
     return pc;
   }, [socket, endCall]);
 
-  // Handle incoming media stream
+  // Handle incoming media stream with low-data constraints support
   const getMediaStream = async (audioOnly, audioDeviceId, videoDeviceId) => {
     try {
-      const audioConstraint = audioDeviceId ? { deviceId: { exact: audioDeviceId } } : true;
-      const videoConstraint = !audioOnly ? (videoDeviceId ? { deviceId: { exact: videoDeviceId } } : true) : false;
+      const { audio, video } = getWebRTCConstraints(audioOnly, audioDeviceId, videoDeviceId);
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: audioConstraint,
-        video: videoConstraint
+        audio,
+        video
       });
       localStreamRef.current = stream;
       setLocalStream(stream);
@@ -433,6 +477,7 @@ export const CallProvider = ({ children }) => {
       const pc = createPeerConnection(targetId);
 
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      await applyPeerConnectionBitrates(pc, loadStoragePrefs().useLessData);
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
@@ -471,6 +516,7 @@ export const CallProvider = ({ children }) => {
       const pc = createPeerConnection(peerId);
 
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      await applyPeerConnectionBitrates(pc, loadStoragePrefs().useLessData);
 
       await pc.setRemoteDescription(new RTCSessionDescription(incomingCallData.signal));
 
@@ -725,6 +771,18 @@ export const CallProvider = ({ children }) => {
       socket.off('peer_media_toggle', handlePeerMediaToggle);
     };
   }, [socket, callStatus, isCaller, resetCallState, startDurationTimer]);
+
+  // Dynamically update WebRTC bitrate constraints if low-data setting toggles during active call
+  useEffect(() => {
+    const handlePrefsChange = (e) => {
+      const prefs = e?.detail || loadStoragePrefs();
+      if (pcRef.current && callStatus === 'connected') {
+        applyPeerConnectionBitrates(pcRef.current, Boolean(prefs.useLessData));
+      }
+    };
+    window.addEventListener('ts_storage_prefs_changed', handlePrefsChange);
+    return () => window.removeEventListener('ts_storage_prefs_changed', handlePrefsChange);
+  }, [callStatus]);
 
   return (
     <CallContext.Provider value={{

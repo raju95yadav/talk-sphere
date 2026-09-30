@@ -12,7 +12,6 @@ import {
   Smartphone,
   Tablet,
   Laptop,
-  Chrome,
   Globe,
   MapPin,
   Clock,

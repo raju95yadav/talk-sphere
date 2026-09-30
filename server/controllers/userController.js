@@ -99,16 +99,56 @@ exports.updateProfile = async (req, res) => {
 
 exports.getUserStats = async (req, res) => {
   try {
-    const messageCount = await Message.countDocuments({
-      $or: [{ sender: req.user._id }, { receiver: req.user._id }]
-    });
-    const noteCount = await Note.countDocuments({ user: req.user._id });
-    
+    const uid = req.user._id;
+    const userFilter = { $or: [{ sender: uid }, { receiver: uid }] };
+
+    // Parallel queries for performance
+    const [
+      totalMessages,
+      sentMessages,
+      noteCount,
+      imageCount,
+      videoCount,
+      audioCount,
+      fileCount,
+      callAgg,
+    ] = await Promise.all([
+      Message.countDocuments(userFilter),
+      Message.countDocuments({ sender: uid }),
+      Note.countDocuments({ user: uid }),
+      Message.countDocuments({ ...userFilter, type: 'image' }),
+      Message.countDocuments({ ...userFilter, type: 'video' }),
+      Message.countDocuments({ ...userFilter, type: 'audio' }),
+      Message.countDocuments({ ...userFilter, type: 'file' }),
+      Message.aggregate([
+        { $match: { ...userFilter, type: 'call', 'callDetails.status': 'completed' } },
+        { $group: { _id: null, totalDuration: { $sum: '$callDetails.duration' }, count: { $sum: 1 } } },
+      ]),
+    ]);
+
+    const calls         = callAgg[0] || { totalDuration: 0, count: 0 };
+    const receivedMessages = totalMessages - sentMessages;
+
     res.json({
-      messages: messageCount,
-      notes: noteCount
+      messages: {
+        total:    totalMessages,
+        sent:     sentMessages,
+        received: receivedMessages,
+      },
+      media: {
+        images:    imageCount,
+        videos:    videoCount,
+        audio:     audioCount,
+        documents: fileCount,
+      },
+      calls: {
+        count:         calls.count,
+        totalDuration: calls.totalDuration, // seconds
+      },
+      notes: noteCount,
     });
   } catch (error) {
+    console.error('getUserStats error:', error);
     res.status(500).json({ message: 'Error fetching stats' });
   }
 };

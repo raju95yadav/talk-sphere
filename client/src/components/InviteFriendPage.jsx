@@ -11,7 +11,6 @@ import {
   Mail,
   MessageCircle,
   Send,
-  Twitter,
   Gift,
   Sparkles,
   ExternalLink,
