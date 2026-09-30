@@ -13,6 +13,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import ProfileDisplayCard from './ProfileDisplayCard';
 
 // ─────────────────────────────────────────────────────────────
 // Settings menu item definitions
@@ -331,6 +332,18 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
                 )}
               </AnimatePresence>
             </motion.div>
+
+            {/* ── PROFILE DISPLAY CARD (always visible, hidden while searching) ── */}
+            {!isSearching && (
+              <motion.div
+                variants={childVariants}
+                initial="hidden"
+                animate="visible"
+                className="py-5 flex justify-center border-b border-gray-800/60 mb-1"
+              >
+                <ProfileDisplayCard size="md" />
+              </motion.div>
+            )}
 
             {/* ── NOTIFICATION BANNER (hidden while searching) ── */}
             {!isSearching && <NotificationBanner />}

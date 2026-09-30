@@ -63,6 +63,11 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  presenceStatus: {
+    type: String,
+    enum: ['available', 'busy', 'away', 'in-a-call', 'do-not-disturb'],
+    default: 'available'
+  },
   lastSeen: {
     type: Date,
     default: Date.now

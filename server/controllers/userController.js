@@ -170,3 +170,34 @@ exports.hideUser = async (req, res) => {
     res.status(500).json({ message: 'Error hiding user' });
   }
 };
+
+exports.updatePresenceStatus = async (req, res) => {
+  try {
+    const VALID_STATUSES = ['available', 'busy', 'away', 'in-a-call', 'do-not-disturb'];
+    const { presenceStatus } = req.body;
+
+    if (!presenceStatus || !VALID_STATUSES.includes(presenceStatus)) {
+      return res.status(400).json({ message: 'Invalid presence status' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { presenceStatus },
+      { new: true, select: '-otp' }
+    );
+
+    // Broadcast real-time status change via Socket.io
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('presence_status_change', {
+        userId: user._id,
+        presenceStatus: user.presenceStatus,
+      });
+    }
+
+    res.json({ message: 'Presence status updated', presenceStatus: user.presenceStatus, user });
+  } catch (error) {
+    console.error('Presence Status Error:', error);
+    res.status(500).json({ message: 'Error updating presence status' });
+  }
+};

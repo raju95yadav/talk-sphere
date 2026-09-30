@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getProfile, updateAvatar, updateProfile, getUserStats, getAllUsers, hideUser } = require('../controllers/userController');
+const { getProfile, updateAvatar, updateProfile, getUserStats, getAllUsers, hideUser, updatePresenceStatus } = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
 const { upload } = require('../utils/cloudinary');
 
@@ -11,6 +11,7 @@ router.put('/profile', updateProfile);
 router.get('/stats', getUserStats);
 router.get('/', getAllUsers);
 router.post('/hide/:userId', hideUser);
+router.patch('/presence', updatePresenceStatus);
 
 // Protected route with error handling for avatar upload
 router.post('/avatar', protect, (req, res, next) => {
