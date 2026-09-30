@@ -12,8 +12,11 @@ import {
   RefreshCw,
   LogOut,
   ChevronRight,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import ProfileDisplayCard from './ProfileDisplayCard';
 import ProfileSettingsPage from './ProfileSettingsPage';
 import LinkedDevicesPage from './LinkedDevicesPage';
@@ -182,8 +185,28 @@ const SettingsRow = ({ item, onClick }) => {
  */
 const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
   const { user, logout } = useAuth();
+  const socket = useSocket();
   const [query, setQuery] = useState('');
   const [activePage, setActivePage] = useState(null); // null | 'profile'
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleConfirmLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      if (socket) {
+        socket.disconnect();
+      }
+      await logout();
+      window.history.pushState(null, '', '/login');
+      onClose?.();
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      setIsLoggingOut(false);
+      setShowLogoutModal(false);
+    }
+  };
 
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -217,7 +240,8 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
   };
 
   return (
-    <AnimatePresence>
+    <>
+      <AnimatePresence>
       {isOpen && (
         <motion.aside
           key="settings-panel"
@@ -427,14 +451,14 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
                 <motion.button
                   id="settings-logout-btn"
                   whileHover={{ x: 3 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={logout}
-                  className="w-full flex items-center gap-3.5 px-3 py-3 rounded-2xl hover:bg-red-500/8 transition-all group cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setShowLogoutModal(true)}
+                  className="w-full flex items-center gap-3.5 px-3 py-3 rounded-2xl hover:bg-red-500/10 transition-colors group cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
                 >
-                  <div className="shrink-0 w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 group-hover:bg-red-500/18 group-hover:text-red-300 transition-all">
+                  <div className="shrink-0 w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 group-hover:bg-red-500/20 group-hover:text-red-400 transition-colors">
                     <LogOut size={16} />
                   </div>
-                  <span className="text-[13px] font-semibold text-red-400 group-hover:text-red-300 transition-colors">
+                  <span className="text-[13px] font-semibold text-red-500 group-hover:text-red-400 transition-colors">
                     Log out
                   </span>
                 </motion.button>
@@ -471,6 +495,77 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
         </motion.aside>
       )}
     </AnimatePresence>
+
+    {/* ── Logout Confirmation Modal ── */}
+    <AnimatePresence>
+      {showLogoutModal && (
+        <motion.div
+          key="logout-confirmation-modal"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isLoggingOut) {
+              setShowLogoutModal(false);
+            }
+          }}
+          className="fixed inset-0 z-[300] backdrop-blur-md bg-black/60 flex items-center justify-center p-4 select-none"
+        >
+          <motion.div
+            initial={{ scale: 0.92, opacity: 0, y: 16 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.92, opacity: 0, y: 16 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="w-full max-w-[340px] rounded-3xl border border-gray-700/60 p-6 flex flex-col items-center text-center shadow-2xl overflow-hidden"
+            style={{ background: '#141720' }}
+          >
+            {/* Warning icon */}
+            <div className="w-12 h-12 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 mb-4 shadow-inner">
+              <AlertTriangle size={24} />
+            </div>
+
+            {/* Title & Description */}
+            <h3 className="text-[17px] font-black tracking-tight text-white mb-2 leading-snug">
+              Log out of Talk Sphere?
+            </h3>
+            <p className="text-[13px] text-gray-300 leading-relaxed mb-6 px-1">
+              You will need to log back in to access your chats and calls.
+            </p>
+
+            {/* Action Buttons */}
+            <div className="w-full flex items-center gap-3">
+              <button
+                id="logout-modal-cancel-btn"
+                type="button"
+                disabled={isLoggingOut}
+                onClick={() => setShowLogoutModal(false)}
+                className="flex-1 py-3 px-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-semibold text-[13px] transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                id="logout-modal-confirm-btn"
+                type="button"
+                disabled={isLoggingOut}
+                onClick={handleConfirmLogout}
+                className="flex-1 py-3 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/30 font-semibold text-[13px] transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isLoggingOut ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    <span>Logging out...</span>
+                  </>
+                ) : (
+                  'Confirm Log Out'
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>
   );
 };
 
