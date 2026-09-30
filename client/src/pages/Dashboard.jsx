@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogOut, User as UserIcon, LayoutDashboard, UserCog, Settings, Globe, Plus, Moon, Sun, Sparkles, Phone } from 'lucide-react';
+import { LogOut, User as UserIcon, LayoutDashboard, UserCog, Settings, Globe, Plus, Moon, Sun, Sparkles, Phone, X as XIcon } from 'lucide-react';
 import apiClient from '../api/apiClient';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,7 @@ import ChatSection from '../components/ChatSection';
 import AIChatSection from '../components/AIChatSection';
 import ManagementSection from '../components/ManagementSection';
 import CallLogsSection from '../components/CallLogsSection';
+import SettingsPanel from '../components/SettingsPanel';
 
 const Dashboard = () => {
   const { user, logout, token, refreshUser } = useAuth();
@@ -19,6 +20,7 @@ const Dashboard = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [activeTab, setActiveTab] = useState('MANAGEMENT HOME');
   const [isUploading, setIsUploading] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const fileInputRef = React.useRef(null);
   const [stats, setStats] = useState({ messages: 0, notes: 0 });
 
@@ -170,6 +172,16 @@ const Dashboard = () => {
                 {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
               </button>
 
+              {/* Settings gear – mobile */}
+              <button
+                id="settings-open-btn-mobile"
+                onClick={() => setShowSettings(true)}
+                className="p-2 sm:p-2.5 rounded-xl bg-bg-card-secondary text-text-muted hover:text-accent-primary transition-all border border-border-main active:scale-95 cursor-pointer"
+                title="Settings"
+              >
+                <Settings size={16} />
+              </button>
+
               <div 
                 onClick={handleAvatarClick}
                 className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-bg-card-secondary border border-border-main flex items-center justify-center cursor-pointer overflow-hidden relative group shrink-0 active:scale-95 transition-transform"
@@ -225,6 +237,16 @@ const Dashboard = () => {
                title="Toggle Theme"
              >
                {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+             </button>
+
+             {/* Settings gear – desktop */}
+             <button
+               id="settings-open-btn-desktop"
+               onClick={() => setShowSettings(true)}
+               className="p-2.5 rounded-xl bg-bg-card-secondary text-text-muted hover:text-accent-primary transition-all border border-border-main active:scale-95 cursor-pointer"
+               title="Settings"
+             >
+               <Settings size={16} />
              </button>
 
              <div className="text-right pl-1">
@@ -376,6 +398,36 @@ const Dashboard = () => {
         </AnimatePresence>
       </div>
       </div>
+
+      {/* ── Settings Panel Overlay ── */}
+      <AnimatePresence>
+        {showSettings && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="settings-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              onClick={() => setShowSettings(false)}
+              className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm"
+              aria-hidden="true"
+            />
+            {/* Panel */}
+            <div className="fixed inset-y-0 left-0 z-[201] flex">
+              <SettingsPanel
+                isOpen={showSettings}
+                onClose={() => setShowSettings(false)}
+                onNavigate={(id) => {
+                  if (id === 'profile') setActiveTab('SET PROFILE');
+                  setShowSettings(false);
+                }}
+              />
+            </div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
