@@ -96,12 +96,13 @@ const connectDB = async () => {
 connectDB();
 
 // Routes
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/notes', require('./routes/noteRoutes'));
-app.use('/api/users', require('./routes/userRoutes'));
-app.use('/api/chat', require('./routes/chatRoutes'));
-app.use('/api/groups', require('./routes/groupRoutes'));
-app.use('/api/ai', require('./routes/aiRoutes'));
+app.use('/api/auth',    require('./routes/authRoutes'));
+app.use('/api/notes',   require('./routes/noteRoutes'));
+app.use('/api/users',   require('./routes/userRoutes'));
+app.use('/api/chat',    require('./routes/chatRoutes'));
+app.use('/api/groups',  require('./routes/groupRoutes'));
+app.use('/api/ai',      require('./routes/aiRoutes'));
+app.use('/api/devices', require('./routes/deviceRoutes'));
 
 app.get('/', (req, res) => {
   res.send('Talk Sphere API is running');

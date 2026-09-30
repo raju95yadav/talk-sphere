@@ -15,6 +15,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import ProfileDisplayCard from './ProfileDisplayCard';
 import ProfileSettingsPage from './ProfileSettingsPage';
+import LinkedDevicesPage from './LinkedDevicesPage';
 
 // ─────────────────────────────────────────────────────────────
 // Settings menu item definitions
@@ -371,6 +372,8 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
                         onClick={(id) => {
                           if (id === 'profile') {
                             setActivePage('profile');
+                          } else if (id === 'linked-devices') {
+                            setActivePage('linked-devices');
                           } else {
                             onNavigate?.(id);
                           }
@@ -438,6 +441,12 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
           {/* ── Profile sub-page (slides in over list) ── */}
           <ProfileSettingsPage
             isOpen={activePage === 'profile'}
+            onBack={() => setActivePage(null)}
+          />
+
+          {/* ── Linked Devices sub-page ── */}
+          <LinkedDevicesPage
+            isOpen={activePage === 'linked-devices'}
             onBack={() => setActivePage(null)}
           />
         </motion.aside>
