@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import ProfileDisplayCard from './ProfileDisplayCard';
 import ProfileSettingsPage from './ProfileSettingsPage';
 import LinkedDevicesPage from './LinkedDevicesPage';
+import InviteFriendPage from './InviteFriendPage';
 
 // ─────────────────────────────────────────────────────────────
 // Settings menu item definitions
@@ -374,6 +375,8 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
                             setActivePage('profile');
                           } else if (id === 'linked-devices') {
                             setActivePage('linked-devices');
+                          } else if (id === 'invite-friend') {
+                            setActivePage('invite-friend');
                           } else {
                             onNavigate?.(id);
                           }
@@ -438,7 +441,7 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
           {/* Bottom fade-out gradient */}
           <div className="pointer-events-none absolute bottom-0 inset-x-0 h-12 bg-gradient-to-t from-[#11141a] to-transparent" />
 
-          {/* ── Profile sub-page (slides in over list) ── */}
+          {/* ── Profile sub-page ── */}
           <ProfileSettingsPage
             isOpen={activePage === 'profile'}
             onBack={() => setActivePage(null)}
@@ -447,6 +450,12 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
           {/* ── Linked Devices sub-page ── */}
           <LinkedDevicesPage
             isOpen={activePage === 'linked-devices'}
+            onBack={() => setActivePage(null)}
+          />
+
+          {/* ── Invite a Friend sub-page ── */}
+          <InviteFriendPage
+            isOpen={activePage === 'invite-friend'}
             onBack={() => setActivePage(null)}
           />
         </motion.aside>
