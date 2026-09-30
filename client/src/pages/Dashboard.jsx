@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogOut, User as UserIcon, LayoutDashboard, Settings, Globe, Plus, Moon, Sun, Sparkles, Phone } from 'lucide-react';
+import { LogOut, User as UserIcon, LayoutDashboard, UserCog, Settings, Globe, Plus, Moon, Sun, Sparkles, Phone } from 'lucide-react';
 import apiClient from '../api/apiClient';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -90,7 +90,7 @@ const Dashboard = () => {
     { name: 'MANAGEMENT HOME', shortName: 'HOME', icon: LayoutDashboard },
     { name: 'CALL LOGS', shortName: 'CALLS', icon: Phone },
     { name: 'AI ASSISTANT', shortName: 'AI ASSIST', icon: Sparkles },
-    { name: 'MANAGEMENT', shortName: 'SETTINGS', icon: Settings },
+    { name: 'SET PROFILE', shortName: 'PROFILE', icon: UserCog },
   ];
 
   return (
@@ -101,13 +101,13 @@ const Dashboard = () => {
           <motion.img
             key={
               activeTab === 'AI ASSISTANT' ? '/image2.png' :
-              activeTab === 'MANAGEMENT' ? '/image4.png' :
+              (activeTab === 'SET PROFILE' || activeTab === 'MANAGEMENT') ? '/image4.png' :
               activeTab === 'CALL LOGS' ? '/image5.png' :
               '/image.png'
             }
             src={
               activeTab === 'AI ASSISTANT' ? '/image2.png' :
-              activeTab === 'MANAGEMENT' ? '/image4.png' :
+              (activeTab === 'SET PROFILE' || activeTab === 'MANAGEMENT') ? '/image4.png' :
               activeTab === 'CALL LOGS' ? '/image5.png' :
               '/image.png'
             }
@@ -337,14 +337,16 @@ const Dashboard = () => {
                          <Plus className="text-white opacity-0 group-hover:opacity-100 scale-0 group-hover:scale-100 transition-all" size={30} />
                        </div>
                      </div>
-                     <h2 className="text-xl sm:text-2xl font-black mb-1.5 sm:mb-2 tracking-tight uppercase">USER IDENTITY</h2>
+                     <h2 className="text-xl sm:text-2xl font-black mb-1.5 sm:mb-2 tracking-tight uppercase">
+                       {user?.name || user?.username || 'User'}
+                     </h2>
                      <p className="text-text-muted text-xs mb-8 sm:mb-10 font-medium truncate w-full px-4 tracking-widest">{user?.email}</p>
                      
                      <button 
                        onClick={logout}
                        className="w-full flex items-center justify-center gap-3 px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all font-black text-xs uppercase tracking-[0.2em] shadow-sm active:scale-95 cursor-pointer"
                      >
-                       <LogOut size={18} /> TERMINATE SESSION
+                       <LogOut size={18} /> Logout
                      </button>
                    </div>
                 </div>

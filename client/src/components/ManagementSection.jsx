@@ -6,13 +6,13 @@ import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 
 const ManagementSection = () => {
-  const { user, token, refreshUser } = useAuth();
+  const { user, token, refreshUser, updateUserData } = useAuth();
   const [formData, setFormData] = useState({
     name: user?.name || '',
     username: user?.username || '',
     phoneNumber: user?.phoneNumber || '',
     age: user?.age || '',
-    address: user?.address || '' // Added address as requested "gmail address" usually means physical but I'll add a field
+    address: user?.address || ''
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -22,7 +22,7 @@ const ManagementSection = () => {
         name: user.name || '',
         username: user.username || '',
         phoneNumber: user.phoneNumber || '',
-        age: user.age || '',
+        age: user.age ?? '',
         address: user.address || ''
       });
     }
@@ -32,11 +32,14 @@ const ManagementSection = () => {
     e.preventDefault();
     setIsSaving(true);
     try {
-      await apiClient.put('/api/users/profile', formData);
-      toast.success('Security Profile Updated');
-      refreshUser();
+      const res = await apiClient.put('/api/users/profile', formData);
+      toast.success(res.data?.message || 'Profile updated successfully');
+      if (res.data?.user && updateUserData) {
+        updateUserData(res.data.user);
+      }
+      await refreshUser();
     } catch (err) {
-      toast.error('Sync Failure');
+      toast.error(err.response?.data?.message || 'Failed to update profile');
     } finally {
       setIsSaving(false);
     }
@@ -72,15 +75,15 @@ const ManagementSection = () => {
             <User size={24} />
           </div>
           <div>
-            <h3 className="text-lg sm:text-xl font-black uppercase tracking-tight">IDENTITY MANAGEMENT</h3>
-            <p className="text-[10px] text-text-muted font-bold uppercase tracking-[0.2em]">Update your global credentials</p>
+            <h3 className="text-lg sm:text-xl font-black uppercase tracking-tight">Profile Settings</h3>
+            <p className="text-[10px] text-text-muted font-bold uppercase tracking-[0.2em]">Update your profile credentials</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest px-2">Legal Name</label>
+              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest px-2">Full Name</label>
               <div className="relative">
                 <User className="absolute left-6 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
                 <input 
@@ -94,7 +97,7 @@ const ManagementSection = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest px-2">Alias / Username</label>
+              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest px-2">Username</label>
               <div className="relative">
                 <ShieldCheck className="absolute left-6 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
                 <input 
@@ -102,13 +105,13 @@ const ManagementSection = () => {
                   value={formData.username}
                   onChange={(e) => setFormData({...formData, username: e.target.value})}
                   className={`${inputClasses} pl-14`} 
-                  placeholder="ALIAS"
+                  placeholder="USERNAME"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest px-2">Secure Line (Phone)</label>
+              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest px-2">Phone Number</label>
               <div className="relative">
                 <Phone className="absolute left-6 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
                 <input 
@@ -122,7 +125,7 @@ const ManagementSection = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest px-2">Biological Age</label>
+              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest px-2">Age</label>
               <div className="relative">
                 <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
                 <input 
@@ -137,7 +140,7 @@ const ManagementSection = () => {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-text-muted uppercase tracking-widest px-2">Physical Vector (Address)</label>
+            <label className="text-[10px] font-black text-text-muted uppercase tracking-widest px-2">Full Address</label>
             <div className="relative">
               <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
               <input 
@@ -145,7 +148,7 @@ const ManagementSection = () => {
                 value={formData.address}
                 onChange={(e) => setFormData({...formData, address: e.target.value})}
                 className={`${inputClasses} pl-14`} 
-                placeholder="CURRENT LOCATION / ADDRESS"
+                placeholder="FULL ADDRESS"
               />
             </div>
           </div>
@@ -156,7 +159,7 @@ const ManagementSection = () => {
               disabled={isSaving}
               className="w-full md:w-auto flex items-center justify-center gap-3 bg-accent-primary text-white font-black py-4 px-10 rounded-2xl shadow-2xl shadow-accent-primary/30 hover:scale-105 active:scale-95 transition-all uppercase tracking-[0.2em] text-xs disabled:opacity-50"
             >
-              {isSaving ? 'SYNCHRONIZING...' : <><Save size={18} /> COMMIT CHANGES</>}
+              {isSaving ? 'SAVING...' : <><Save size={18} /> Save Changes</>}
             </button>
           </div>
         </form>

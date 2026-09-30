@@ -97,9 +97,15 @@ export const AuthProvider = ({ children }) => {
       const res = await apiClient.get('/api/users/profile');
       setUser(res.data);
       authChannel.postMessage({ type: 'LOGIN', user: res.data, token });
+      return res.data;
     } catch (err) {
       console.error('Failed to refresh user profile', err);
     }
+  };
+
+  const updateUserData = (updatedUser) => {
+    setUser(updatedUser);
+    authChannel.postMessage({ type: 'LOGIN', user: updatedUser, token });
   };
 
   const logout = async () => {
@@ -117,7 +123,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, refreshUser, loading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, refreshUser, updateUserData, loading }}>
       {children}
     </AuthContext.Provider>
   );

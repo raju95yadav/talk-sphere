@@ -48,18 +48,30 @@ exports.updateProfile = async (req, res) => {
   try {
     const { name, username, phoneNumber, age, address } = req.body;
     const user = await User.findById(req.user._id);
-
-    if (username) {
-      const existingUser = await User.findOne({ username, _id: { $ne: req.user._id } });
-      if (existingUser) {
-        return res.status(400).json({ message: 'Username is already taken' });
-      }
-      user.username = username;
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
     }
-    if (name !== undefined) user.name = name;
-    if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
-    if (age !== undefined) user.age = age;
-    if (address !== undefined) user.address = address;
+
+    if (username !== undefined) {
+      const trimmedUsername = username.trim();
+      if (trimmedUsername && trimmedUsername !== user.username) {
+        const existingUser = await User.findOne({ 
+          username: { $regex: new RegExp(`^${trimmedUsername}$`, 'i') }, 
+          _id: { $ne: req.user._id } 
+        });
+        if (existingUser) {
+          return res.status(400).json({ message: 'Username is already taken' });
+        }
+        user.username = trimmedUsername;
+      }
+    }
+
+    if (name !== undefined) user.name = typeof name === 'string' ? name.trim() : name;
+    if (phoneNumber !== undefined) user.phoneNumber = typeof phoneNumber === 'string' ? phoneNumber.trim() : phoneNumber;
+    if (age !== undefined) {
+      user.age = (age === '' || age === null || isNaN(Number(age))) ? null : Number(age);
+    }
+    if (address !== undefined) user.address = typeof address === 'string' ? address.trim() : address;
 
     await user.save();
 
@@ -74,9 +86,13 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
-    res.json({ message: 'Profile updated successfully', user });
+    const updatedUser = user.toObject();
+    delete updatedUser.otp;
+
+    res.json({ message: 'Profile updated successfully', user: updatedUser });
   } catch (error) {
-    res.status(500).json({ message: 'Error updating profile' });
+    console.error('Update Profile Error:', error);
+    res.status(500).json({ message: error.message || 'Error updating profile' });
   }
 };
 
