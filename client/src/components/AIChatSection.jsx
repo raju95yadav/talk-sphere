@@ -26,7 +26,7 @@ const PRESET_PROMPTS = [
 ];
 
 const AIChatSection = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const socket = useSocket();
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -408,31 +408,39 @@ const AIChatSection = () => {
       <motion.div 
         initial={false}
         animate={{ 
-          width: isSidebarOpen ? '270px' : '0px',
+          width: isSidebarOpen ? '280px' : '0px',
           opacity: isSidebarOpen ? 1 : 0
         }}
-        className="bg-bg-card-secondary/85 backdrop-blur-xl border-r border-border-main flex flex-col overflow-hidden transition-all duration-300 z-30 absolute md:relative inset-y-0 left-0 h-full shadow-2xl md:shadow-none shrink-0"
+        className="bg-white/95 dark:bg-[#0e121b]/95 backdrop-blur-2xl border-r border-slate-200 dark:border-white/10 flex flex-col overflow-hidden transition-all duration-300 z-30 absolute md:relative inset-y-0 left-0 h-full shadow-2xl md:shadow-none shrink-0"
       >
-        <div className="p-4 border-b border-border-main flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-accent-primary" />
-            <h3 className="text-xs font-bold tracking-wide text-text-main">Chat History</h3>
+        <div className="p-4 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-500">
+              <Sparkles size={15} />
+            </div>
+            <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-white">Chat History</h3>
           </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-white/10 rounded cursor-pointer text-text-muted hover:text-text-main"><X size={16} /></button>
+          <button 
+            onClick={() => setIsSidebarOpen(false)} 
+            className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+          >
+            <X size={15} />
+          </button>
         </div>
         
         <div className="p-3">
           <button 
             onClick={startNewChat}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-accent-primary/10 border border-accent-primary/20 rounded-xl text-accent-primary text-xs font-semibold hover:bg-accent-primary hover:text-white transition-all shadow-sm cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer"
           >
-            <Plus size={15} /> New Chat
+            <Plus size={15} /> New Conversation
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-1.5 custom-scrollbar">
           {sessions.map(s => {
             const sId = s._id || s.id;
+            const isActive = activeSessionId === sId;
             return (
               <div 
                 key={sId}
@@ -441,23 +449,23 @@ const AIChatSection = () => {
                   if (s.modelPreference) setSelectedModel(s.modelPreference);
                   if (window.innerWidth < 768) setIsSidebarOpen(false);
                 }}
-                className={`p-2.5 rounded-xl cursor-pointer group transition-all border ${
-                    activeSessionId === sId 
-                      ? 'bg-accent-primary/15 border-accent-primary/30 text-text-main font-semibold shadow-sm' 
-                      : 'bg-bg-card/50 border-transparent text-text-muted hover:bg-white/5 hover:text-text-main'
+                className={`p-3 rounded-xl cursor-pointer group transition-all border ${
+                    isActive 
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold shadow-sm' 
+                      : 'bg-slate-50/70 dark:bg-white/[0.03] border-slate-200/60 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-950 dark:hover:text-white'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 truncate">
-                    <MessageSquare size={14} className={activeSessionId === sId ? 'text-accent-primary shrink-0' : 'shrink-0'} />
+                  <div className="flex items-center gap-2.5 truncate">
+                    <MessageSquare size={14} className={isActive ? 'text-emerald-500 shrink-0' : 'text-slate-400 dark:text-slate-500 shrink-0'} />
                     <span className="text-xs truncate">{s.title}</span>
                   </div>
                   <button 
                     onClick={(e) => deleteSession(e, sId)}
-                    className="opacity-60 md:opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded transition-all shrink-0"
+                    className="opacity-70 md:opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/15 rounded-md transition-all shrink-0 cursor-pointer"
                     title="Delete Chat"
                   >
-                    <Trash2 size={12} className="text-red-400" />
+                    <Trash2 size={12} className="text-red-500 dark:text-red-400" />
                   </button>
                 </div>
               </div>
@@ -466,46 +474,46 @@ const AIChatSection = () => {
         </div>
 
         {/* Sidebar Footer Export */}
-        <div className="p-3 border-t border-border-main">
+        <div className="p-3 border-t border-slate-200 dark:border-white/10">
           <button
             onClick={exportChatSession}
-            className="w-full flex items-center justify-center gap-2 py-2 text-text-muted hover:text-text-main text-xs font-medium bg-bg-card rounded-xl border border-border-main hover:border-accent-primary/40 transition-all cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs font-semibold bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 hover:border-emerald-500/40 transition-all cursor-pointer"
           >
-            <Download size={13} /> Export Chat (.md)
+            <Download size={13} /> Export Session (.md)
           </button>
         </div>
       </motion.div>
 
       {/* Main Workspace Column */}
-      <div className="flex-1 flex flex-col bg-bg-main/30 backdrop-blur-xs relative z-10 min-w-0 h-full overflow-hidden">
+      <div className="flex-1 flex flex-col bg-transparent relative z-10 min-w-0 h-full overflow-hidden">
         {/* Header Bar - Fully Responsive */}
-        <div className="p-2.5 sm:p-4 border-b border-border-main flex items-center justify-between bg-bg-card-secondary/80 backdrop-blur-md gap-1.5 sm:gap-3 min-w-0">
+        <div className="p-2.5 sm:p-4 border-b border-slate-200 dark:border-white/10 flex items-center justify-between bg-white/80 dark:bg-[#0e121b]/80 backdrop-blur-xl gap-2 min-w-0">
           {/* Left Title & Status */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 bg-bg-card border border-border-main rounded-xl text-text-muted hover:text-text-main shadow-sm transition-all shrink-0 cursor-pointer"
+              className="p-2 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-slate-700 dark:text-slate-300 hover:text-emerald-500 hover:border-emerald-500/40 shadow-sm transition-all shrink-0 cursor-pointer active:scale-95"
               title="Chat History"
             >
               <History size={17} />
             </button>
             
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-accent-primary/10 flex items-center justify-center border border-accent-primary/20 shrink-0">
-              <Sparkles size={17} className="text-accent-primary animate-pulse" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0">
+              <Sparkles size={17} className="text-emerald-500 animate-pulse" />
             </div>
 
             <div className="min-w-0 flex-1">
-              <h4 className="font-bold text-xs sm:text-sm text-text-main truncate">
+              <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
                 {activeSession?.title || 'New Chat'}
               </h4>
               <div className="flex items-center gap-1.5 mt-0.5 whitespace-nowrap overflow-hidden">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 animate-pulse"></span>
-                <span className="text-[10px] text-accent-primary font-medium truncate">
-                  Real-time AI Active
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse"></span>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold truncate">
+                  Real-time Neural Engine
                 </span>
                 {serverPingMs && (
-                  <span className="text-[9px] font-mono text-text-muted/60 hidden md:inline">
-                    • {serverPingMs}ms
+                  <span className="text-[9px] font-mono text-slate-500 dark:text-slate-400 hidden md:inline">
+                    • {serverPingMs}ms latency
                   </span>
                 )}
               </div>
@@ -514,7 +522,7 @@ const AIChatSection = () => {
 
           {/* Right Controls: Model Select & Regenerate */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <div className="relative max-w-[125px] sm:max-w-[170px]">
+            <div className="relative max-w-[130px] sm:max-w-[180px]">
               <select
                 value={selectedModel}
                 onChange={(e) => {
@@ -525,22 +533,22 @@ const AIChatSection = () => {
                   }
                 }}
                 aria-label="Select AI Model"
-                className="w-full bg-bg-card text-text-main border border-border-main hover:border-accent-primary/40 rounded-xl px-2.5 py-1.5 text-[11px] sm:text-xs font-medium outline-none cursor-pointer appearance-none pr-7 truncate shadow-sm transition-all"
+                className="w-full bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 hover:border-emerald-500/40 rounded-xl px-2.5 py-1.5 text-[11px] sm:text-xs font-semibold outline-none cursor-pointer appearance-none pr-7 truncate shadow-sm transition-all focus:border-emerald-500"
               >
                 {AI_MODELS.map(m => (
-                  <option key={m.id} value={m.id} className="bg-bg-card-secondary text-text-main text-xs">
+                  <option key={m.id} value={m.id} className="bg-white dark:bg-[#141822] text-slate-900 dark:text-white text-xs">
                     {m.name}
                   </option>
                 ))}
               </select>
-              <Cpu size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-accent-primary pointer-events-none" />
+              <Cpu size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none" />
             </div>
 
             {activeSession?.messages?.length > 0 && (
               <button
                 onClick={regenerateResponse}
                 disabled={isLoading}
-                className="p-1.5 sm:p-2 bg-bg-card border border-border-main rounded-xl text-text-muted hover:text-accent-primary hover:border-accent-primary/40 shadow-sm transition-all cursor-pointer disabled:opacity-40 shrink-0"
+                className="p-1.5 sm:p-2 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-slate-700 dark:text-slate-300 hover:text-emerald-500 hover:border-emerald-500/40 shadow-sm transition-all cursor-pointer disabled:opacity-40 shrink-0 active:scale-95"
                 title="Regenerate Last Response"
               >
                 <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
@@ -556,37 +564,37 @@ const AIChatSection = () => {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="bg-amber-500/10 border-b border-amber-500/20 px-3 py-2 flex items-center justify-between gap-2 text-amber-300 text-[11px] font-medium"
+              className="bg-amber-500/10 border-b border-amber-500/20 px-3 py-2 flex items-center justify-between gap-2 text-amber-600 dark:text-amber-300 text-[11px] font-semibold"
             >
               <div className="flex items-center gap-2 min-w-0 truncate">
-                <AlertTriangle size={14} className="animate-bounce shrink-0 text-amber-400" />
-                <span className="truncate">Waking up server... (Free-tier server spinning up)</span>
+                <AlertTriangle size={14} className="animate-bounce shrink-0 text-amber-500" />
+                <span className="truncate">Waking up server... (Spinning up instance)</span>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <div className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-ping"></div>
-                <span className="text-[9px] font-mono text-amber-400/80">Connecting</span>
+                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></div>
+                <span className="text-[9px] font-mono text-amber-600 dark:text-amber-400">Connecting</span>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* Main Content Area (Scrollable) */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-6 space-y-4 min-w-0">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-6 space-y-5 min-w-0">
           {(!activeSession || activeSession.messages.length === 0) ? (
-            <div className="flex flex-col items-center justify-center min-h-full py-6 px-2 sm:px-4 max-w-2xl mx-auto my-auto text-center">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-gradient-to-tr from-accent-primary/20 to-pink-500/20 border border-accent-primary/30 flex items-center justify-center mb-3 sm:mb-4 shadow-xl shadow-accent-primary/10">
-                <Sparkles size={24} className="text-accent-primary" />
+            <div className="flex flex-col items-center justify-center min-h-full py-8 px-2 sm:px-4 max-w-2xl mx-auto my-auto text-center">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-gradient-to-tr from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center mb-4 shadow-xl shadow-emerald-500/10">
+                <Sparkles size={26} className="text-emerald-500" />
               </div>
               
-              <h2 className="text-lg sm:text-2xl font-bold text-text-main mb-1.5 tracking-tight">
-                How can I help you today?
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
+                How can I assist you today?
               </h2>
-              <p className="text-xs sm:text-sm text-text-muted mb-5 sm:mb-8 leading-relaxed max-w-md">
-                Ask a question, analyze code, or summarize documents in real-time.
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-6 sm:mb-8 leading-relaxed max-w-md font-medium">
+                Ask questions, inspect code, draft documents, or brainstorm ideas in real-time.
               </p>
 
-              {/* 2x2 Quick Action Cards Grid - Fully Responsive & Light Mode Adapted */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3.5 w-full">
+              {/* 2x2 Quick Action Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full">
                 {PRESET_PROMPTS.map((p, idx) => {
                   const Icon = p.icon;
                   return (
@@ -596,16 +604,16 @@ const AIChatSection = () => {
                         setMessage(p.prompt + ' ');
                         document.getElementById('ai-message-input')?.focus();
                       }}
-                      className="p-3.5 sm:p-4 bg-bg-card hover:bg-bg-card-secondary border border-border-main hover:border-accent-primary/50 hover:shadow-[0_0_20px_rgba(255,0,85,0.15)] rounded-2xl text-left transition-all duration-300 group cursor-pointer flex items-start gap-3 backdrop-blur-md shadow-sm"
+                      className="p-4 bg-white dark:bg-[#121620] hover:bg-slate-50 dark:hover:bg-[#171d2b] border border-slate-200 dark:border-white/10 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/10 rounded-2xl text-left transition-all duration-300 group cursor-pointer flex items-start gap-3.5 shadow-sm"
                     >
-                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-accent-primary/10 border border-accent-primary/20 flex items-center justify-center group-hover:border-accent-primary/50 group-hover:scale-105 shrink-0 transition-all">
-                        <Icon size={17} className="text-accent-primary group-hover:text-accent-primary transition-colors" />
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:border-emerald-500/50 group-hover:scale-105 shrink-0 transition-all">
+                        <Icon size={18} className="text-emerald-500 transition-colors" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-xs font-bold text-text-main group-hover:text-accent-primary transition-colors mb-0.5">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors mb-0.5">
                           {p.label}
                         </div>
-                        <div className="text-[11px] font-medium text-text-muted leading-snug line-clamp-2">
+                        <div className="text-[11px] font-medium text-slate-600 dark:text-slate-400 leading-snug line-clamp-2">
                           {p.prompt}
                         </div>
                       </div>
@@ -616,103 +624,138 @@ const AIChatSection = () => {
             </div>
           ) : (
             <AnimatePresence initial={false}>
-              {activeSession.messages.map((msg, i) => (
-                <motion.div 
-                  key={i}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} min-w-0`}
-                >
-                  <div className={`max-w-[92%] sm:max-w-[85%] flex flex-col min-w-0 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                    <div className={`p-3 sm:p-4 rounded-2xl shadow-md text-xs font-normal leading-relaxed min-w-0 overflow-hidden break-words [word-break:break-word] ${
-                      msg.role === 'user' 
-                        ? 'bg-accent-primary text-white rounded-tr-none' 
-                        : 'bg-bg-card-secondary text-text-main rounded-tl-none border border-border-main backdrop-blur-sm'
-                    }`}>
-                      <div className="markdown-container prose-invert max-w-none break-words [word-break:break-word] overflow-hidden text-xs">
-                        <ReactMarkdown 
-                          components={{
-                            a: ({ node, ...props }) => (
-                              <a {...props} target="_blank" rel="noopener noreferrer" className="text-accent-primary hover:underline font-medium break-all" />
-                            ),
-                            code: ({ node, inline, className, children, ...props }) => {
-                              const match = /language-(\w+)/.exec(className || '');
-                              const codeString = String(children).replace(/\n$/, '');
-                              if (!inline) {
-                                return (
-                                  <div className="my-2 rounded-xl border border-border-main bg-bg-card-secondary overflow-hidden shadow-sm">
-                                    <div className="flex items-center justify-between px-3 py-1.5 bg-bg-card border-b border-border-main text-[10px] font-mono text-text-muted">
-                                      <span>{match ? match[1] : 'code'}</span>
-                                      <button
-                                        onClick={() => copyToClipboard(codeString, `code-${i}`)}
-                                        className="flex items-center gap-1 text-accent-primary hover:underline cursor-pointer"
-                                      >
-                                        <Copy size={11} /> Copy
-                                      </button>
+              {activeSession.messages.map((msg, i) => {
+                const isUser = msg.role === 'user';
+                return (
+                  <motion.div 
+                    key={i}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className={`flex items-start gap-2.5 sm:gap-3 ${isUser ? 'justify-end' : 'justify-start'} min-w-0`}
+                  >
+                    {/* Bot Avatar Icon */}
+                    {!isUser && (
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-[1px] shrink-0 shadow-md shadow-emerald-500/20 mt-1">
+                        <div className="w-full h-full bg-[#0b0e14] rounded-[11px] flex items-center justify-center">
+                          <Bot size={15} className="text-emerald-400" />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className={`max-w-[94%] sm:max-w-[85%] flex flex-col min-w-0 ${isUser ? 'items-end' : 'items-start'}`}>
+                      <div className={`p-4 sm:p-5 rounded-2xl shadow-md text-xs sm:text-sm font-normal leading-relaxed min-w-0 overflow-hidden break-words [word-break:break-word] ${
+                        isUser 
+                          ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-tr-xs shadow-emerald-500/20' 
+                          : 'bg-white dark:bg-[#121620] text-slate-900 dark:text-slate-100 rounded-tl-xs border border-slate-200 dark:border-white/10 shadow-black/5 dark:shadow-black/30'
+                      }`}>
+                        <div className="markdown-container max-w-none break-words [word-break:break-word] overflow-hidden text-xs sm:text-sm">
+                          <ReactMarkdown 
+                            components={{
+                              a: ({ node, ...props }) => (
+                                <a {...props} target="_blank" rel="noopener noreferrer" className="text-emerald-500 dark:text-emerald-400 hover:underline font-semibold break-all" />
+                              ),
+                              code: ({ node, inline, className, children, ...props }) => {
+                                const match = /language-(\w+)/.exec(className || '');
+                                const codeString = String(children).replace(/\n$/, '');
+                                if (!inline) {
+                                  return (
+                                    <div className="my-3 rounded-2xl border border-slate-700/60 dark:border-white/10 bg-[#0d131f] dark:bg-[#070b13] overflow-hidden shadow-xl text-left">
+                                      <div className="flex items-center justify-between px-3.5 py-2 bg-[#141b2a] dark:bg-[#0c121e] border-b border-slate-700/50 dark:border-white/10 text-[11px] font-mono font-bold text-slate-300">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="w-2 h-2 rounded-full bg-red-400/80 inline-block" />
+                                          <span className="w-2 h-2 rounded-full bg-amber-400/80 inline-block" />
+                                          <span className="w-2 h-2 rounded-full bg-emerald-400/80 inline-block" />
+                                          <span className="ml-1 uppercase text-emerald-400 text-[10px] tracking-wider">{match ? match[1] : 'CODE'}</span>
+                                        </div>
+                                        <button
+                                          onClick={() => copyToClipboard(codeString, `code-${i}`)}
+                                          className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/10 hover:bg-emerald-500 hover:text-white text-slate-200 text-[10px] font-sans font-bold transition-all cursor-pointer active:scale-95"
+                                        >
+                                          {copiedIndex === `code-${i}` ? <Check size={11} className="text-emerald-300" /> : <Copy size={11} />}
+                                          <span>{copiedIndex === `code-${i}` ? 'COPIED' : 'COPY'}</span>
+                                        </button>
+                                      </div>
+                                      <pre className="p-3.5 text-[11px] sm:text-[12px] font-mono overflow-x-auto custom-scrollbar text-emerald-300 leading-relaxed font-medium m-0 border-0 bg-transparent">
+                                        <code>{codeString}</code>
+                                      </pre>
                                     </div>
-                                    <pre className="p-3 text-xs font-mono overflow-x-auto custom-scrollbar text-text-main dark:text-amber-200/90 leading-relaxed font-semibold">
-                                      <code>{codeString}</code>
-                                    </pre>
-                                  </div>
+                                  );
+                                }
+                                return (
+                                  <code className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono text-[11px] font-semibold" {...props}>
+                                    {children}
+                                  </code>
                                 );
                               }
-                              return (
-                                <code className="px-1.5 py-0.5 rounded bg-bg-card border border-border-main text-accent-primary font-mono text-[11px]" {...props}>
-                                  {children}
-                                </code>
-                              );
-                            }
-                          }}
-                        >
-                          {msg.content}
-                        </ReactMarkdown>
-                      </div>
-
-                      {/* Action Bar for AI Messages */}
-                      {msg.role === 'assistant' && msg.content && (
-                        <div className="flex items-center justify-between gap-3 mt-2.5 pt-2 border-t border-border-main/40 text-[10px] font-medium text-text-muted">
-                          <div className="flex items-center gap-3">
-                            <button
-                              onClick={() => copyToClipboard(msg.content, i)}
-                              className="flex items-center gap-1 hover:text-accent-primary transition-colors cursor-pointer"
-                              title="Copy Answer"
-                            >
-                              {copiedIndex === i ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                              <span>{copiedIndex === i ? 'Copied' : 'Copy'}</span>
-                            </button>
-
-                            <button
-                              onClick={() => speakText(msg.content, i)}
-                              className="flex items-center gap-1 hover:text-accent-primary transition-colors cursor-pointer"
-                              title="Read Aloud"
-                            >
-                              {speakingIndex === i ? <VolumeX size={12} className="text-red-400" /> : <Volume2 size={12} />}
-                              <span>{speakingIndex === i ? 'Stop' : 'Listen'}</span>
-                            </button>
-                          </div>
-
-                          <span className="opacity-50 font-mono">
-                            {new Date(msg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
+                            }}
+                          >
+                            {msg.content}
+                          </ReactMarkdown>
                         </div>
-                      )}
+
+                        {/* Action Bar for AI Messages */}
+                        {!isUser && msg.content && (
+                          <div className="flex items-center justify-between gap-3 mt-3 pt-2.5 border-t border-slate-200 dark:border-white/10 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => copyToClipboard(msg.content, i)}
+                                className="flex items-center gap-1 hover:text-emerald-500 transition-colors cursor-pointer"
+                                title="Copy Answer"
+                              >
+                                {copiedIndex === i ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                                <span>{copiedIndex === i ? 'Copied' : 'Copy'}</span>
+                              </button>
+
+                              <button
+                                onClick={() => speakText(msg.content, i)}
+                                className="flex items-center gap-1 hover:text-emerald-500 transition-colors cursor-pointer"
+                                title="Read Aloud"
+                              >
+                                {speakingIndex === i ? <VolumeX size={12} className="text-red-500" /> : <Volume2 size={12} />}
+                                <span>{speakingIndex === i ? 'Stop' : 'Listen'}</span>
+                              </button>
+                            </div>
+
+                            <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                              {new Date(msg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+
+                    {/* User Avatar */}
+                    {isUser && (
+                      <div className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-white/10 border border-slate-300 dark:border-white/10 overflow-hidden shrink-0 mt-1 flex items-center justify-center">
+                        {user?.avatar ? (
+                          <img src={user.avatar} alt="User" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
           )}
 
           {isLoading && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-              <div className="bg-bg-card-secondary border border-border-main p-3 sm:p-4 rounded-2xl rounded-tl-none flex items-center gap-3">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0">
+                <Bot size={15} className="text-emerald-500" />
+              </div>
+              <div className="bg-white dark:bg-[#121620] border border-slate-200 dark:border-white/10 p-3 sm:p-4 rounded-2xl rounded-tl-xs flex items-center gap-3 shadow-sm">
                  <div className="flex gap-1.5">
-                   <div className="w-2 h-2 bg-accent-primary rounded-full animate-bounce"></div>
-                   <div className="w-2 h-2 bg-accent-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                   <div className="w-2 h-2 bg-accent-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"></div>
+                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                  </div>
-                 <span className="text-xs font-medium text-accent-primary">
-                   Thinking...
+                 <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                   Generating response...
                  </span>
               </div>
             </motion.div>
@@ -721,25 +764,25 @@ const AIChatSection = () => {
         </div>
 
         {/* Input Form Bar */}
-        <form onSubmit={handleSendMessage} className="p-2.5 sm:p-4 bg-bg-card-secondary/80 border-t border-border-main backdrop-blur-md shrink-0">
-          <div className="flex gap-2 items-center bg-bg-card border border-border-main rounded-2xl p-1 sm:p-1.5 shadow-lg focus-within:border-pink-500/60 focus-within:ring-2 focus-within:ring-pink-500/20 transition-all duration-300">
+        <form onSubmit={handleSendMessage} className="p-2.5 sm:p-4 bg-white/90 dark:bg-[#0e121b]/90 border-t border-slate-200 dark:border-white/10 backdrop-blur-xl shrink-0">
+          <div className="flex gap-2 items-center bg-slate-50 dark:bg-[#121620] border border-slate-200 dark:border-white/10 rounded-2xl p-1 sm:p-1.5 shadow-lg focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all duration-300">
             <input 
               id="ai-message-input"
               name="ai-message"
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Ask anything or type '/' for prompts..."
+              placeholder="Ask anything or request code analysis..."
               aria-label="AI message input"
               disabled={isLoading}
-              className="flex-1 bg-transparent px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-normal text-text-main placeholder:text-text-muted/50 outline-none disabled:opacity-50 min-w-0"
+              className="flex-1 bg-transparent px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none disabled:opacity-50 min-w-0"
             />
 
             {isLoading ? (
               <button
                 type="button"
                 onClick={handleStopGeneration}
-                className="h-9 sm:h-10 px-3 sm:px-4 bg-red-500/20 border border-red-500/30 text-red-400 rounded-xl text-xs font-semibold flex items-center gap-1.5 hover:bg-red-500 hover:text-white transition-all shrink-0 cursor-pointer shadow-sm"
+                className="h-9 sm:h-10 px-3 sm:px-4 bg-red-500/15 border border-red-500/30 text-red-500 dark:text-red-400 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:bg-red-500 hover:text-white transition-all shrink-0 cursor-pointer shadow-sm active:scale-95"
                 title="Stop Generation"
               >
                 <Square size={12} className="fill-current" /> Stop
@@ -748,7 +791,7 @@ const AIChatSection = () => {
               <button 
                 type="submit" 
                 disabled={!message.trim()}
-                className="w-9 h-9 sm:w-10 sm:h-10 bg-accent-primary rounded-xl text-white shadow-md shadow-accent-primary/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:opacity-40 shrink-0 cursor-pointer"
+                className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 rounded-xl text-white shadow-md shadow-emerald-500/25 flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:opacity-30 shrink-0 cursor-pointer"
                 title="Send message"
               >
                 <Send size={16} />

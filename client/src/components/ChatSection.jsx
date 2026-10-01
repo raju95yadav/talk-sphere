@@ -2653,30 +2653,30 @@ const ChatSection = () => {
                       </div>
                       <div className="overflow-hidden flex-1 min-w-0">
                         <div className="flex justify-between items-baseline mb-0.5">
-                          <h4 className="font-bold text-sm tracking-tight truncate flex items-center gap-1.5">
+                          <h4 className="font-bold text-sm tracking-tight truncate flex items-center gap-1.5 text-slate-900 dark:text-white group-hover:text-emerald-500 transition-colors">
                             {g.name}
-                            <span className="text-[8px] font-black bg-accent-primary/10 text-accent-primary px-1.5 py-0.5 rounded-full">
+                            <span className="text-[8px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full border border-emerald-500/20">
                               {g.members?.length} M
                             </span>
                           </h4>
                           {g.lastMessage && (
-                            <span className="text-[10px] text-text-muted font-bold ml-2 flex-shrink-0">
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold ml-2 flex-shrink-0">
                               {new Date(g.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           )}
                         </div>
                         <div className="flex items-center gap-1">
                           {typingName ? (
-                            <p className="text-[11px] font-bold text-accent-primary flex items-center gap-1.5 animate-pulse">
+                            <p className="text-[11px] font-bold text-emerald-500 flex items-center gap-1.5 animate-pulse">
                               <span>{typingName} is typing</span>
                               <span className="inline-flex items-center gap-0.5">
-                                <span className="w-1 h-1 rounded-full bg-accent-primary animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                                <span className="w-1 h-1 rounded-full bg-accent-primary animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                                <span className="w-1 h-1 rounded-full bg-accent-primary animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                                <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '300ms' }}></span>
                               </span>
                             </p>
                           ) : (
-                            <p className="text-[11px] text-text-muted truncate max-w-[180px]">
+                            <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium truncate max-w-[220px]">
                               {g.lastMessage ? `${g.lastMessage.sender?.username || 'Member'}: ${g.lastMessage.content}` : g.description || 'Group transmission'}
                             </p>
                           )}
@@ -2724,35 +2724,35 @@ const ChatSection = () => {
                     <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-[3px] border-bg-card ${conv.user.isOnline ? 'bg-green-500' : 'bg-gray-500'} shadow-lg`}></div>
                   </div>
                   <div className="overflow-hidden flex-1 min-w-0">
-                    <h4 className="font-bold text-sm tracking-tight truncate">{conv.user.username || conv.user.name}</h4>
+                    <h4 className="font-bold text-sm tracking-tight truncate text-slate-900 dark:text-white group-hover:text-emerald-500 transition-colors">{conv.user.username || conv.user.name}</h4>
                     <div className="flex items-center gap-1 mt-0.5">
                       {conv.lastMessage.sender === currentUserId && (
-                        <div className="flex items-center flex-shrink-0 gap-0.5 text-accent-primary">
+                        <div className="flex items-center flex-shrink-0 gap-0.5 text-emerald-500">
                           {conv.lastMessage.status === 'read' ? (
                             <CheckCheck size={12} className="text-sky-400 drop-shadow-[0_0_4px_rgba(56,189,248,0.5)]" />
                           ) : conv.lastMessage.status === 'delivered' ? (
-                            <CheckCheck size={12} className="dark:text-white/50 text-black/50" />
+                            <CheckCheck size={12} className="dark:text-white/60 text-slate-500" />
                           ) : (
-                            <Check size={12} className="dark:text-white/50 text-black/50" />
+                            <Check size={12} className="dark:text-white/60 text-slate-500" />
                           )}
                           <span className="text-[9px] font-black uppercase tracking-wider ml-0.5 mr-1">You:</span>
                         </div>
                       )}
                       {typingStatuses[conv.user._id] ? (
-                        <span className="text-accent-primary font-bold text-[11px] flex items-center gap-1">
+                        <span className="text-emerald-500 font-bold text-[11px] flex items-center gap-1">
                           <span>typing</span>
                           <span className="inline-flex gap-0.5">
-                            <span className="w-1 h-1 rounded-full bg-accent-primary animate-ping"></span>
+                            <span className="w-1 h-1 rounded-full bg-emerald-500 animate-ping"></span>
                           </span>
                         </span>
                       ) : (
-                        <p className="text-[11px] text-text-muted font-medium truncate flex-1">{conv.lastMessage.content}</p>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium truncate flex-1">{conv.lastMessage.content}</p>
                       )}
                     </div>
                   </div>
                 </div>
                 <div className="text-right flex flex-col items-end gap-1.5 relative min-w-[70px]">
-                   <p className="text-[8px] text-text-muted font-bold uppercase group-hover:opacity-0 transition-opacity">{new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                   <p className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase group-hover:opacity-0 transition-opacity">{new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                    {conv.unreadCount > 0 && (
                      <div className="bg-accent-primary text-white text-[10px] font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center shadow-lg shadow-accent-primary/20 animate-in zoom-in-75 group-hover:opacity-0 transition-opacity">
                        {conv.unreadCount}
