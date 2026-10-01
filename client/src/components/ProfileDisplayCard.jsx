@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, Check, ChevronDown, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
+import { useTheme } from '../context/ThemeContext';
 import apiClient from '../api/apiClient';
 import toast from 'react-hot-toast';
 
@@ -93,13 +94,15 @@ const StatusBubble = ({ statusId, onSelect, isChanging }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  const { isDarkMode } = useTheme();
+
   return (
     <div ref={ref} className="relative flex flex-col items-center z-30">
       {/* Speech bubble tail */}
       <div className="w-2.5 h-2 overflow-hidden flex justify-center">
         <div
-          className="w-2 h-2 rotate-45 border-l border-t border-gray-700/60"
-          style={{ background: '#1a1d24', marginTop: '4px' }}
+          className="w-2 h-2 rotate-45 border-l border-t border-slate-300 dark:border-gray-700/60 bg-white dark:bg-[#1a1d24]"
+          style={{ marginTop: '4px' }}
         />
       </div>
 
@@ -112,18 +115,17 @@ const StatusBubble = ({ statusId, onSelect, isChanging }) => {
         disabled={isChanging}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold tracking-wide shadow-lg backdrop-blur-sm cursor-pointer transition-all select-none ${s.bg} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-[#11141a] ${s.ring}`}
-        style={{ background: '#1a1d24' }}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold tracking-wide shadow-md backdrop-blur-sm cursor-pointer transition-all select-none bg-white dark:bg-[#1a1d24] border-slate-300/80 dark:border-gray-700/60 text-slate-800 dark:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#11141a] ${s.ring}`}
       >
         {isChanging ? (
           <span className="w-2 h-2 border border-current border-t-transparent rounded-full animate-spin" />
         ) : (
           <StatusDot statusId={statusId} size={7} />
         )}
-        <span>{s.label}</span>
+        <span className="font-bold">{s.label}</span>
         <ChevronDown
           size={11}
-          className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          className={`transition-transform duration-200 text-slate-500 dark:text-gray-400 ${open ? 'rotate-180' : ''}`}
         />
       </motion.button>
 
@@ -137,15 +139,14 @@ const StatusBubble = ({ statusId, onSelect, isChanging }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.96 }}
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute top-full mt-2 w-44 rounded-2xl border border-gray-700/60 shadow-2xl shadow-black/60 overflow-hidden z-50"
-            style={{ background: '#1a1d24' }}
+            className="absolute top-full mt-2 w-44 rounded-2xl border border-slate-200 dark:border-gray-700/60 shadow-2xl shadow-black/10 dark:shadow-black/60 overflow-hidden z-50 bg-white/95 dark:bg-[#1a1d24]/95 backdrop-blur-md"
           >
             {STATUS_OPTIONS.map((opt) => (
               <motion.li
                 key={opt.id}
                 role="option"
                 aria-selected={opt.id === statusId}
-                whileHover={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                whileHover={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}
                 onClick={() => {
                   onSelect(opt.id);
                   setOpen(false);
@@ -153,11 +154,11 @@ const StatusBubble = ({ statusId, onSelect, isChanging }) => {
                 className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-colors"
               >
                 <StatusDot statusId={opt.id} size={8} />
-                <span className="flex-1 text-[12px] font-medium text-gray-200">
+                <span className="flex-1 text-[12px] font-semibold text-slate-800 dark:text-gray-200">
                   {opt.label}
                 </span>
                 {opt.id === statusId && (
-                  <Check size={12} className="text-emerald-400 shrink-0" />
+                  <Check size={12} className="text-emerald-500 dark:text-emerald-400 shrink-0" />
                 )}
               </motion.li>
             ))}
@@ -327,10 +328,10 @@ const ProfileDisplayCard = ({ className = '', size = 'lg' }) => {
           className={`
             ${sz.outer}
             rounded-full p-[3px]
-            ring-4 ring-gray-800/80
+            ring-4 ring-slate-200 dark:ring-gray-800/80
             hover:ring-emerald-500/40
             transition-all duration-300
-            shadow-2xl shadow-black/50
+            shadow-xl shadow-black/10 dark:shadow-black/50
           `}
           style={{
             background: `conic-gradient(
@@ -342,7 +343,7 @@ const ProfileDisplayCard = ({ className = '', size = 'lg' }) => {
           }}
         >
           {/* Inner image circle */}
-          <div className={`relative w-full h-full rounded-full overflow-hidden bg-gray-900 border-2 border-gray-800/60`}>
+          <div className="relative w-full h-full rounded-full overflow-hidden bg-slate-100 dark:bg-gray-900 border-2 border-slate-200 dark:border-gray-800/60">
             {user?.avatar ? (
               <img
                 src={user.avatar}
@@ -351,8 +352,8 @@ const ProfileDisplayCard = ({ className = '', size = 'lg' }) => {
                 draggable={false}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-                <span className={`${sz.text} font-black text-gray-400 select-none`}>
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-200 to-slate-100 dark:from-gray-800 dark:to-gray-900">
+                <span className={`${sz.text} font-black text-slate-500 dark:text-gray-400 select-none`}>
                   {initials}
                 </span>
               </div>
@@ -386,8 +387,7 @@ const ProfileDisplayCard = ({ className = '', size = 'lg' }) => {
 
         {/* Status dot badge on ring bottom-right */}
         <div
-          className="absolute bottom-1 right-1 rounded-full p-[2px] shadow-lg"
-          style={{ background: '#11141a' }}
+          className="absolute bottom-1 right-1 rounded-full p-[2px] shadow-lg bg-white dark:bg-[#11141a] border border-slate-200 dark:border-transparent"
         >
           <StatusDot statusId={presenceStatus} size={12} />
         </div>
@@ -400,11 +400,11 @@ const ProfileDisplayCard = ({ className = '', size = 'lg' }) => {
         transition={{ delay: 0.15, duration: 0.3 }}
         className="mt-4 text-center"
       >
-        <h3 className="text-[17px] font-black tracking-tight text-white leading-tight">
+        <h3 className="text-[17px] font-black tracking-tight text-slate-900 dark:text-white leading-tight">
           {displayName}
         </h3>
         {user?.email && (
-          <p className="text-[11px] text-gray-500 mt-0.5 truncate max-w-[200px]">
+          <p className="text-[11px] text-slate-500 dark:text-gray-400 mt-0.5 truncate max-w-[200px]">
             {user.email}
           </p>
         )}

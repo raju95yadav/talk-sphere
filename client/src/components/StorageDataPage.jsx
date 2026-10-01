@@ -582,16 +582,14 @@ const StorageDataPage = ({ isOpen, onBack }) => {
             animate="visible"
             exit="exit"
             aria-label="Storage and data panel"
-            style={{ background: '#11141a' }}
-            className="absolute inset-0 z-20 flex flex-col overflow-hidden select-none"
+            className="absolute inset-0 z-20 flex flex-col overflow-hidden select-none bg-[#f8fafc] dark:bg-[#11141a] text-slate-900 dark:text-white transition-colors duration-300"
           >
             {/* Top highlight ambient glow */}
             <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent pointer-events-none z-10" />
 
             {/* ── HEADER ── */}
             <header
-              className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-gray-800/60 shrink-0"
-              style={{ background: '#11141a' }}
+              className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-slate-200 dark:border-gray-800/60 shrink-0 bg-white/90 dark:bg-[#11141a]/90 backdrop-blur-md"
             >
               <motion.button
                 id="storage-data-back-btn"
@@ -599,16 +597,16 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                 whileTap={{ scale: 0.88 }}
                 onClick={onBack}
                 aria-label="Go back"
-                className="w-8 h-8 rounded-xl bg-gray-800/80 border border-gray-700/50 flex items-center justify-center text-gray-400 hover:text-white transition-all cursor-pointer focus-visible:outline-none"
+                className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer focus-visible:outline-none"
               >
                 <ArrowLeft size={15} />
               </motion.button>
 
               <div className="flex-1 min-w-0">
-                <h2 className="text-[17px] font-black tracking-tight text-white leading-tight">
+                <h2 className="text-[17px] font-black tracking-tight text-slate-900 dark:text-white leading-tight">
                   Storage and data
                 </h2>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-400/80 leading-none mt-0.5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400/80 leading-none mt-0.5">
                   Network usage, auto-download, local cache
                 </p>
               </div>
@@ -625,9 +623,9 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                 }}
                 disabled={loading}
                 title="Refresh stats"
-                className="w-8 h-8 rounded-xl bg-gray-800/80 border border-gray-700/50 flex items-center justify-center text-gray-400 hover:text-white transition-all cursor-pointer focus-visible:outline-none"
+                className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer focus-visible:outline-none"
               >
-                <RefreshCw size={14} className={loading ? 'animate-spin text-emerald-400' : ''} />
+                <RefreshCw size={14} className={loading ? 'animate-spin text-emerald-500 dark:text-emerald-400' : ''} />
               </motion.button>
             </header>
 
@@ -651,20 +649,19 @@ const StorageDataPage = ({ isOpen, onBack }) => {
 
                 {/* Hero storage container card */}
                 <div
-                  className="rounded-2xl border border-gray-800/80 p-4 space-y-3.5 relative overflow-hidden shadow-xl"
-                  style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)' }}
+                  className="rounded-2xl border border-slate-200 dark:border-gray-800/80 p-4 space-y-3.5 relative overflow-hidden shadow-sm bg-white dark:bg-gray-900/60"
                 >
                   {/* Total used indicator */}
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400">
                         Total App Data
                       </span>
                       <div className="flex items-baseline gap-1.5 mt-0.5">
-                        <span className="text-[22px] font-black text-white tracking-tight leading-none">
+                        <span className="text-[22px] font-black text-slate-900 dark:text-white tracking-tight leading-none">
                           {fmtBytes(totalUsedBytes)}
                         </span>
-                        <span className="text-[12px] font-medium text-gray-400">
+                        <span className="text-[12px] font-medium text-slate-500 dark:text-gray-400">
                           used of {TOTAL_BUDGET_GB} GB available
                         </span>
                       </div>

@@ -311,10 +311,10 @@ const SessionCard = ({ session, isCurrent, onRemove, removing }) => (
     variants={child}
     layout
     className={`
-      w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl border transition-all
+      w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl border transition-all shadow-sm
       ${isCurrent
-        ? 'border-emerald-500/25 bg-emerald-500/5'
-        : 'border-gray-800/70 bg-gray-900/50 hover:bg-gray-900/80'}
+        ? 'border-emerald-500/30 bg-emerald-500/10'
+        : 'border-slate-200 dark:border-gray-800/70 bg-white dark:bg-gray-900/50 hover:bg-slate-50 dark:hover:bg-gray-900/80'}
     `}
   >
     {/* Device icon bubble */}
@@ -495,32 +495,30 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
             animate="visible"
             exit="exit"
             aria-label="Linked devices"
-            style={{ background: '#11141a' }}
-            className="absolute inset-0 z-20 flex flex-col overflow-hidden"
+            className="absolute inset-0 z-20 flex flex-col overflow-hidden bg-[#f8fafc] dark:bg-[#11141a] text-slate-900 dark:text-white transition-colors duration-300"
           >
             {/* Top highlight line */}
             <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-500/35 to-transparent pointer-events-none z-10" />
 
             {/* ── Header ── */}
             <div
-              className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-gray-800/60 shrink-0"
-              style={{ background: '#11141a' }}
+              className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-slate-200 dark:border-gray-800/60 shrink-0 bg-white/90 dark:bg-[#11141a]/90 backdrop-blur-md"
             >
               <motion.button
                 id="linked-devices-back"
                 whileHover={{ scale: 1.08 }}
                 whileTap={{ scale: 0.88 }}
                 onClick={onBack}
-                className="w-8 h-8 rounded-xl bg-gray-800/80 border border-gray-700/50 flex items-center justify-center text-gray-400 hover:text-white transition-all cursor-pointer focus-visible:outline-none"
+                className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer focus-visible:outline-none"
               >
                 <ArrowLeft size={15} />
               </motion.button>
 
               <div className="flex-1 min-w-0">
-                <h2 className="text-[17px] font-black tracking-tight text-white leading-tight">
+                <h2 className="text-[17px] font-black tracking-tight text-slate-900 dark:text-white leading-tight">
                   Linked Devices
                 </h2>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400/75 leading-none mt-0.5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400/75 leading-none mt-0.5">
                   Manage active sessions
                 </p>
               </div>
@@ -528,7 +526,7 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
               <button
                 onClick={loadSessions}
                 disabled={loading}
-                className="shrink-0 w-8 h-8 rounded-xl bg-gray-800/80 border border-gray-700/50 flex items-center justify-center text-gray-400 hover:text-white transition-all cursor-pointer focus-visible:outline-none"
+                className="shrink-0 w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer focus-visible:outline-none"
                 title="Refresh"
               >
                 <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
@@ -584,8 +582,8 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
                 </div>
 
                 <div className="text-center">
-                  <p className="text-[13px] font-bold text-white">Use Talk Sphere everywhere</p>
-                  <p className="text-[11px] text-gray-500 mt-0.5 max-w-[220px] leading-relaxed">
+                  <p className="text-[13px] font-bold text-slate-900 dark:text-white">Use Talk Sphere everywhere</p>
+                  <p className="text-[11px] text-slate-500 dark:text-gray-500 mt-0.5 max-w-[220px] leading-relaxed">
                     Link up to 4 devices and stay connected across all platforms.
                   </p>
                 </div>
@@ -701,8 +699,7 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
             {/* ── Sticky "Log out all" footer ── */}
             {otherSessions.length > 0 && (
               <div
-                className="absolute bottom-0 inset-x-0 px-4 pb-5 pt-4"
-                style={{ background: 'linear-gradient(to top, #11141a 70%, transparent)' }}
+                className="absolute bottom-0 inset-x-0 px-4 pb-5 pt-4 bg-gradient-to-t from-[#f8fafc] via-[#f8fafc]/95 dark:from-[#11141a] dark:via-[#11141a]/95 to-transparent"
               >
                 <motion.button
                   id="linked-devices-logout-all"

@@ -76,7 +76,7 @@ const counterColor = (len, max) => {
 // SectionLabel
 // ─────────────────────────────────────────────────────────────
 const SectionLabel = ({ children }) => (
-  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500 mb-2 px-1">
+  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-gray-500 mb-2 px-1">
     {children}
   </p>
 );
@@ -86,7 +86,7 @@ const SectionLabel = ({ children }) => (
 // ─────────────────────────────────────────────────────────────
 const FieldCard = ({ children, className = '' }) => (
   <div
-    className={`w-full bg-gray-900/60 border border-gray-800/70 rounded-2xl px-4 py-3 ${className}`}
+    className={`w-full bg-white dark:bg-gray-900/60 border border-slate-200 dark:border-gray-800/70 rounded-2xl px-4 py-3 shadow-sm ${className}`}
   >
     {children}
   </div>
@@ -98,15 +98,15 @@ const FieldCard = ({ children, className = '' }) => (
 const ReadOnlyCredential = ({ icon: Icon, label, value, verified = false }) => (
   <FieldCard>
     <div className="flex items-center gap-3">
-      <div className="w-8 h-8 rounded-xl bg-gray-800/80 border border-gray-700/50 flex items-center justify-center text-gray-500 shrink-0">
+      <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-500 dark:text-gray-500 shrink-0">
         <Icon size={15} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] text-gray-600 font-semibold uppercase tracking-wider mb-0.5">
+        <p className="text-[10px] text-slate-500 dark:text-gray-500 font-semibold uppercase tracking-wider mb-0.5">
           {label}
         </p>
-        <p className="text-[13px] text-gray-300 font-medium truncate">
-          {value || <span className="text-gray-600 italic">Not set</span>}
+        <p className="text-[13px] text-slate-800 dark:text-gray-300 font-medium truncate">
+          {value || <span className="text-slate-400 dark:text-gray-600 italic">Not set</span>}
         </p>
       </div>
       {verified && (
@@ -168,15 +168,15 @@ const UsernameField = ({ value, onChange, currentUsername }) => {
   return (
     <FieldCard>
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-xl bg-gray-800/80 border border-gray-700/50 flex items-center justify-center text-gray-500 shrink-0">
+        <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-500 dark:text-gray-500 shrink-0">
           <AtSign size={15} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] text-gray-600 font-semibold uppercase tracking-wider mb-1">
+          <p className="text-[10px] text-slate-500 dark:text-gray-500 font-semibold uppercase tracking-wider mb-1">
             Username
           </p>
           <div className="flex items-center gap-2">
-            <span className="text-gray-600 text-[13px] shrink-0">@</span>
+            <span className="text-slate-400 dark:text-gray-600 text-[13px] shrink-0">@</span>
             <input
               id="profile-username-input"
               type="text"
@@ -184,7 +184,7 @@ const UsernameField = ({ value, onChange, currentUsername }) => {
               onChange={(e) => onChange('@' + e.target.value.replace(/^@/, '').replace(/\s/g, '').toLowerCase())}
               placeholder="yourhandle"
               maxLength={24}
-              className="flex-1 bg-transparent text-[13px] text-white font-medium outline-none placeholder-gray-600 min-w-0"
+              className="flex-1 bg-transparent text-[13px] text-slate-900 dark:text-white font-medium outline-none placeholder-slate-400 dark:placeholder-gray-600 min-w-0"
             />
           </div>
         </div>
@@ -236,11 +236,11 @@ const BioField = ({ value, onChange }) => {
     <div className="space-y-2">
       <FieldCard className="pb-2">
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gray-800/80 border border-gray-700/50 flex items-center justify-center text-gray-500 shrink-0 mt-0.5">
+          <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-500 dark:text-gray-500 shrink-0 mt-0.5">
             <FileText size={15} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] text-gray-600 font-semibold uppercase tracking-wider mb-1">
+            <p className="text-[10px] text-slate-500 dark:text-gray-500 font-semibold uppercase tracking-wider mb-1">
               About / Bio
             </p>
             <textarea
@@ -250,13 +250,13 @@ const BioField = ({ value, onChange }) => {
               onChange={(e) => onChange(e.target.value.slice(0, BIO_MAX))}
               placeholder="Write something about yourself…"
               rows={3}
-              className="w-full bg-transparent text-[13px] text-white font-medium outline-none placeholder-gray-600 resize-none leading-relaxed"
+              className="w-full bg-transparent text-[13px] text-slate-900 dark:text-white font-medium outline-none placeholder-slate-400 dark:placeholder-gray-600 resize-none leading-relaxed"
             />
-            <div className="flex items-center justify-between pt-1 border-t border-gray-800/60 mt-1">
+            <div className="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-gray-800/60 mt-1">
               <button
                 type="button"
                 onClick={() => setShowEmoji((v) => !v)}
-                className="text-gray-500 hover:text-emerald-400 transition-colors cursor-pointer focus-visible:outline-none"
+                className="text-slate-400 hover:text-emerald-500 dark:text-gray-500 dark:hover:text-emerald-400 transition-colors cursor-pointer focus-visible:outline-none"
                 aria-label="Emoji picker"
               >
                 <Smile size={14} />
@@ -279,7 +279,7 @@ const BioField = ({ value, onChange }) => {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="flex flex-wrap gap-1.5 px-1 py-2 bg-gray-900/40 border border-gray-800/50 rounded-xl">
+            <div className="flex flex-wrap gap-1.5 px-1 py-2 bg-slate-100 dark:bg-gray-900/40 border border-slate-200 dark:border-gray-800/50 rounded-xl">
               {EMOJI_QUICK.map((em) => (
                 <button
                   key={em}
@@ -302,7 +302,7 @@ const BioField = ({ value, onChange }) => {
             key={p.text}
             type="button"
             onClick={() => onChange(`${p.emoji} ${p.text}`.slice(0, BIO_MAX))}
-            className="text-[11px] font-medium text-gray-400 bg-gray-800/60 border border-gray-700/50 rounded-full px-2.5 py-1 hover:border-emerald-500/40 hover:text-emerald-400 transition-all cursor-pointer focus-visible:outline-none"
+            className="text-[11px] font-medium text-slate-700 dark:text-gray-400 bg-white dark:bg-gray-800/60 border border-slate-200 dark:border-gray-700/50 rounded-full px-2.5 py-1 hover:border-emerald-500/40 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all cursor-pointer focus-visible:outline-none shadow-sm"
           >
             {p.emoji} {p.text}
           </button>
@@ -376,14 +376,14 @@ const AvatarEditor = ({ user, onAvatarChange }) => {
 
       {/* Avatar + ring */}
       <div className="relative">
-        <div className="w-24 h-24 rounded-full p-[3px] ring-4 ring-gray-800/80 shadow-2xl"
+        <div className="w-24 h-24 rounded-full p-[3px] ring-4 ring-slate-200 dark:ring-gray-800/80 shadow-xl shadow-black/10 dark:shadow-black/40"
           style={{ background: 'conic-gradient(#22c55e44 0%, #1e2130 50%, #22c55e22 100%)' }}
         >
-          <div className="w-full h-full rounded-full overflow-hidden bg-gray-900 border-2 border-gray-800/60 flex items-center justify-center">
+          <div className="w-full h-full rounded-full overflow-hidden bg-slate-100 dark:bg-gray-900 border-2 border-slate-200 dark:border-gray-800/60 flex items-center justify-center">
             {user?.avatar ? (
               <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
             ) : (
-              <span className="text-3xl font-black text-gray-500 select-none">{initials}</span>
+              <span className="text-3xl font-black text-slate-500 dark:text-gray-500 select-none">{initials}</span>
             )}
           </div>
         </div>
@@ -393,7 +393,7 @@ const AvatarEditor = ({ user, onAvatarChange }) => {
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-emerald-500 border-2 border-[#11141a] flex items-center justify-center text-white shadow-lg hover:bg-emerald-400 transition-colors cursor-pointer focus-visible:outline-none"
+          className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-emerald-500 border-2 border-white dark:border-[#11141a] flex items-center justify-center text-white shadow-lg hover:bg-emerald-400 transition-colors cursor-pointer focus-visible:outline-none"
         >
           <Camera size={12} />
         </button>
@@ -550,11 +550,13 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
           animate="visible"
           exit="exit"
           aria-label="Profile settings"
-          style={{ background: '#11141a' }}
           className="
             absolute inset-0 z-20
             flex flex-col
             overflow-hidden
+            bg-[#f8fafc] dark:bg-[#11141a]
+            text-slate-900 dark:text-white
+            transition-colors duration-300
           "
         >
           {/* Top highlight line */}
@@ -562,8 +564,7 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
 
           {/* ── Fixed header ── */}
           <div
-            className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-gray-800/60 shrink-0"
-            style={{ background: '#11141a' }}
+            className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-slate-200 dark:border-gray-800/60 shrink-0 bg-white/90 dark:bg-[#11141a]/90 backdrop-blur-md"
           >
             <motion.button
               id="profile-settings-back"
@@ -571,16 +572,16 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
               whileTap={{ scale: 0.88 }}
               onClick={onBack}
               aria-label="Back to settings"
-              className="w-8 h-8 shrink-0 rounded-xl bg-gray-800/80 border border-gray-700/50 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700/80 transition-all cursor-pointer focus-visible:outline-none"
+              className="w-8 h-8 shrink-0 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-gray-700/80 transition-all cursor-pointer focus-visible:outline-none"
             >
               <ArrowLeft size={15} />
             </motion.button>
 
             <div className="flex-1 min-w-0">
-              <h2 className="text-[17px] font-black tracking-tight text-white leading-tight">
+              <h2 className="text-[17px] font-black tracking-tight text-slate-900 dark:text-white leading-tight">
                 Profile
               </h2>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400/75 leading-none mt-0.5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400/75 leading-none mt-0.5">
                 Edit your info
               </p>
             </div>
@@ -621,7 +622,7 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
               <SectionLabel>Display Name</SectionLabel>
               <FieldCard>
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-gray-800/80 border border-gray-700/50 flex items-center justify-center text-gray-500 shrink-0">
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-500 dark:text-gray-500 shrink-0">
                     <User size={15} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -631,18 +632,18 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
                       value={name}
                       onChange={(e) => setName(e.target.value.slice(0, NAME_MAX))}
                       placeholder="Your display name"
-                      className="w-full bg-transparent text-[14px] text-white font-semibold outline-none placeholder-gray-600"
+                      className="w-full bg-transparent text-[14px] text-slate-900 dark:text-white font-semibold outline-none placeholder-slate-400 dark:placeholder-gray-600"
                     />
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className={`text-[10px] font-mono ${counterColor(name.length, NAME_MAX)}`}>
                       {name.length}/{NAME_MAX}
                     </span>
-                    <Pencil size={12} className="text-gray-600" />
+                    <Pencil size={12} className="text-slate-400 dark:text-gray-600" />
                   </div>
                 </div>
               </FieldCard>
-              <p className="text-[10px] text-gray-600 px-1">
+              <p className="text-[10px] text-slate-500 dark:text-gray-600 px-1">
                 This is the name others see in chats and groups.
               </p>
             </motion.div>
@@ -690,10 +691,7 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
 
           {/* ── Sticky Save Changes button ── */}
           <div
-            className="absolute bottom-0 inset-x-0 px-4 pb-5 pt-4"
-            style={{
-              background: 'linear-gradient(to top, #11141a 70%, transparent)',
-            }}
+            className="absolute bottom-0 inset-x-0 px-4 pb-5 pt-4 bg-gradient-to-t from-[#f8fafc] via-[#f8fafc]/95 dark:from-[#11141a] dark:via-[#11141a]/95 to-transparent"
           >
             <motion.button
               id="profile-settings-save-btn"
