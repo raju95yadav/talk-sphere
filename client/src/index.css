@@ -4,8 +4,8 @@
 @custom-variant dark (&:where(.dark, [data-theme='dark'], .dark *, [data-theme='dark'] *));
 
 @theme {
-  --color-accent-primary: #ff0055;
-  --color-accent-secondary: #702cf9;
+  --color-accent-primary: #10b981;
+  --color-accent-secondary: #059669;
   
   --color-bg-main: var(--bg-main);
   --color-bg-card: var(--bg-card);
@@ -18,22 +18,22 @@
 :root {
   --font-family: 'Outfit', sans-serif;
   
-  /* Dark Mode (Default) */
-  --bg-main: #0c0d14;
-  --bg-card: rgba(22, 23, 34, 0.78);
-  --bg-card-secondary: rgba(30, 32, 46, 0.72);
-  --text-main: #ffffff;
-  --text-muted: #a0a0b8;
-  --border-main: rgba(255, 255, 255, 0.1);
+  /* Dark Mode (Default) - Sleek Obsidian & Emerald */
+  --bg-main: #0b0e14;
+  --bg-card: rgba(17, 20, 26, 0.88);
+  --bg-card-secondary: rgba(23, 26, 33, 0.85);
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-main: rgba(255, 255, 255, 0.08);
 }
 
 [data-theme='light'] {
   --bg-main: #f8fafc;
-  --bg-card: rgba(255, 255, 255, 0.88);
-  --bg-card-secondary: rgba(241, 245, 249, 0.85);
+  --bg-card: rgba(255, 255, 255, 0.92);
+  --bg-card-secondary: rgba(241, 245, 249, 0.9);
   --text-main: #0f172a;
   --text-muted: #64748b;
-  --border-main: rgba(0, 0, 0, 0.06);
+  --border-main: rgba(0, 0, 0, 0.08);
 }
 
 @layer base {
@@ -50,11 +50,11 @@
   }
   
   .btn-primary {
-    @apply bg-accent-primary text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-accent-primary/20 hover:scale-105 active:scale-95 transition-all uppercase tracking-wider text-[10px];
+    @apply bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-emerald-500/25 hover:scale-105 active:scale-95 transition-all uppercase tracking-wider text-[10px];
   }
 
   .input-field {
-    @apply w-full bg-bg-card-secondary border border-border-main rounded-xl py-4 px-4 text-text-main focus:border-accent-primary outline-none transition-all;
+    @apply w-full bg-bg-card-secondary border border-border-main rounded-xl py-3.5 px-4 text-text-main focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all;
   }
 }
 
@@ -179,7 +179,7 @@
 }
 
 .floating-pip-container {
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(255, 0, 85, 0.2);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(16, 185, 129, 0.25);
 }
 
 

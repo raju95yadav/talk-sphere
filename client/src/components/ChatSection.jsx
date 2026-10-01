@@ -34,7 +34,7 @@ const AudioPlayer = ({ src }) => {
     const wavesurfer = WaveSurfer.create({
       container: containerRef.current,
       waveColor: isDarkMode ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.25)',
-      progressColor: isDarkMode ? '#00F0FF' : '#ff0055',
+      progressColor: isDarkMode ? '#10b981' : '#059669',
       cursorColor: 'transparent',
       barWidth: 2,
       barRadius: 2,
@@ -1394,7 +1394,7 @@ const ChatSection = () => {
                  {selectedGroup.avatar ? (
                    <img src={selectedGroup.avatar} className="w-full h-full object-cover" alt="avatar" />
                  ) : (
-                   <div className="w-full h-full bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center text-white font-black text-lg">
+                   <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-black text-lg">
                      {selectedGroup.name?.slice(0, 2).toUpperCase()}
                    </div>
                  )}

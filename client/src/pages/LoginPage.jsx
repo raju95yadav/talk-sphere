@@ -113,7 +113,7 @@ const LoginPage = () => {
             opacity: [0.25, 0.5, 0.25],
           }}
           transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-          className="absolute bottom-1/5 right-1/5 w-72 sm:w-96 h-72 sm:h-96 bg-[#ff0055]/20 rounded-full blur-[110px]"
+          className="absolute bottom-1/5 right-1/5 w-72 sm:w-96 h-72 sm:h-96 bg-emerald-500/20 rounded-full blur-[110px]"
         />
       </div>
 
@@ -122,10 +122,10 @@ const LoginPage = () => {
         initial={{ opacity: 0, y: 20, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="w-full max-w-[440px] relative z-10 rounded-3xl bg-[#0a0f20]/80 backdrop-blur-2xl p-6 sm:p-8 border border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.8),0_0_40px_rgba(0,240,255,0.15)] overflow-hidden"
+        className="w-full max-w-[440px] relative z-10 rounded-3xl bg-[#0b0e14]/90 backdrop-blur-2xl p-6 sm:p-8 border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.8),0_0_40px_rgba(16,185,129,0.15)] overflow-hidden"
       >
         {/* Top Shimmer Gradient Accent */}
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#00f0ff] via-[#ff0055] to-transparent animate-pulse" />
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 via-teal-400 to-transparent animate-pulse" />
 
         {/* Header Branding */}
         <div className="flex flex-col items-center mb-6 text-center">
@@ -133,16 +133,16 @@ const LoginPage = () => {
           <motion.div
             whileHover={{ scale: 1.08, rotate: 6 }}
             whileTap={{ scale: 0.95 }}
-            className="relative w-16 h-16 rounded-2xl p-[1.5px] bg-gradient-to-tr from-[#00f0ff] via-[#ff0055] to-[#702cf9] mb-4 shadow-lg shadow-[#00f0ff]/25 cursor-pointer"
+            className="relative w-16 h-16 rounded-2xl p-[1.5px] bg-gradient-to-tr from-emerald-400 via-teal-500 to-emerald-600 mb-4 shadow-lg shadow-emerald-500/25 cursor-pointer"
           >
-            <div className="w-full h-full bg-[#080d1a] rounded-[14px] flex items-center justify-center relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-tr from-[#00f0ff]/20 via-transparent to-[#ff0055]/20 opacity-90" />
-              <ShieldCheck size={32} className="text-white drop-shadow-[0_0_10px_rgba(0,240,255,0.9)] relative z-10" />
+            <div className="w-full h-full bg-[#0b0e14] rounded-[14px] flex items-center justify-center relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/20 via-transparent to-teal-500/20 opacity-90" />
+              <ShieldCheck size={32} className="text-white drop-shadow-[0_0_10px_rgba(16,185,129,0.8)] relative z-10" />
             </div>
           </motion.div>
 
-          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-500/10 border border-cyan-400/25 text-cyan-300 mb-2.5 shadow-sm">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 border border-emerald-400/25 text-emerald-400 mb-2.5 shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             Next-Gen Connection
           </div>
 
@@ -169,10 +169,10 @@ const LoginPage = () => {
               <div className="space-y-2">
                 <label className="flex items-center justify-between text-[10px] font-bold text-[#94a3b8] uppercase tracking-wider ml-1">
                   <span>Work or Personal Email</span>
-                  <span className="text-[10px] text-cyan-400/90 font-semibold normal-case tracking-normal">Fast OTP login</span>
+                  <span className="text-[10px] text-emerald-400/90 font-semibold normal-case tracking-normal">Fast OTP login</span>
                 </label>
                 <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748b] group-focus-within:text-cyan-400 transition-colors pointer-events-none">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748b] group-focus-within:text-emerald-400 transition-colors pointer-events-none">
                     <Mail size={18} />
                   </div>
                   <input
@@ -180,7 +180,7 @@ const LoginPage = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@example.com"
-                    className="w-full bg-[#111728]/90 border border-white/10 rounded-2xl py-3.5 pl-11 pr-4 text-white text-sm focus:border-cyan-400/80 focus:bg-[#151d33] focus:ring-4 focus:ring-cyan-500/15 outline-none transition-all placeholder:text-[#64748b] font-medium shadow-inner"
+                    className="w-full bg-[#111728]/90 border border-white/10 rounded-2xl py-3.5 pl-11 pr-4 text-white text-sm focus:border-emerald-400/80 focus:bg-[#151d33] focus:ring-4 focus:ring-emerald-500/15 outline-none transition-all placeholder:text-[#64748b] font-medium shadow-inner"
                     required
                   />
                 </div>
@@ -191,7 +191,7 @@ const LoginPage = () => {
                 whileHover={{ scale: 1.015 }}
                 whileTap={{ scale: 0.985 }}
                 disabled={loading}
-                className="w-full relative group overflow-hidden bg-gradient-to-r from-[#ff0055] via-[#ff2266] to-[#702cf9] text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest shadow-lg shadow-[#ff0055]/30 hover:shadow-[#ff0055]/50 transition-all cursor-pointer disabled:opacity-60"
+                className="w-full relative group overflow-hidden bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all cursor-pointer disabled:opacity-60"
               >
                 <span className="relative z-10 flex items-center gap-2">
                   {loading ? (
@@ -275,7 +275,7 @@ const LoginPage = () => {
                 whileHover={{ scale: 1.015 }}
                 whileTap={{ scale: 0.985 }}
                 disabled={loading}
-                className="w-full relative group overflow-hidden bg-gradient-to-r from-[#00d2ff] via-[#00f0ff] to-[#702cf9] text-[#050814] font-black py-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all cursor-pointer disabled:opacity-60"
+                className="w-full relative group overflow-hidden bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 text-slate-950 font-black py-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all cursor-pointer disabled:opacity-60"
               >
                 <span className="relative z-10 flex items-center gap-2">
                   {loading ? (

@@ -132,7 +132,7 @@ const Dashboard = () => {
               <motion.div 
                 whileHover={{ scale: 1.05, rotate: 3 }}
                 whileTap={{ scale: 0.95 }}
-                className="w-8 h-8 sm:w-10 sm:h-10 bg-accent-primary rounded-xl flex items-center justify-center shadow-lg shadow-accent-primary/20 shrink-0 cursor-pointer"
+                className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/25 shrink-0 cursor-pointer"
               >
                 <span className="font-black text-base sm:text-xl text-white">TS</span>
               </motion.div>
@@ -194,7 +194,7 @@ const Dashboard = () => {
                   {activeTab === tab.name && (
                     <motion.div
                       layoutId="activeTabPill"
-                      className="absolute inset-0 bg-accent-primary rounded-lg lg:rounded-full shadow-lg shadow-accent-primary/30"
+                      className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg lg:rounded-full shadow-lg shadow-emerald-500/30"
                       transition={{ type: 'spring', stiffness: 450, damping: 35 }}
                     />
                   )}

@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   X,
   Search,
-  Bell,
   User,
   Smartphone,
   UserPlus,
@@ -57,75 +56,6 @@ const SETTINGS_ITEMS = [
     description: 'Network usage, auto-download, local cache',
   },
 ];
-
-// ─────────────────────────────────────────────────────────────
-// Notification Banner
-// ─────────────────────────────────────────────────────────────
-const BANNER_STORAGE_KEY = 'ts_notif_banner_dismissed';
-
-const NotificationBanner = () => {
-  const [visible, setVisible] = useState(
-    () => localStorage.getItem(BANNER_STORAGE_KEY) !== 'true'
-  );
-
-  const dismiss = useCallback(() => {
-    localStorage.setItem(BANNER_STORAGE_KEY, 'true');
-    setVisible(false);
-  }, []);
-
-  return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          key="notif-banner"
-          initial={{ opacity: 0, y: -8, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -14, scale: 0.96, height: 0, marginTop: 0 }}
-          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="relative flex items-start gap-3 bg-gradient-to-r from-slate-100 to-slate-200 dark:from-gray-900 dark:to-gray-800 border border-slate-300/70 dark:border-gray-700/60 rounded-2xl p-4 mt-2 overflow-hidden shadow-sm"
-          role="alert"
-          aria-live="polite"
-        >
-          {/* Left emerald accent stripe */}
-          <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl bg-gradient-to-b from-emerald-500 to-emerald-600" />
-
-          {/* Bell icon bubble */}
-          <div className="shrink-0 mt-0.5 w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center">
-            <Bell size={15} className="text-emerald-500 dark:text-emerald-400" />
-          </div>
-
-          {/* Text content */}
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-snug mb-0.5">
-              Choose your notifications
-            </p>
-            <p className="text-[11px] text-slate-600 dark:text-gray-400 leading-relaxed">
-              Get notifications for messages, groups or your status.{' '}
-              <button
-                id="settings-banner-choose-now"
-                onClick={dismiss}
-                className="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline hover:text-emerald-500 transition-colors cursor-pointer focus-visible:outline-none"
-              >
-                Choose now
-              </button>
-            </p>
-          </div>
-
-          {/* Close X button */}
-          <motion.button
-            id="settings-banner-dismiss"
-            whileTap={{ scale: 0.85 }}
-            onClick={dismiss}
-            aria-label="Dismiss notification prompt"
-            className="shrink-0 w-6 h-6 rounded-lg bg-slate-200 dark:bg-gray-700/60 hover:bg-slate-300 dark:hover:bg-gray-600/80 flex items-center justify-center text-slate-600 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
-          >
-            <X size={11} />
-          </motion.button>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
 
 // ─────────────────────────────────────────────────────────────
 // Individual Settings Row
@@ -404,9 +334,6 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
                 <ProfileDisplayCard size="md" />
               </motion.div>
             )}
-
-            {/* ── NOTIFICATION BANNER (hidden while searching) ── */}
-            {!isSearching && <NotificationBanner />}
 
             {/* ── SETTINGS LIST ── */}
             <motion.div
