@@ -426,7 +426,7 @@ const AvatarEditor = ({ user, onAvatarChange }) => {
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          className="flex items-center gap-1.5 text-[12px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 rounded-full px-3 py-1.5 hover:bg-emerald-500/20 transition-all cursor-pointer focus-visible:outline-none disabled:opacity-50"
+          className="flex items-center gap-1.5 text-[12px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 dark:border-emerald-500/25 rounded-full px-3.5 py-1.5 hover:bg-emerald-500/20 transition-all cursor-pointer focus-visible:outline-none disabled:opacity-50"
         >
           {uploading ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
           {uploading ? `Uploading ${progress}%` : 'Change Photo'}
@@ -438,7 +438,7 @@ const AvatarEditor = ({ user, onAvatarChange }) => {
             type="button"
             onClick={handleRemove}
             disabled={removing}
-            className="flex items-center gap-1.5 text-[12px] font-semibold text-red-400 bg-red-500/10 border border-red-500/25 rounded-full px-3 py-1.5 hover:bg-red-500/20 transition-all cursor-pointer focus-visible:outline-none disabled:opacity-50"
+            className="flex items-center gap-1.5 text-[12px] font-semibold text-red-600 dark:text-red-400 bg-red-500/10 dark:bg-red-500/15 border border-red-500/30 dark:border-red-500/25 rounded-full px-3.5 py-1.5 hover:bg-red-500/20 transition-all cursor-pointer focus-visible:outline-none disabled:opacity-50"
           >
             {removing ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
             Remove
@@ -553,7 +553,7 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
           exit="exit"
           aria-label="Profile settings"
           className="
-            absolute inset-0 z-20
+            absolute inset-0 z-50
             flex flex-col
             overflow-hidden
             bg-[#f8fafc] dark:bg-[#11141a]
@@ -658,7 +658,7 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
                 onChange={setUsername}
                 currentUsername={user?.username || ''}
               />
-              <p className="text-[10px] text-gray-600 px-1">
+              <p className="text-[10px] text-slate-500 dark:text-gray-500 px-1">
                 Unique handle used to find and share your profile.
               </p>
             </motion.div>
@@ -685,7 +685,7 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
                   value={user?.phoneNumber}
                 />
               </div>
-              <p className="text-[10px] text-gray-600 px-1">
+              <p className="text-[10px] text-slate-500 dark:text-gray-500 px-1">
                 Email and phone are identity credentials and cannot be changed here.
               </p>
             </motion.div>
@@ -709,7 +709,7 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
                 focus-visible:outline-none
                 ${isDirty
                   ? 'bg-emerald-500 text-white hover:bg-emerald-400 shadow-emerald-500/30 cursor-pointer'
-                  : 'bg-gray-800/60 text-gray-600 border border-gray-700/50 cursor-not-allowed'}
+                  : 'bg-slate-200 dark:bg-gray-800/60 text-slate-400 dark:text-gray-500 border border-slate-300/80 dark:border-gray-700/50 cursor-not-allowed'}
               `}
             >
               {saving ? (
@@ -726,7 +726,7 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
             </motion.button>
 
             {isDirty && (
-              <p className="text-center text-[10px] text-amber-400/80 mt-2 font-medium">
+              <p className="text-center text-[10px] text-amber-600 dark:text-amber-400 mt-2 font-semibold">
                 You have unsaved changes
               </p>
             )}

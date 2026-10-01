@@ -126,6 +126,23 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  const handleConfirmLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      if (socket) {
+        socket.disconnect();
+      }
+      await logout();
+      toast.success('Logged out successfully');
+      setShowLogoutModal(false);
+      if (onClose) onClose();
+    } catch (err) {
+      toast.error('Failed to log out');
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   const dynamicItems = useMemo(() => [
     ...SETTINGS_ITEMS,
     {

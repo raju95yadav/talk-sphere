@@ -200,7 +200,7 @@ const SocialButton = ({ platform }) => {
       >
         <Icon size={22} />
       </div>
-      <span className="text-[10px] font-semibold text-gray-400 group-hover:text-gray-200 transition-colors">
+      <span className="text-[10px] font-semibold text-slate-600 dark:text-gray-400 group-hover:text-slate-900 dark:group-hover:text-gray-200 transition-colors">
         {platform.label}
       </span>
     </motion.a>
@@ -249,7 +249,7 @@ const LinkTab = ({ inviteUrl, shareText, canShare, onNativeShare }) => (
 
     {/* Social platforms */}
     <div className="space-y-3">
-      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500 px-1">
+      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-gray-500 px-1">
         Share on
       </p>
       <div className="grid grid-cols-4 gap-3">
@@ -335,24 +335,24 @@ const QRTab = ({ inviteUrl, displayName }) => {
 
       {/* Display name badge */}
       <div className="flex flex-col items-center gap-1">
-        <p className="text-[13px] font-black text-white">{displayName}</p>
-        <p className="text-[11px] text-gray-500">Scan to join Talk Sphere</p>
+        <p className="text-[13px] font-black text-slate-900 dark:text-white">{displayName}</p>
+        <p className="text-[11px] text-slate-500 dark:text-gray-400">Scan to join Talk Sphere</p>
       </div>
 
       {/* URL + copy */}
-      <div className="w-full flex items-center gap-2 bg-gray-900/70 border border-gray-700/60 rounded-2xl px-3 py-2.5">
-        <p className="flex-1 text-[11px] text-gray-400 font-mono truncate min-w-0">
+      <div className="w-full flex items-center gap-2 bg-slate-100 dark:bg-gray-900/70 border border-slate-200 dark:border-gray-700/60 rounded-2xl px-3 py-2.5">
+        <p className="flex-1 text-[11px] text-slate-700 dark:text-gray-300 font-mono truncate min-w-0">
           {inviteUrl}
         </p>
         <button
           onClick={handleCopy}
-          className="shrink-0 w-7 h-7 rounded-lg bg-gray-800/80 border border-gray-700/50 flex items-center justify-center text-gray-400 hover:text-emerald-400 transition-colors cursor-pointer"
+          className="shrink-0 w-7 h-7 rounded-lg bg-white dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer"
         >
-          {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+          {copied ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
         </button>
       </div>
 
-      <p className="text-[10px] text-gray-600 text-center max-w-[220px] leading-relaxed">
+      <p className="text-[10px] text-slate-500 dark:text-gray-400 text-center max-w-[220px] leading-relaxed">
         Share this QR code with friends nearby to let them join instantly
       </p>
     </motion.div>
@@ -408,7 +408,7 @@ const InviteFriendPage = ({ isOpen, onBack }) => {
           animate="visible"
           exit="exit"
           aria-label="Invite a friend"
-          className="absolute inset-0 z-20 flex flex-col overflow-hidden bg-[#f8fafc] dark:bg-[#11141a] text-slate-900 dark:text-white transition-colors duration-300"
+          className="absolute inset-0 z-50 flex flex-col overflow-hidden bg-[#f8fafc] dark:bg-[#11141a] text-slate-900 dark:text-white transition-colors duration-300"
         >
           {/* Top highlight line */}
           <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-500/35 to-transparent pointer-events-none z-10" />
@@ -479,10 +479,10 @@ const InviteFriendPage = ({ isOpen, onBack }) => {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-black text-white leading-tight mb-1">
+                  <p className="text-[14px] font-black text-slate-900 dark:text-white leading-tight mb-1">
                     Invite friends to Talk Sphere
                   </p>
-                  <p className="text-[11px] text-gray-400 leading-relaxed">
+                  <p className="text-[11px] text-slate-600 dark:text-gray-400 leading-relaxed">
                     Share encrypted messaging, HD calls, and smart AI — all free.
                   </p>
                 </div>
@@ -504,7 +504,7 @@ const InviteFriendPage = ({ isOpen, onBack }) => {
                         flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-[12px] font-bold transition-all duration-200 cursor-pointer focus-visible:outline-none
                         ${active
                           ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
-                          : 'text-gray-500 hover:text-gray-300'}
+                          : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200'}
                       `}
                     >
                       <Icon size={13} />

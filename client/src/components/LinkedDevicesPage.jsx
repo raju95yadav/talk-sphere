@@ -321,8 +321,8 @@ const SessionCard = ({ session, isCurrent, onRemove, removing }) => (
     <div
       className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border ${
         isCurrent
-          ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400'
-          : 'bg-gray-800/80 border-gray-700/50 text-gray-400'
+          ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-600 dark:text-emerald-400'
+          : 'bg-slate-100 dark:bg-gray-800/80 border-slate-200 dark:border-gray-700/50 text-slate-600 dark:text-gray-400'
       }`}
     >
       <DeviceIcon os={session.os} size={18} />
@@ -331,11 +331,11 @@ const SessionCard = ({ session, isCurrent, onRemove, removing }) => (
     {/* Details */}
     <div className="flex-1 min-w-0">
       <div className="flex items-center gap-2 mb-0.5">
-        <p className="text-[13px] font-bold text-white truncate leading-tight">
+        <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate leading-tight">
           {session.browser} on {session.os}
         </p>
         {isCurrent && (
-          <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full">
+          <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded-full">
             This device
           </span>
         )}
@@ -343,12 +343,12 @@ const SessionCard = ({ session, isCurrent, onRemove, removing }) => (
 
       <div className="flex items-center gap-2 flex-wrap">
         {session.ip && session.ip !== 'Unknown' && (
-          <span className="flex items-center gap-1 text-[10px] text-gray-500">
+          <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-gray-400">
             <MapPin size={9} />
             {session.ip}
           </span>
         )}
-        <span className="flex items-center gap-1 text-[10px] text-gray-500">
+        <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-gray-400">
           <Clock size={9} />
           {fmtLastActive(session.lastActive)}
         </span>
@@ -361,7 +361,7 @@ const SessionCard = ({ session, isCurrent, onRemove, removing }) => (
         id={`device-logout-${session.sessionId}`}
         onClick={() => onRemove(session.sessionId)}
         disabled={removing === session.sessionId}
-        className="shrink-0 w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-all cursor-pointer focus-visible:outline-none disabled:opacity-50"
+        className="shrink-0 w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/25 flex items-center justify-center text-red-600 dark:text-red-400 hover:bg-red-500/20 hover:text-red-700 dark:hover:text-red-300 transition-all cursor-pointer focus-visible:outline-none disabled:opacity-50"
         title="Log out from this device"
         aria-label="Log out from this device"
       >
@@ -495,7 +495,7 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
             animate="visible"
             exit="exit"
             aria-label="Linked devices"
-            className="absolute inset-0 z-20 flex flex-col overflow-hidden bg-[#f8fafc] dark:bg-[#11141a] text-slate-900 dark:text-white transition-colors duration-300"
+            className="absolute inset-0 z-50 flex flex-col overflow-hidden bg-[#f8fafc] dark:bg-[#11141a] text-slate-900 dark:text-white transition-colors duration-300"
           >
             {/* Top highlight line */}
             <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-500/35 to-transparent pointer-events-none z-10" />
@@ -614,7 +614,7 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
               {/* ── Current device ── */}
               {currentSession && (
                 <motion.div variants={child} className="space-y-2">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500 px-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-gray-400 px-1">
                     This Device
                   </p>
                   <SessionCard
@@ -628,7 +628,7 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
 
               {/* ── Linked devices list ── */}
               <motion.div variants={child} className="space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500 px-1">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-gray-400 px-1">
                   Linked Devices {otherSessions.length > 0 && `(${otherSessions.length})`}
                 </p>
 
@@ -641,8 +641,8 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
                       exit={{ opacity: 0 }}
                       className="py-10 flex flex-col items-center gap-3"
                     >
-                      <Loader2 size={24} className="text-gray-600 animate-spin" />
-                      <p className="text-[11px] text-gray-600">Loading sessions…</p>
+                      <Loader2 size={24} className="text-emerald-500 dark:text-gray-500 animate-spin" />
+                      <p className="text-[11px] text-slate-500 dark:text-gray-400 font-medium">Loading sessions…</p>
                     </motion.div>
                   ) : otherSessions.length === 0 ? (
                     <motion.div
@@ -650,14 +650,14 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="py-8 flex flex-col items-center gap-3 border border-dashed border-gray-800/60 rounded-2xl"
+                      className="py-8 flex flex-col items-center gap-3 border border-dashed border-slate-300 dark:border-gray-800/60 rounded-2xl bg-white/50 dark:bg-transparent"
                     >
-                      <div className="w-10 h-10 rounded-xl bg-gray-800/60 border border-gray-700/50 flex items-center justify-center">
-                        <WifiOff size={18} className="text-gray-600" />
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-gray-800/60 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center">
+                        <WifiOff size={18} className="text-slate-400 dark:text-gray-500" />
                       </div>
                       <div className="text-center">
-                        <p className="text-[12px] font-semibold text-gray-500">No linked devices</p>
-                        <p className="text-[10px] text-gray-600 mt-0.5">
+                        <p className="text-[12px] font-semibold text-slate-700 dark:text-gray-400">No linked devices</p>
+                        <p className="text-[10px] text-slate-500 dark:text-gray-500 mt-0.5">
                           Scan the QR code to link another device
                         </p>
                       </div>
@@ -687,10 +687,10 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
               {/* Security note */}
               <motion.div
                 variants={child}
-                className="flex items-start gap-2.5 px-3 py-3 rounded-xl bg-amber-500/5 border border-amber-500/15"
+                className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/25"
               >
-                <Shield size={14} className="text-amber-400/70 shrink-0 mt-0.5" />
-                <p className="text-[10px] text-amber-400/60 leading-relaxed">
+                <Shield size={14} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-[10.5px] text-amber-800 dark:text-amber-300/90 font-medium leading-relaxed">
                   If you see an unfamiliar device, log it out immediately and change your password.
                 </p>
               </motion.div>
@@ -707,7 +707,7 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
                   whileTap={{ scale: 0.97 }}
                   onClick={handleRemoveAll}
                   disabled={removingAll}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-red-500/25 bg-red-500/10 text-red-400 hover:bg-red-500/18 hover:text-red-300 text-[12px] font-black uppercase tracking-wider transition-all cursor-pointer focus-visible:outline-none disabled:opacity-50 shadow-xl"
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 hover:text-red-700 dark:hover:text-red-300 text-[12px] font-black uppercase tracking-wider transition-all cursor-pointer focus-visible:outline-none disabled:opacity-50 shadow-xl"
                 >
                   {removingAll
                     ? <Loader2 size={14} className="animate-spin" />

@@ -97,7 +97,7 @@ const StatusBubble = ({ statusId, onSelect, isChanging }) => {
   const { isDarkMode } = useTheme();
 
   return (
-    <div ref={ref} className="relative flex flex-col items-center z-30">
+    <div ref={ref} className="relative flex flex-col items-center z-10">
       {/* Speech bubble tail */}
       <div className="w-2.5 h-2 overflow-hidden flex justify-center">
         <div

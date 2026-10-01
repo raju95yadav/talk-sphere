@@ -99,36 +99,35 @@ const estimateMediaBytes = (images = 0, videos = 0, audio = 0, documents = 0) =>
 // ─────────────────────────────────────────────────────────────
 const SectionHeader = ({ icon: Icon, title, subtitle }) => (
   <div className="flex items-center gap-2 mb-2 px-1">
-    {Icon && <Icon size={14} className="text-emerald-400" />}
+    {Icon && <Icon size={14} className="text-emerald-500 dark:text-emerald-400" />}
     <div>
-      <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">
+      <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-gray-400">
         {title}
       </h3>
-      {subtitle && <p className="text-[10px] text-gray-500">{subtitle}</p>}
+      {subtitle && <p className="text-[10px] text-slate-400 dark:text-gray-500">{subtitle}</p>}
     </div>
   </div>
 );
 
 const ToggleSwitch = ({ id, checked, onChange, label, sub, icon: Icon, accentColor = '#10b981' }) => (
-  <div className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl hover:bg-white/[0.02] transition-colors">
+  <div className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors">
     <div className="flex items-center gap-2.5 min-w-0 flex-1">
       {Icon && (
         <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border"
-          style={{
-            background: checked ? `${accentColor}15` : 'rgba(255,255,255,0.03)',
-            borderColor: checked ? `${accentColor}30` : 'rgba(255,255,255,0.06)',
-            color: checked ? accentColor : '#9ca3af',
-          }}
+          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border transition-colors ${
+            checked
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+              : 'bg-slate-100 dark:bg-white/[0.04] border-slate-200 dark:border-white/[0.08] text-slate-500 dark:text-gray-400'
+          }`}
         >
           <Icon size={14} />
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-semibold text-gray-200 leading-tight truncate">
+        <p className="text-[13px] font-semibold text-slate-900 dark:text-gray-100 leading-tight truncate">
           {label}
         </p>
-        {sub && <p className="text-[10px] text-gray-500 mt-0.5 truncate">{sub}</p>}
+        {sub && <p className="text-[10px] text-slate-500 dark:text-gray-400 mt-0.5 truncate">{sub}</p>}
       </div>
     </div>
     <button
@@ -140,7 +139,7 @@ const ToggleSwitch = ({ id, checked, onChange, label, sub, icon: Icon, accentCol
       className={`
         relative shrink-0 w-10 h-5.5 rounded-full transition-all duration-300 cursor-pointer
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50
-        ${checked ? 'bg-emerald-500 shadow-sm shadow-emerald-500/30' : 'bg-gray-700/80 border border-gray-600/50'}
+        ${checked ? 'bg-emerald-500 shadow-sm shadow-emerald-500/30' : 'bg-slate-300 dark:bg-gray-700/80 border border-slate-300/80 dark:border-gray-600/50'}
       `}
       style={{ height: 22, width: 40 }}
     >
@@ -269,11 +268,7 @@ const ConfirmModal = ({ isOpen, title, message, subtext, confirmLabel, cancelLab
 // ─────────────────────────────────────────────────────────────
 const StatBox = ({ icon: Icon, label, value, sub, color = '#10b981', live = false }) => (
   <div
-    className="relative flex items-center gap-3 p-3.5 rounded-2xl border transition-all duration-200"
-    style={{
-      background: 'rgba(255, 255, 255, 0.02)',
-      borderColor: 'rgba(255, 255, 255, 0.06)',
-    }}
+    className="relative flex items-center gap-3 p-3.5 rounded-2xl border border-slate-200 dark:border-gray-800/80 bg-white dark:bg-white/[0.02] shadow-sm transition-all duration-200"
   >
     <div
       className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border"
@@ -287,7 +282,7 @@ const StatBox = ({ icon: Icon, label, value, sub, color = '#10b981', live = fals
     </div>
     <div className="flex-1 min-w-0">
       <div className="flex items-center gap-1.5 mb-0.5">
-        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider truncate">
+        <span className="text-[10px] text-slate-500 dark:text-gray-400 font-bold uppercase tracking-wider truncate">
           {label}
         </span>
         {live && (
@@ -297,10 +292,10 @@ const StatBox = ({ icon: Icon, label, value, sub, color = '#10b981', live = fals
           </span>
         )}
       </div>
-      <p className="text-[16px] font-black text-white leading-tight truncate">
+      <p className="text-[16px] font-black text-slate-900 dark:text-white leading-tight truncate">
         {value}
       </p>
-      {sub && <p className="text-[10px] text-gray-500 truncate mt-0.5">{sub}</p>}
+      {sub && <p className="text-[10px] text-slate-500 dark:text-gray-400 truncate mt-0.5">{sub}</p>}
     </div>
   </div>
 );
@@ -582,7 +577,7 @@ const StorageDataPage = ({ isOpen, onBack }) => {
             animate="visible"
             exit="exit"
             aria-label="Storage and data panel"
-            className="absolute inset-0 z-20 flex flex-col overflow-hidden select-none bg-[#f8fafc] dark:bg-[#11141a] text-slate-900 dark:text-white transition-colors duration-300"
+            className="absolute inset-0 z-50 flex flex-col overflow-hidden select-none bg-[#f8fafc] dark:bg-[#11141a] text-slate-900 dark:text-white transition-colors duration-300"
           >
             {/* Top highlight ambient glow */}
             <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent pointer-events-none z-10" />
@@ -718,7 +713,7 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                   </AnimatePresence>
 
                   {/* 4 Colored Legend Breakdown rows */}
-                  <div className="pt-2 border-t border-gray-800/60 space-y-1.5">
+                  <div className="pt-2 border-t border-slate-200 dark:border-gray-800/60 space-y-1.5">
                     {segments.map((seg) => {
                       const pctOfUsed = totalUsedBytes > 0 ? ((seg.bytes / totalUsedBytes) * 100).toFixed(1) : 0;
                       const Icon = seg.icon;
@@ -732,7 +727,7 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                           onClick={() => setActiveSegmentId(seg.id === activeSegmentId ? null : seg.id)}
                           className={`
                             flex items-center justify-between px-2.5 py-1.5 rounded-xl cursor-pointer transition-all duration-150
-                            ${isHovered ? 'bg-white/5 shadow-sm' : 'hover:bg-white/[0.02]'}
+                            ${isHovered ? 'bg-black/5 dark:bg-white/5 shadow-sm' : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'}
                           `}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -745,14 +740,14 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                               }}
                             />
                             <Icon size={14} style={{ color: seg.color }} className="shrink-0" />
-                            <span className="text-[12px] font-semibold text-gray-200 truncate">
+                            <span className="text-[12px] font-semibold text-slate-800 dark:text-gray-200 truncate">
                               {seg.label}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 shrink-0 font-mono text-[11px]">
-                            <span className="text-white font-bold">{fmtBytes(seg.bytes)}</span>
+                            <span className="text-slate-900 dark:text-white font-bold">{fmtBytes(seg.bytes)}</span>
                             {seg.id !== 'free' && (
-                              <span className="text-gray-500 text-[10px] w-10 text-right">
+                              <span className="text-slate-500 dark:text-gray-400 text-[10px] w-10 text-right">
                                 {pctOfUsed}%
                               </span>
                             )}
@@ -764,18 +759,18 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                 </div>
 
                 {/* Local Cache & "Clear App Cache" Action */}
-                <div className="rounded-2xl border border-gray-800/80 bg-gray-900/40 p-3.5 space-y-3">
+                <div className="rounded-2xl border border-slate-200 dark:border-gray-800/80 bg-white dark:bg-gray-900/40 p-3.5 space-y-3 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-400">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-500 dark:text-amber-400">
                         <Layers size={15} />
                       </div>
                       <div>
-                        <p className="text-[12px] font-bold text-white">Local Cache &amp; Temporary Media</p>
-                        <p className="text-[10px] text-gray-500">Thumbnails, cached stickers &amp; preview assets</p>
+                        <p className="text-[12px] font-bold text-slate-900 dark:text-white">Local Cache &amp; Temporary Media</p>
+                        <p className="text-[10px] text-slate-500 dark:text-gray-400">Thumbnails, cached stickers &amp; preview assets</p>
                       </div>
                     </div>
-                    <span className="text-[13px] font-black text-amber-400 font-mono">
+                    <span className="text-[13px] font-black text-amber-600 dark:text-amber-400 font-mono">
                       {fmtBytes(cacheSize)}
                     </span>
                   </div>
@@ -786,7 +781,7 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setConfirmClearCache(true)}
                     disabled={clearingCache}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-red-500/25 bg-red-500/10 text-red-400 hover:bg-red-500/18 transition-all cursor-pointer font-bold text-[12px] disabled:opacity-50"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 transition-all cursor-pointer font-bold text-[12px] disabled:opacity-50"
                   >
                     {clearingCache ? (
                       <>
@@ -814,10 +809,10 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                 />
 
                 {/* Mobile Data group */}
-                <div className="rounded-2xl border border-gray-800/80 bg-gray-900/40 p-2 space-y-0.5">
-                  <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-800/50 mb-1">
-                    <Signal size={13} className="text-blue-400" />
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-blue-400">
+                <div className="rounded-2xl border border-slate-200 dark:border-gray-800/80 bg-white dark:bg-gray-900/40 p-2 space-y-0.5 shadow-sm">
+                  <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-200 dark:border-gray-800/50 mb-1">
+                    <Signal size={13} className="text-blue-600 dark:text-blue-400" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
                       When using Mobile Data
                     </span>
                   </div>
@@ -861,15 +856,15 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                 </div>
 
                 {/* Wi-Fi group with "All media / None" */}
-                <div className="rounded-2xl border border-gray-800/80 bg-gray-900/40 p-3 space-y-2.5">
-                  <div className="flex items-center justify-between border-b border-gray-800/50 pb-2.5">
+                <div className="rounded-2xl border border-slate-200 dark:border-gray-800/80 bg-white dark:bg-gray-900/40 p-3 space-y-2.5 shadow-sm">
+                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-gray-800/50 pb-2.5">
                     <div className="flex items-center gap-2">
-                      <Wifi size={13} className="text-emerald-400" />
+                      <Wifi size={13} className="text-emerald-500 dark:text-emerald-400" />
                       <div>
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
                           When connected to Wi-Fi
                         </span>
-                        <p className="text-[10px] text-gray-500">
+                        <p className="text-[10px] text-slate-500 dark:text-gray-400">
                           {isWifiAllActive
                             ? 'All media enabled'
                             : isWifiNoneActive
@@ -880,14 +875,14 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                     </div>
 
                     {/* Quick All / None segment buttons */}
-                    <div className="flex items-center p-0.5 rounded-xl bg-gray-800/80 border border-gray-700/50">
+                    <div className="flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50">
                       <button
                         type="button"
                         onClick={() => handleWifiAllToggle(true)}
                         className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
                           isWifiAllActive
                             ? 'bg-emerald-500 text-white shadow-sm'
-                            : 'text-gray-400 hover:text-white'
+                            : 'text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
                         All media
@@ -898,7 +893,7 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                         className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
                           isWifiNoneActive
                             ? 'bg-red-500 text-white shadow-sm'
-                            : 'text-gray-400 hover:text-white'
+                            : 'text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
                         None
@@ -918,7 +913,7 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                   />
 
                   {/* Individual Wi-Fi granular controls */}
-                  <div className="pt-2 border-t border-gray-800/40 space-y-0.5">
+                  <div className="pt-2 border-t border-slate-200 dark:border-gray-800/40 space-y-0.5">
                     <ToggleSwitch
                       id="auto-download-wifi-photos"
                       checked={prefs.wifiPhotos}
@@ -968,7 +963,7 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                   <button
                     type="button"
                     onClick={() => setConfirmResetNetwork(true)}
-                    className="text-[10px] font-bold text-gray-500 hover:text-gray-300 transition-colors cursor-pointer flex items-center gap-1"
+                    className="text-[10px] font-bold text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-gray-200 transition-colors cursor-pointer flex items-center gap-1"
                     title="Reset local usage statistics"
                   >
                     <RotateCcw size={11} />
@@ -1012,7 +1007,7 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                 {/* ════════════════════════════════════════════ */}
                 {/* 4. CALL QUALITY & DATA SAVER TOGGLE        */}
                 {/* ════════════════════════════════════════════ */}
-                <div className="rounded-2xl border border-gray-800/80 bg-gray-900/40 p-3 space-y-3">
+                <div className="rounded-2xl border border-slate-200 dark:border-gray-800/80 bg-white dark:bg-gray-900/40 p-3 space-y-3 shadow-sm">
                   <ToggleSwitch
                     id="call-saver-toggle-useLessData"
                     checked={prefs.useLessData}
@@ -1049,14 +1044,14 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <p className="text-[12px] font-bold text-white leading-tight">
+                        <p className="text-[12px] font-bold text-slate-900 dark:text-white leading-tight">
                           {prefs.useLessData ? 'Data Saver Active (Low Bandwidth)' : 'High Quality Mode (Standard)'}
                         </p>
-                        <span className="text-[10px] font-mono font-bold text-gray-400">
+                        <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-gray-400">
                           {prefs.useLessData ? '250 kbps max' : '1.5 Mbps max'}
                         </span>
                       </div>
-                      <p className="text-[11px] text-gray-400 mt-0.5 leading-relaxed">
+                      <p className="text-[11px] text-slate-600 dark:text-gray-400 mt-0.5 leading-relaxed">
                         {prefs.useLessData
                           ? 'Optimized for cellular data or poor connections. Video resolution capped at 360p @ 15fps, audio at 24 kbps.'
                           : 'Standard high-definition video (up to 1080p @ 30fps) with full 48 kbps wideband stereo voice.'}
