@@ -549,25 +549,25 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
                 <div className="relative flex items-end justify-center gap-2 h-20">
                   {/* Laptop */}
                   <div className="relative">
-                    <div className="w-16 h-11 rounded-t-lg bg-gray-800 border border-gray-700/80 flex items-center justify-center shadow-xl">
-                      <div className="w-12 h-7 rounded bg-gray-900 border border-gray-700/60 flex items-center justify-center">
+                    <div className="w-16 h-11 rounded-t-lg bg-slate-200 dark:bg-gray-800 border border-slate-300 dark:border-gray-700/80 flex items-center justify-center shadow-md">
+                      <div className="w-12 h-7 rounded bg-slate-100 dark:bg-gray-900 border border-slate-300 dark:border-gray-700/60 flex items-center justify-center">
                         <div className="w-6 h-4 rounded-sm"
                           style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
                         />
                       </div>
                     </div>
-                    <div className="w-20 h-1.5 rounded-b bg-gray-700 border-t border-gray-600/60 -mt-px" />
+                    <div className="w-20 h-1.5 rounded-b bg-slate-300 dark:bg-gray-700 border-t border-slate-300 dark:border-gray-600/60 -mt-px" />
                   </div>
 
                   {/* Phone */}
-                  <div className="w-8 h-14 rounded-xl bg-gray-800 border border-gray-700/80 flex flex-col items-center justify-between py-1.5 shadow-xl mb-1">
-                    <div className="w-3 h-0.5 rounded-full bg-gray-700" />
-                    <div className="w-5 h-7 rounded bg-gray-900 border border-gray-700/60 flex items-center justify-center">
+                  <div className="w-8 h-14 rounded-xl bg-slate-200 dark:bg-gray-800 border border-slate-300 dark:border-gray-700/80 flex flex-col items-center justify-between py-1.5 shadow-md mb-1">
+                    <div className="w-3 h-0.5 rounded-full bg-slate-400 dark:bg-gray-700" />
+                    <div className="w-5 h-7 rounded bg-slate-100 dark:bg-gray-900 border border-slate-300 dark:border-gray-700/60 flex items-center justify-center">
                       <div className="w-2.5 h-3.5 rounded-sm"
                         style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
                       />
                     </div>
-                    <div className="w-3 h-3 rounded-full border border-gray-600/60" />
+                    <div className="w-3 h-3 rounded-full border border-slate-300 dark:border-gray-600/60" />
                   </div>
 
                   {/* Wifi arcs */}

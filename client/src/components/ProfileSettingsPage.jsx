@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
+import { useTheme } from '../context/ThemeContext';
 import apiClient from '../api/apiClient';
 import toast from 'react-hot-toast';
 
@@ -316,6 +317,7 @@ const BioField = ({ value, onChange }) => {
 // AvatarEditor – top photo section
 // ─────────────────────────────────────────────────────────────
 const AvatarEditor = ({ user, onAvatarChange }) => {
+  const { isDarkMode } = useTheme();
   const [uploading, setUploading] = useState(false);
   const [removing,  setRemoving]  = useState(false);
   const [progress,  setProgress]  = useState(0);
@@ -377,7 +379,7 @@ const AvatarEditor = ({ user, onAvatarChange }) => {
       {/* Avatar + ring */}
       <div className="relative">
         <div className="w-24 h-24 rounded-full p-[3px] ring-4 ring-slate-200 dark:ring-gray-800/80 shadow-xl shadow-black/10 dark:shadow-black/40"
-          style={{ background: 'conic-gradient(#22c55e44 0%, #1e2130 50%, #22c55e22 100%)' }}
+          style={{ background: isDarkMode ? 'conic-gradient(#22c55e44 0%, #1e2130 50%, #22c55e22 100%)' : 'conic-gradient(#22c55e44 0%, #e2e8f0 50%, #22c55e22 100%)' }}
         >
           <div className="w-full h-full rounded-full overflow-hidden bg-slate-100 dark:bg-gray-900 border-2 border-slate-200 dark:border-gray-800/60 flex items-center justify-center">
             {user?.avatar ? (

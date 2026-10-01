@@ -181,6 +181,7 @@ const StatusBubble = ({ statusId, onSelect, isChanging }) => {
  */
 const ProfileDisplayCard = ({ className = '', size = 'lg' }) => {
   const { user, refreshUser, updateUserData } = useAuth();
+  const { isDarkMode } = useTheme();
   const socket = useSocket();
 
   const [isUploading, setIsUploading] = useState(false);
@@ -336,9 +337,9 @@ const ProfileDisplayCard = ({ className = '', size = 'lg' }) => {
           style={{
             background: `conic-gradient(
               ${currentStatus.dot}55 0%,
-              #1e2130 40%,
+              ${isDarkMode ? '#1e2130' : '#e2e8f0'} 40%,
               ${currentStatus.dot}33 80%,
-              #1e2130 100%
+              ${isDarkMode ? '#1e2130' : '#e2e8f0'} 100%
             )`,
           }}
         >

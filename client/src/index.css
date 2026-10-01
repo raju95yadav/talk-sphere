@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, [data-theme='dark'], .dark *, [data-theme='dark'] *));
+
 @theme {
   --color-accent-primary: #ff0055;
   --color-accent-secondary: #702cf9;
