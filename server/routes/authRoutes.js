@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 const { requestOTP, verifyOTP, refreshToken, logout, googleAuth } = require('../controllers/authController');
+const { generateQR, checkQRStatus, scanQR, approveQR, claimQR } = require('../controllers/qrAuthController');
+const { protect } = require('../middleware/authMiddleware');
 
 // Rate limit for OTP requests (5 per 15 mins per IP)
 const otpRequestLimiter = rateLimit({
@@ -26,5 +28,12 @@ router.post('/verify-otp', otpVerifyLimiter, verifyOTP);
 router.post('/google', googleAuth);
 router.post('/refresh-token', refreshToken);
 router.post('/logout', logout);
+
+// QR Code Authentication & Device Linking Routes (WhatsApp-style)
+router.post('/qr/generate', generateQR);
+router.get('/qr/status/:qrToken', checkQRStatus);
+router.post('/qr/scan', protect, scanQR);
+router.post('/qr/approve', protect, approveQR);
+router.post('/qr/claim', claimQR);
 
 module.exports = router;

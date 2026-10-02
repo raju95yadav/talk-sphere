@@ -96,63 +96,253 @@ const DeviceIcon = ({ os, size = 20, className = '' }) => {
 // ─────────────────────────────────────────────────────────────
 // QR Modal
 // ─────────────────────────────────────────────────────────────
+import { Html5Qrcode } from 'html5-qrcode';
+import {
+  Camera,
+  Upload,
+  SwitchCamera,
+  Flashlight,
+} from 'lucide-react';
+
+// ─────────────────────────────────────────────────────────────
+// Link Device Modal (WhatsApp-style Dual Mode: Scan QR or Show QR)
+// ─────────────────────────────────────────────────────────────
 const QR_TTL = 60; // seconds
 
-const QRModal = ({ onClose, onLinked }) => {
+const LinkDeviceModal = ({ onClose, onLinked }) => {
+  const [activeTab, setActiveTab] = useState('scan'); // 'scan' | 'show'
+
+  // ── Show QR State ──────────────────────────────────────────
   const [qrToken,    setQrToken]    = useState(null);
   const [expiresAt,  setExpiresAt]  = useState(null);
   const [remaining,  setRemaining]  = useState(QR_TTL);
-  const [loading,    setLoading]    = useState(true);
+  const [loadingQR,  setLoadingQR]  = useState(false);
   const [linked,     setLinked]     = useState(false);
   const refreshRef   = useRef(null);
   const countdownRef = useRef(null);
 
+  // ── Scan QR State ──────────────────────────────────────────
+  const [cameras, setCameras] = useState([]);
+  const [selectedCameraId, setSelectedCameraId] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scannerError, setScannerError] = useState(null);
+  const [torchOn, setTorchOn] = useState(false);
+  const [hasTorch, setHasTorch] = useState(false);
+
+  // Approval step when camera detects a QR code
+  const [scannedToken, setScannedToken] = useState(null);
+  const [targetDevice, setTargetDevice] = useState(null);
+  const [approving, setApproving] = useState(false);
+  const [approvalStatus, setApprovalStatus] = useState(null); // 'approved' | 'rejected'
+
+  const scannerRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const readerId = 'linked-device-camera-feed';
+
+  // ── Fetch QR Token for "Show QR" Tab ──────────────────────
   const fetchToken = useCallback(async () => {
-    setLoading(true);
+    setLoadingQR(true);
     try {
-      const res = await apiClient.post('/api/devices/qr-token');
+      const res = await apiClient.post('/api/auth/qr/generate');
       setQrToken(res.data.qrToken);
       setExpiresAt(res.data.expiresAt);
-      setRemaining(QR_TTL);
+      setRemaining(Math.round((res.data.expiresAt - Date.now()) / 1000) || QR_TTL);
     } catch {
       toast.error('Could not generate QR code');
     } finally {
-      setLoading(false);
+      setLoadingQR(false);
     }
   }, []);
 
-  // Fetch on mount, then auto-refresh every 60s
   useEffect(() => {
-    fetchToken();
-    refreshRef.current = setInterval(fetchToken, 60_000);
-    return () => clearInterval(refreshRef.current);
-  }, [fetchToken]);
+    if (activeTab === 'show') {
+      fetchToken();
+      refreshRef.current = setInterval(fetchToken, 60_000);
+      return () => clearInterval(refreshRef.current);
+    }
+  }, [activeTab, fetchToken]);
 
-  // Countdown tick
   useEffect(() => {
-    if (!expiresAt) return;
+    if (!expiresAt || activeTab !== 'show') return;
     countdownRef.current = setInterval(() => {
       const secs = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
       setRemaining(secs);
     }, 1000);
     return () => clearInterval(countdownRef.current);
-  }, [expiresAt]);
+  }, [expiresAt, activeTab]);
 
-  // Handle device:linked socket event (from parent via prop)
-  const handleLinkedEvent = useCallback(() => {
-    setLinked(true);
-    clearInterval(refreshRef.current);
-    setTimeout(() => {
-      onLinked();
-      onClose();
-    }, 1800);
-  }, [onLinked, onClose]);
+  // ── Camera Scanner Handlers ───────────────────────────────
+  const extractToken = (rawText) => {
+    if (!rawText) return null;
+    const trimmed = rawText.trim();
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed?.token) return parsed.token;
+      if (parsed?.qrToken) return parsed.qrToken;
+    } catch { /* not JSON */ }
+    if (trimmed.includes('token=')) {
+      const match = trimmed.match(/token=([a-zA-Z0-9_-]+)/);
+      if (match) return match[1];
+    }
+    return trimmed;
+  };
 
-  // QR payload – include token + app identifier
-  const qrPayload = qrToken
-    ? JSON.stringify({ app: 'talk-sphere', token: qrToken })
-    : '';
+  const handleScanCaptured = useCallback(async (decodedText) => {
+    const token = extractToken(decodedText);
+    if (!token) return toast.error('Unrecognized QR Code');
 
+    // Stop scanner video
+    stopScanner();
+    setScannedToken(token);
+
+    try {
+      if (navigator.vibrate) navigator.vibrate(80);
+    } catch { /* ignore */ }
+
+    // Verify token with server and get target device details
+    try {
+      const res = await apiClient.post('/api/auth/qr/scan', { qrToken: token });
+      setTargetDevice(res.data.device || { browser: 'Desktop Browser', os: 'Computer', ip: '127.0.0.1' });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Invalid or expired QR code');
+      setScannedToken(null);
+      // Restart scanning after slight pause
+      setTimeout(() => startScanner(selectedCameraId), 1500);
+    }
+  }, [selectedCameraId]);
+
+  const startScanner = async (camId) => {
+    setScannerError(null);
+    try {
+      if (scannerRef.current) {
+        try { await scannerRef.current.stop(); } catch { /* ignore */ }
+      }
+      const qrCode = new Html5Qrcode(readerId);
+      scannerRef.current = qrCode;
+
+      const cameraConfig = camId ? { deviceId: { exact: camId } } : { facingMode: 'environment' };
+      await qrCode.start(
+        cameraConfig,
+        { fps: 15, qrbox: { width: 220, height: 220 }, aspectRatio: 1.0 },
+        (decodedText) => handleScanCaptured(decodedText),
+        () => {}
+      );
+      setIsScanning(true);
+
+      try {
+        const capabilities = qrCode.getRunningTrackCapabilities();
+        setHasTorch(Boolean(capabilities?.torch));
+      } catch {
+        setHasTorch(false);
+      }
+    } catch (err) {
+      setIsScanning(false);
+      setScannerError(
+        err?.name === 'NotAllowedError' || err?.message?.includes('Permission')
+          ? 'Camera permission denied. Please allow camera permissions in your browser or upload an image below.'
+          : 'Could not start camera. Check permissions or upload an image.'
+      );
+    }
+  };
+
+  const stopScanner = async () => {
+    if (scannerRef.current && scannerRef.current.isScanning) {
+      try { await scannerRef.current.stop(); } catch { /* ignore */ }
+    }
+    setIsScanning(false);
+  };
+
+  const toggleTorch = async () => {
+    if (!scannerRef.current || !hasTorch) return;
+    try {
+      await scannerRef.current.applyVideoConstraints({ advanced: [{ torch: !torchOn }] });
+      setTorchOn(!torchOn);
+    } catch { /* ignore */ }
+  };
+
+  const handleSwitchCamera = () => {
+    if (cameras.length < 2) return;
+    const curIdx = cameras.findIndex(c => c.id === selectedCameraId);
+    const nextCam = cameras[(curIdx + 1) % cameras.length];
+    setSelectedCameraId(nextCam.id);
+    startScanner(nextCam.id);
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const qrCode = new Html5Qrcode('qr-upload-helper');
+      const text = await qrCode.scanFile(file, true);
+      qrCode.clear();
+      handleScanCaptured(text);
+    } catch {
+      toast.error('No readable QR code found in this image');
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // Start / stop camera based on active tab
+  useEffect(() => {
+    if (activeTab === 'scan' && !targetDevice) {
+      let isMounted = true;
+      Html5Qrcode.getCameras()
+        .then((devices) => {
+          if (!isMounted) return;
+          if (devices?.length > 0) {
+            setCameras(devices);
+            const rear = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear') || d.label.toLowerCase().includes('environment'));
+            const camId = rear ? rear.id : devices[0].id;
+            setSelectedCameraId(camId);
+            startScanner(camId);
+          } else {
+            startScanner(null);
+          }
+        })
+        .catch(() => {
+          if (isMounted) startScanner(null);
+        });
+      return () => {
+        isMounted = false;
+        stopScanner();
+      };
+    } else {
+      stopScanner();
+    }
+  }, [activeTab, targetDevice]);
+
+  // ── Approval Decision Handler ─────────────────────────────
+  const handleApproveDecision = async (allow) => {
+    if (!scannedToken) return;
+    setApproving(true);
+    try {
+      const res = await apiClient.post('/api/auth/qr/approve', {
+        qrToken: scannedToken,
+        allow
+      });
+
+      if (allow) {
+        setApprovalStatus('approved');
+        toast.success(res.data?.message || 'Device linked successfully!');
+        setTimeout(() => {
+          onLinked();
+          onClose();
+        }, 1400);
+      } else {
+        setApprovalStatus('rejected');
+        toast('Device linking was declined', { icon: '🛑' });
+        setTimeout(() => {
+          onClose();
+        }, 1000);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to process approval');
+      setApproving(false);
+    }
+  };
+
+  const qrPayload = qrToken ? JSON.stringify({ app: 'talk-sphere', type: 'login', token: qrToken }) : '';
   const pct = (remaining / QR_TTL) * 100;
   const isWarning = remaining <= 15;
 
@@ -161,142 +351,358 @@ const QRModal = ({ onClose, onLinked }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
+      style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+      onClick={(e) => !approving && e.target === e.currentTarget && onClose()}
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 24 }}
-        animate={{ opacity: 1, scale: 1,   y: 0  }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 24 }}
         transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-full max-w-sm rounded-3xl border border-gray-700/60 shadow-2xl shadow-black/70 overflow-hidden"
-        style={{ background: '#141720' }}
+        className="relative w-full max-w-sm rounded-3xl border border-gray-700/60 shadow-2xl shadow-black/80 overflow-hidden flex flex-col"
+        style={{ background: '#121620' }}
       >
-        {/* Top emerald stripe */}
-        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
+        {/* Top emerald accent line */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500" />
 
-        {/* Close */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 w-7 h-7 rounded-full bg-gray-800/80 border border-gray-700/50 flex items-center justify-center text-gray-400 hover:text-white transition-all cursor-pointer z-10"
-          aria-label="Close"
-        >
-          <X size={13} />
-        </button>
-
-        <div className="px-6 py-7 flex flex-col items-center gap-5">
-          {/* Header */}
-          <div className="text-center">
-            <h3 className="text-[16px] font-black text-white tracking-tight">Link a Device</h3>
-            <p className="text-[11px] text-gray-500 mt-0.5">
-              Scan this QR code on your other device
+        {/* Modal Header */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-800">
+          <div>
+            <h3 className="text-base font-black text-white tracking-tight">Link a Device</h3>
+            <p className="text-[11px] text-gray-400">
+              {activeTab === 'scan' ? 'Scan another screen to link' : 'Show code to be scanned'}
             </p>
           </div>
 
-          {/* QR area */}
-          <div className="relative">
-            {/* Progress ring */}
-            <svg
-              className="absolute inset-0 -rotate-90"
-              width="220"
-              height="220"
-              viewBox="0 0 220 220"
-              aria-hidden="true"
-            >
-              <circle cx="110" cy="110" r="106" fill="none" stroke="#1f2430" strokeWidth="4" />
-              <circle
-                cx="110" cy="110" r="106"
-                fill="none"
-                stroke={isWarning ? '#ef4444' : '#10b981'}
-                strokeWidth="4"
-                strokeDasharray={`${2 * Math.PI * 106}`}
-                strokeDashoffset={`${2 * Math.PI * 106 * (1 - pct / 100)}`}
-                strokeLinecap="round"
-                style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }}
-              />
-            </svg>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-full bg-gray-800/80 border border-gray-700/60 flex items-center justify-center text-gray-400 hover:text-white transition-all cursor-pointer"
+            aria-label="Close"
+          >
+            <X size={14} />
+          </button>
+        </div>
 
-            <div
-              className="w-[200px] h-[200px] rounded-2xl flex items-center justify-center overflow-hidden mx-[10px] my-[10px]"
-              style={{ background: '#fff' }}
-            >
-              <AnimatePresence mode="wait">
-                {linked ? (
-                  <motion.div
-                    key="linked"
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1,   opacity: 1 }}
-                    className="flex flex-col items-center gap-2"
-                  >
-                    <CheckCircle2 size={52} className="text-emerald-500" />
-                    <span className="text-[12px] font-bold text-emerald-600">Device Linked!</span>
-                  </motion.div>
-                ) : loading ? (
-                  <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    <Loader2 size={36} className="text-gray-400 animate-spin" />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key={qrToken}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <QRCodeSVG
-                      value={qrPayload}
-                      size={180}
-                      level="M"
-                      fgColor="#0f172a"
-                      bgColor="#ffffff"
-                      style={{ borderRadius: 4, display: 'block' }}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Countdown badge */}
-            {!linked && !loading && (
-              <div
-                className={`absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] font-bold border shadow-lg ${
-                  isWarning
-                    ? 'bg-red-500/15 border-red-500/30 text-red-400'
-                    : 'bg-gray-900 border-gray-700/50 text-gray-400'
+        {/* Segmented Mode Tabs (Scan QR vs Show QR) */}
+        {!targetDevice && (
+          <div className="px-5 pt-3">
+            <div className="grid grid-cols-2 p-1 bg-gray-900/90 rounded-2xl border border-gray-800">
+              <button
+                type="button"
+                onClick={() => setActiveTab('scan')}
+                className={`flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'scan'
+                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
+                    : 'text-gray-400 hover:text-white'
                 }`}
               >
-                Refreshes in {remaining}s
-              </div>
-            )}
-          </div>
+                <Camera size={14} />
+                <span>Scan QR Code</span>
+              </button>
 
-          {/* Manual refresh */}
-          {!linked && (
-            <button
-              onClick={fetchToken}
-              disabled={loading}
-              className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-emerald-400 transition-colors cursor-pointer"
-            >
-              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-              Refresh QR Code
-            </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('show')}
+                className={`flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'show'
+                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Link2 size={14} />
+                <span>Show QR Code</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Body */}
+        <div className="p-5 flex flex-col items-center">
+          {/* ────────────────────────────────────────────────────────── */}
+          {/* TAB 1: SCAN QR (Default WhatsApp Experience) */}
+          {/* ────────────────────────────────────────────────────────── */}
+          {activeTab === 'scan' && (
+            <div className="w-full flex flex-col items-center">
+              {targetDevice ? (
+                /* Device Approval Prompt */
+                <div className="w-full flex flex-col items-center text-center space-y-4 py-2">
+                  {approvalStatus === 'approved' ? (
+                    <div className="py-6 flex flex-col items-center gap-2.5">
+                      <CheckCircle2 size={48} className="text-emerald-400 animate-bounce" />
+                      <h4 className="text-base font-black text-white">Device Linked!</h4>
+                      <p className="text-xs text-gray-400">
+                        {targetDevice.browser} on {targetDevice.os} is now connected.
+                      </p>
+                    </div>
+                  ) : approvalStatus === 'rejected' ? (
+                    <div className="py-6 flex flex-col items-center gap-2.5">
+                      <AlertTriangle size={48} className="text-red-400" />
+                      <h4 className="text-base font-black text-white">Request Declined</h4>
+                      <p className="text-xs text-gray-400">Connection permission was not granted.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="w-13 h-13 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-lg">
+                        <Shield size={28} />
+                      </div>
+
+                      <div>
+                        <h4 className="text-base font-black text-white">Authorize New Device?</h4>
+                        <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
+                          This screen wants to log into your TalkSphere account:
+                        </p>
+                      </div>
+
+                      {/* Device Detail Card */}
+                      <div className="w-full bg-[#171c28] border border-gray-800 rounded-2xl p-3.5 flex items-center gap-3 text-left">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-400 shrink-0">
+                          <DeviceIcon os={targetDevice.os} size={20} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-white truncate">
+                            {targetDevice.browser} on {targetDevice.os}
+                          </p>
+                          <div className="flex items-center gap-2.5 mt-0.5 text-[11px] text-gray-400">
+                            <span className="flex items-center gap-1">
+                              <MapPin size={10} className="text-gray-500" />
+                              {targetDevice.ip}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock size={10} className="text-gray-500" />
+                              Just now
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="w-full bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 flex items-start gap-2 text-left">
+                        <AlertTriangle size={14} className="text-amber-400 shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-amber-200/90 leading-tight">
+                          Ensure this is your screen. Only approve devices you recognize.
+                        </p>
+                      </div>
+
+                      {/* Approval Action Buttons */}
+                      <div className="w-full flex items-center gap-2.5 pt-1">
+                        <button
+                          type="button"
+                          disabled={approving}
+                          onClick={() => handleApproveDecision(false)}
+                          className="flex-1 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          Decline
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={approving}
+                          onClick={() => handleApproveDecision(true)}
+                          className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/30 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          {approving ? <Loader2 size={14} className="animate-spin" /> : <span>Allow & Link</span>}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                /* Camera Scanner Viewfinder */
+                <div className="w-full flex flex-col items-center">
+                  <div className="relative w-[230px] h-[230px] rounded-2xl overflow-hidden bg-black border-2 border-emerald-500/40 shadow-inner flex items-center justify-center my-1">
+                    <div id={readerId} className="w-full h-full overflow-hidden [&_video]:object-cover [&_video]:w-full [&_video]:h-full" />
+
+                    {/* Viewfinder Target & Laser Overlay */}
+                    {isScanning && (
+                      <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                        <div className="w-[170px] h-[170px] relative border-2 border-white/20 rounded-xl">
+                          <motion.div
+                            animate={{ y: [0, 150, 0] }}
+                            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                            className="absolute top-2 inset-x-2 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_10px_#10b981]"
+                          />
+                          <div className="absolute -top-1 -left-1 w-5 h-5 border-t-3 border-l-3 border-emerald-400 rounded-tl-md" />
+                          <div className="absolute -top-1 -right-1 w-5 h-5 border-t-3 border-r-3 border-emerald-400 rounded-tr-md" />
+                          <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-3 border-l-3 border-emerald-400 rounded-bl-md" />
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-3 border-r-3 border-emerald-400 rounded-br-md" />
+                        </div>
+                      </div>
+                    )}
+
+                    {scannerError && (
+                      <div className="absolute inset-0 bg-[#0d1117] flex flex-col items-center justify-center p-4 text-center gap-2.5">
+                        <AlertTriangle size={28} className="text-amber-400" />
+                        <p className="text-[11px] text-gray-300 leading-snug">{scannerError}</p>
+                        <button
+                          onClick={() => startScanner(selectedCameraId)}
+                          className="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-[11px] font-bold"
+                        >
+                          Retry Camera
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Camera Controls */}
+                  {isScanning && (
+                    <div className="flex items-center gap-2 mt-2">
+                      {cameras.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={handleSwitchCamera}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-800 text-[11px] text-gray-300 hover:text-white"
+                        >
+                          <SwitchCamera size={12} />
+                          <span>Flip</span>
+                        </button>
+                      )}
+                      {hasTorch && (
+                        <button
+                          type="button"
+                          onClick={toggleTorch}
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                            torchOn ? 'bg-amber-500/20 text-amber-300' : 'bg-gray-800 text-gray-300'
+                          }`}
+                        >
+                          <Flashlight size={12} />
+                          <span>{torchOn ? 'Torch On' : 'Torch Off'}</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Alternative: Image Upload */}
+                  <div className="w-full flex items-center justify-between pt-3 mt-2 border-t border-gray-800/80">
+                    <span className="text-[11px] text-gray-400">Can't point camera?</span>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold"
+                    >
+                      <Upload size={12} className="text-emerald-400" />
+                      <span>Upload QR Image</span>
+                    </button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                  </div>
+                  <div id="qr-upload-helper" className="hidden" />
+                </div>
+              )}
+            </div>
           )}
 
-          {/* Steps */}
-          <div className="w-full space-y-2.5 pt-1 border-t border-gray-800/60">
-            {[
-              { n: '1', text: 'Open Talk Sphere on your other device or browser' },
-              { n: '2', text: 'Go to Settings → Linked Devices → Link a Device' },
-              { n: '3', text: 'Point your camera at this QR code to sign in instantly' },
-            ].map((step) => (
-              <div key={step.n} className="flex items-start gap-3">
-                <span className="shrink-0 w-5 h-5 rounded-full bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-[10px] font-black text-emerald-400">
-                  {step.n}
-                </span>
-                <p className="text-[11px] text-gray-400 leading-relaxed">{step.text}</p>
+          {/* ────────────────────────────────────────────────────────── */}
+          {/* TAB 2: SHOW QR (Generate Code for Other Devices) */}
+          {/* ────────────────────────────────────────────────────────── */}
+          {activeTab === 'show' && (
+            <div className="w-full flex flex-col items-center gap-4">
+              <div className="relative">
+                {/* Progress countdown ring */}
+                <svg
+                  className="absolute inset-0 -rotate-90"
+                  width="210"
+                  height="210"
+                  viewBox="0 0 210 210"
+                  aria-hidden="true"
+                >
+                  <circle cx="105" cy="105" r="101" fill="none" stroke="#1f2430" strokeWidth="4" />
+                  <circle
+                    cx="105" cy="105" r="101"
+                    fill="none"
+                    stroke={isWarning ? '#ef4444' : '#10b981'}
+                    strokeWidth="4"
+                    strokeDasharray={`${2 * Math.PI * 101}`}
+                    strokeDashoffset={`${2 * Math.PI * 101 * (1 - pct / 100)}`}
+                    strokeLinecap="round"
+                    style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }}
+                  />
+                </svg>
+
+                <div
+                  className="w-[190px] h-[190px] rounded-2xl flex items-center justify-center overflow-hidden mx-[10px] my-[10px]"
+                  style={{ background: '#fff' }}
+                >
+                  <AnimatePresence mode="wait">
+                    {linked ? (
+                      <motion.div
+                        key="linked"
+                        initial={{ scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="flex flex-col items-center gap-2"
+                      >
+                        <CheckCircle2 size={48} className="text-emerald-500" />
+                        <span className="text-[12px] font-bold text-emerald-600">Device Linked!</span>
+                      </motion.div>
+                    ) : loadingQR ? (
+                      <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                        <Loader2 size={32} className="text-gray-400 animate-spin" />
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key={qrToken}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <QRCodeSVG
+                          value={qrPayload}
+                          size={170}
+                          level="M"
+                          fgColor="#0f172a"
+                          bgColor="#ffffff"
+                          style={{ borderRadius: 4, display: 'block' }}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {!linked && !loadingQR && (
+                  <div
+                    className={`absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-[10px] font-bold border shadow-lg ${
+                      isWarning
+                        ? 'bg-red-500/15 border-red-500/30 text-red-400'
+                        : 'bg-gray-900 border-gray-700/50 text-gray-400'
+                    }`}
+                  >
+                    Refreshes in {remaining}s
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
+
+              {!linked && (
+                <button
+                  onClick={fetchToken}
+                  disabled={loadingQR}
+                  className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-emerald-400 transition-colors cursor-pointer"
+                >
+                  <RefreshCw size={12} className={loadingQR ? 'animate-spin' : ''} />
+                  Refresh QR Code
+                </button>
+              )}
+
+              {/* Instructions */}
+              <div className="w-full space-y-2 pt-2 border-t border-gray-800">
+                {[
+                  { n: '1', text: 'Open Talk Sphere on your other device' },
+                  { n: '2', text: 'Go to Settings → Linked Devices → Link a Device' },
+                  { n: '3', text: 'Point your camera at this QR code to link' },
+                ].map((step) => (
+                  <div key={step.n} className="flex items-start gap-2.5">
+                    <span className="shrink-0 w-4.5 h-4.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-[10px] font-black text-emerald-400">
+                      {step.n}
+                    </span>
+                    <p className="text-[11px] text-gray-400 leading-snug">{step.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </motion.div>
     </motion.div>
@@ -720,10 +1126,10 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
         )}
       </AnimatePresence>
 
-      {/* ── QR Modal (portal-style, outside the panel) ── */}
+      {/* ── Link Device Modal (portal-style, outside the panel) ── */}
       <AnimatePresence>
         {showQR && (
-          <QRModal
+          <LinkDeviceModal
             onClose={() => setShowQR(false)}
             onLinked={loadSessions}
           />
