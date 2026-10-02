@@ -27,8 +27,8 @@ import QRScannerModal from '../components/QRScannerModal';
 const QR_EXPIRE_SECONDS = 90;
 
 const LoginPage = () => {
-  // ── Authentication Mode: 'qr' | 'email' | 'google' ─────────
-  const [authMethod, setAuthMethod] = useState('qr'); // WhatsApp Web QR is prominent
+  // ── Authentication Mode: 'email' (Default) | 'qr' | 'google' ─
+  const [authMethod, setAuthMethod] = useState('email'); // Default is Email OTP as requested
 
   // ── Email / OTP State ─────────────────────────────────────
   const [email, setEmail] = useState('');
@@ -288,51 +288,75 @@ const LoginPage = () => {
           </div>
         </div>
 
-        {/* ── 3 Primary Authentication Tabs ────────────────────────── */}
+        {/* ── 3 Primary Authentication Tabs (Email OTP -> Google -> Scan QR) ── */}
         <div className="mb-6">
-          <div className="grid grid-cols-3 p-1 rounded-2xl bg-[#121622] border border-white/10 shadow-inner">
-            <button
-              type="button"
-              onClick={() => setAuthMethod('qr')}
-              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                authMethod === 'qr'
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/30'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              <QrCode size={15} />
-              <span className="truncate">Scan QR</span>
-            </button>
-
+          <div className="grid grid-cols-3 p-1 rounded-2xl bg-[#121622] border border-white/10 shadow-inner relative">
+            {/* 1st Tab: Email OTP */}
             <button
               type="button"
               onClick={() => setAuthMethod('email')}
-              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                authMethod === 'email'
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/30'
-                  : 'text-gray-400 hover:text-white'
+              className={`relative z-10 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                authMethod === 'email' ? 'text-white' : 'text-gray-400 hover:text-white'
               }`}
             >
-              <Mail size={15} />
-              <span className="truncate">Email OTP</span>
+              {authMethod === 'email' && (
+                <motion.div
+                  layoutId="authTabPill"
+                  className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl shadow-md shadow-emerald-500/30"
+                  transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-1.5 truncate">
+                <Mail size={15} />
+                <span>Email OTP</span>
+              </span>
             </button>
 
+            {/* 2nd Tab: Google */}
             <button
               type="button"
               onClick={() => setAuthMethod('google')}
-              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                authMethod === 'google'
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/30'
-                  : 'text-gray-400 hover:text-white'
+              className={`relative z-10 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                authMethod === 'google' ? 'text-white' : 'text-gray-400 hover:text-white'
               }`}
             >
-              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-              </svg>
-              <span className="truncate">Google</span>
+              {authMethod === 'google' && (
+                <motion.div
+                  layoutId="authTabPill"
+                  className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl shadow-md shadow-emerald-500/30"
+                  transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-1.5 truncate">
+                <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span>Google</span>
+              </span>
+            </button>
+
+            {/* 3rd Tab: Scan QR */}
+            <button
+              type="button"
+              onClick={() => setAuthMethod('qr')}
+              className={`relative z-10 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                authMethod === 'qr' ? 'text-white' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              {authMethod === 'qr' && (
+                <motion.div
+                  layoutId="authTabPill"
+                  className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl shadow-md shadow-emerald-500/30"
+                  transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-1.5 truncate">
+                <QrCode size={15} />
+                <span>Scan QR</span>
+              </span>
             </button>
           </div>
         </div>
@@ -340,7 +364,7 @@ const LoginPage = () => {
         {/* ── Active Form Section ───────────────────────────────────── */}
         <AnimatePresence mode="wait">
           {/* ══════════════════════════════════════════════════════════ */}
-          {/* TAB 1: WHATSAPP WEB STYLE "SCAN TO LOG IN"                 */}
+          {/* TAB: "SCAN TO LOG IN" (QR Code Flow)                       */}
           {/* ══════════════════════════════════════════════════════════ */}
           {authMethod === 'qr' && (
             <motion.div
@@ -351,14 +375,11 @@ const LoginPage = () => {
               transition={{ duration: 0.25 }}
               className="flex flex-col md:flex-row items-center gap-6 md:gap-8 justify-between"
             >
-              {/* Left Side: Instructions (Matching WhatsApp Web layout) */}
+              {/* Left Side: Instructions */}
               <div className="flex-1 space-y-4 text-left">
                 <div>
-                  <h2 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
-                    <span>Scan to log in</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
-                      WhatsApp Web Style
-                    </span>
+                  <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
+                    Scan to log in
                   </h2>
                   <p className="text-xs text-gray-400 mt-1">
                     Link your phone to use Talk Sphere on this computer seamlessly without passwords.
