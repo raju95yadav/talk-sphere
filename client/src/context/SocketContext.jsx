@@ -53,21 +53,26 @@ export const SocketProvider = ({ children }) => {
       // Handle socket authorization error (e.g. JWT expired during connection attempt)
       s.on('connect_error', async (err) => {
         setIsReconnecting(false);
-        console.error('Socket connection error:', err.message);
+        console.warn('Socket connection error:', err.message);
         
-        if (err.message.includes('Authentication error')) {
+        if (err.message && err.message.includes('Authentication error')) {
           console.log('Socket token authentication failed. Attempting silent token refresh...');
           try {
-            const res = await apiClient.post('/api/auth/refresh-token');
-            const { token: newToken, user: userData } = res.data;
+            const localRefreshToken = localStorage.getItem('talk_sphere_refresh_token');
+            const res = await apiClient.post('/api/auth/refresh-token', { refreshToken: localRefreshToken });
+            const { token: newToken, user: userData, refreshToken: newRefreshToken } = res.data || {};
             if (!newToken) {
-              throw new Error('Silent refresh returned empty token');
+              console.warn('Silent refresh returned empty token; keeping session active.');
+              return;
             }
             // Update auth state which will re-trigger this useEffect with the new token
-            login(userData, newToken);
+            login(userData, newToken, newRefreshToken || localRefreshToken);
+            if (s) {
+              s.auth = { token: newToken };
+              s.connect();
+            }
           } catch (refreshErr) {
-            console.error('Silent refresh failed during socket auth error. Force logging out...');
-            logout();
+            console.warn('Silent refresh temporary failure during socket error. Keeping session intact.');
           }
         }
       });

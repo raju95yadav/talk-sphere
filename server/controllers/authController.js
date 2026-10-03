@@ -245,12 +245,12 @@ exports.verifyOTP = async (req, res) => {
     user.isVerified = true;
     await user.save();
 
-    // Sign Access Token (15 minutes) and Refresh Token (7 days)
-    const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
-    const refreshToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    // Sign Access Token (7 days) and Refresh Token (30 days)
+    const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const refreshToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
     // Store Refresh Token in DB
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
     await RefreshToken.create({
       token: refreshToken,
       user: user._id,
@@ -262,7 +262,7 @@ exports.verifyOTP = async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     });
 
     // Dispatch real-time login security notification
@@ -334,8 +334,8 @@ exports.refreshToken = async (req, res) => {
       return res.status(200).json({ token: null, user: null, message: 'User not found' });
     }
 
-    // Generate new Access Token
-    const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    // Generate new Access Token (7 days)
+    const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
     res.status(200).json({
       token: accessToken,
@@ -472,12 +472,12 @@ exports.googleAuth = async (req, res) => {
       await user.save();
     }
 
-    // Sign Access Token (15 minutes) and Refresh Token (7 days)
-    const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
-    const refreshToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    // Sign Access Token (7 days) and Refresh Token (30 days)
+    const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const refreshToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
     // Store Refresh Token in DB
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
     await RefreshToken.create({
       token: refreshToken,
       user: user._id,
@@ -489,7 +489,7 @@ exports.googleAuth = async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     });
 
     // Dispatch real-time login security notification
