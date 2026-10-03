@@ -11,6 +11,7 @@ const User = require('./models/User');
 const ApiError = require('./utils/ApiError');
 const logger = require('./utils/logger');
 const errorMiddleware = require('./middleware/errorMiddleware');
+const { createAndSendNotification } = require('./utils/notify');
 
 dotenv.config();
 
@@ -102,7 +103,8 @@ app.use('/api/users',   require('./routes/userRoutes'));
 app.use('/api/chat',    require('./routes/chatRoutes'));
 app.use('/api/groups',  require('./routes/groupRoutes'));
 app.use('/api/ai',      require('./routes/aiRoutes'));
-app.use('/api/devices', require('./routes/deviceRoutes'));
+app.use('/api/devices',       require('./routes/deviceRoutes'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
 
 app.get('/', (req, res) => {
   res.send('Talk Sphere API is running');
@@ -575,6 +577,25 @@ io.on('connection', (socket) => {
         io.to(receiverId.toString()).emit('receive-call-log', populatedLog);
         io.to(senderId.toString()).emit('update-call-history', populatedLog);
         io.to(receiverId.toString()).emit('update-call-history', populatedLog);
+      }
+
+      // If missed or declined call, trigger a notification for the receiver
+      if (callStatus === 'missed' || callStatus === 'declined') {
+        const callerName = populatedLog?.sender?.name || populatedLog?.sender?.username || 'A contact';
+        createAndSendNotification(io, {
+          recipientId: receiverId,
+          senderId,
+          type: 'call_missed',
+          title: `Missed ${formattedType}`,
+          message: `You missed a ${callType} call from ${callerName}.`,
+          data: {
+            callerId: senderId,
+            callType,
+            callerName,
+            callerAvatar: populatedLog?.sender?.avatar
+          },
+          actionType: 'open_chat'
+        });
       }
     } catch (err) {
       console.error('Error logging call message:', err);

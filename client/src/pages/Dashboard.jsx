@@ -1,26 +1,38 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User as UserIcon, LayoutDashboard, Settings, Plus, Moon, Sun, Sparkles, Phone } from 'lucide-react';
+import { User as UserIcon, LayoutDashboard, Settings, Plus, Moon, Sun, Sparkles, Phone, Bell } from 'lucide-react';
 import apiClient from '../api/apiClient';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useSocketStatus } from '../context/SocketContext';
+import { useNotifications } from '../context/NotificationContext';
 import NoteSection from '../components/NoteSection';
 import ChatSection from '../components/ChatSection';
 import AIChatSection from '../components/AIChatSection';
 import CallLogsSection from '../components/CallLogsSection';
 import SettingsPanel from '../components/SettingsPanel';
+import NotificationCenter from '../components/NotificationCenter';
 
 const Dashboard = () => {
   const { user, logout, token, refreshUser } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
   const { isConnected, isReconnecting } = useSocketStatus();
+  const { unreadCount, openNotifications, registerChatOpener } = useNotifications();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [activeTab, setActiveTab] = useState('MANAGEMENT HOME');
   const [isUploading, setIsUploading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [targetChatContact, setTargetChatContact] = useState(null);
   const fileInputRef = React.useRef(null);
+
+  React.useEffect(() => {
+    registerChatOpener((contact) => {
+      setActiveTab('MANAGEMENT HOME');
+      setTargetChatContact(contact);
+      window.dispatchEvent(new CustomEvent('talksphere:open_chat', { detail: { contact } }));
+    });
+  }, [registerChatOpener]);
 
   React.useEffect(() => {
     const handleOnline = () => {
@@ -149,6 +161,21 @@ const Dashboard = () => {
                 {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
               </button>
 
+              {/* Notification bell – mobile */}
+              <button
+                id="notif-open-btn-mobile"
+                onClick={openNotifications}
+                className="relative p-2 sm:p-2.5 rounded-xl bg-bg-card-secondary text-text-muted hover:text-accent-primary transition-all border border-border-main active:scale-95 cursor-pointer"
+                title="Notifications"
+              >
+                <Bell size={16} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-black text-slate-950 shadow-md shadow-emerald-500/30 animate-pulse">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
               {/* Settings gear – mobile */}
               <button
                 id="settings-open-btn-mobile"
@@ -216,6 +243,21 @@ const Dashboard = () => {
                {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
              </button>
 
+             {/* Notification bell – desktop */}
+             <button
+               id="notif-open-btn-desktop"
+               onClick={openNotifications}
+               className="relative p-2.5 rounded-xl bg-bg-card-secondary text-text-muted hover:text-accent-primary transition-all border border-border-main active:scale-95 cursor-pointer"
+               title="Notifications"
+             >
+               <Bell size={16} />
+               {unreadCount > 0 && (
+                 <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-black text-slate-950 shadow-lg shadow-emerald-500/30 animate-pulse">
+                   {unreadCount > 99 ? '99+' : unreadCount}
+                 </span>
+               )}
+             </button>
+
              {/* Settings gear – desktop */}
              <button
                id="settings-open-btn-desktop"
@@ -269,7 +311,7 @@ const Dashboard = () => {
             >
               {/* Chats Section - Full Height/Width in its column */}
               <div className="lg:col-span-7 h-[540px] sm:h-[640px] lg:h-[780px] xl:h-[820px] flex flex-col">
-                <ChatSection />
+                <ChatSection externalContact={targetChatContact} />
               </div>
 
               <div className="lg:col-span-5 h-[540px] sm:h-[640px] lg:h-[780px] xl:h-[820px] flex flex-col">
@@ -334,6 +376,18 @@ const Dashboard = () => {
           </>
         )}
       </AnimatePresence>
+
+      {/* ── Real-time Notification Center Drawer ── */}
+      <NotificationCenter
+        onOpenSettings={(pageId) => {
+          setShowSettings(true);
+        }}
+        onOpenChatWithContact={(contact) => {
+          setActiveTab('MANAGEMENT HOME');
+          setTargetChatContact(contact);
+          window.dispatchEvent(new CustomEvent('talksphere:open_chat', { detail: { contact } }));
+        }}
+      />
     </div>
   );
 };

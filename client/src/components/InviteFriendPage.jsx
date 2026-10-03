@@ -45,9 +45,11 @@ const tabContent = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// Base invite URL
+// Base invite URL (dynamically resolves current origin so links always work)
 // ─────────────────────────────────────────────────────────────
-const APP_BASE_URL = import.meta.env.VITE_APP_URL || 'https://talk-sphere.app';
+const APP_BASE_URL = typeof window !== 'undefined' && window.location?.origin
+  ? window.location.origin
+  : (import.meta.env.VITE_APP_URL || 'https://talk-sphere-pi.vercel.app');
 
 // ─────────────────────────────────────────────────────────────
 // Social share definitions
@@ -371,10 +373,10 @@ const InviteFriendPage = ({ isOpen, onBack }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('link'); // 'link' | 'qr'
 
-  const handle = user?.username || user?.name?.replace(/\s+/g, '') || user?._id?.slice(-6) || 'user';
+  const cleanHandle = (user?.username || user?.email?.split('@')[0] || user?._id || 'user').replace(/^@/, '');
   const displayName = user?.name || user?.username || 'You';
 
-  const inviteUrl = `${APP_BASE_URL}/join?ref=${encodeURIComponent('@' + handle)}`;
+  const inviteUrl = `${APP_BASE_URL}/?ref=${encodeURIComponent(cleanHandle)}`;
   const shareText = buildShareText(inviteUrl, user?.name);
 
   // Web Share API

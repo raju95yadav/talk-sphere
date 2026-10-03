@@ -97,12 +97,28 @@ const AudioPlayer = ({ src }) => {
   );
 };
 
-const ChatSection = () => {
+const ChatSection = ({ externalContact }) => {
   const { user, token } = useAuth();
   const socket = useSocket();
   const { isConnected } = useSocketStatus();
   const { startCall, callStatus } = useCall();
   const [selectedContact, setSelectedContact] = useState(null);
+
+  useEffect(() => {
+    if (externalContact) {
+      setSelectedContact(externalContact);
+    }
+  }, [externalContact]);
+
+  useEffect(() => {
+    const handleOpenChat = (e) => {
+      if (e.detail?.contact) {
+        setSelectedContact(e.detail.contact);
+      }
+    };
+    window.addEventListener('talksphere:open_chat', handleOpenChat);
+    return () => window.removeEventListener('talksphere:open_chat', handleOpenChat);
+  }, []);
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [conversations, setConversations] = useState([]);

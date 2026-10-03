@@ -8,6 +8,8 @@ const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
 const ApiError = require('../utils/ApiError');
 const logger = require('../utils/logger');
+const { createAndSendNotification } = require('../utils/notify');
+const { parseDeviceInfo } = require('../utils/deviceParser');
 
 // Generate cryptographically secure OTP
 const generateOTP = () => {
@@ -263,6 +265,27 @@ exports.verifyOTP = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
+    // Dispatch real-time login security notification
+    try {
+      const io = req.app.get('io');
+      const devInfo = parseDeviceInfo(req.headers['user-agent'] || '');
+      createAndSendNotification(io, {
+        recipientId: user._id,
+        type: 'login_alert',
+        title: '🛡️ Security: New Login',
+        message: `Signed in on ${devInfo.browser} (${devInfo.os}${devInfo.deviceName ? ` • ${devInfo.deviceName}` : ''}).`,
+        data: {
+          deviceName: devInfo.deviceName || `${devInfo.browser} on ${devInfo.os}`,
+          browser: devInfo.browser,
+          os: devInfo.os,
+          ip: req.ip
+        },
+        actionType: 'view_devices'
+      });
+    } catch (e) {
+      console.warn('Failed to dispatch login notification:', e.message);
+    }
+
     res.status(200).json({
       token: accessToken,
       refreshToken: refreshToken,
@@ -468,6 +491,27 @@ exports.googleAuth = async (req, res) => {
       sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
+
+    // Dispatch real-time login security notification
+    try {
+      const io = req.app.get('io');
+      const devInfo = parseDeviceInfo(req.headers['user-agent'] || '');
+      createAndSendNotification(io, {
+        recipientId: user._id,
+        type: 'login_alert',
+        title: '🛡️ Security: Google Sign-In',
+        message: `Google Sign-In on ${devInfo.browser} (${devInfo.os}${devInfo.deviceName ? ` • ${devInfo.deviceName}` : ''}).`,
+        data: {
+          deviceName: devInfo.deviceName || `${devInfo.browser} on ${devInfo.os}`,
+          browser: devInfo.browser,
+          os: devInfo.os,
+          ip: req.ip
+        },
+        actionType: 'view_devices'
+      });
+    } catch (e) {
+      console.warn('Failed to dispatch google login notification:', e.message);
+    }
 
     res.status(200).json({
       token: accessToken,

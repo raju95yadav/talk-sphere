@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Message = require('../models/Message');
 const ApiError = require('../utils/ApiError');
 const logger = require('../utils/logger');
+const { createAndSendNotification } = require('../utils/notify');
 
 // Contact Management
 exports.addContact = async (req, res) => {
@@ -51,6 +52,22 @@ exports.addContact = async (req, res) => {
             name: req.user.name,
             avatar: req.user.avatar
           }
+        });
+
+        // Save persistent notification
+        createAndSendNotification(io, {
+          recipientId: contactUser._id,
+          senderId: req.user._id,
+          type: 'friend_request',
+          title: '👤 New Contact Added',
+          message: `${req.user.name || req.user.username || 'A user'} added you to their contacts.`,
+          data: {
+            senderId: req.user._id.toString(),
+            senderName: req.user.name,
+            senderUsername: req.user.username,
+            senderAvatar: req.user.avatar
+          },
+          actionType: 'open_chat'
         });
       }
     }

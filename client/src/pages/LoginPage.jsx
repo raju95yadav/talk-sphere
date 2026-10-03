@@ -30,6 +30,25 @@ const LoginPage = () => {
   // ── Authentication Mode: 'email' (Default) | 'qr' | 'google' ─
   const [authMethod, setAuthMethod] = useState('email'); // Default is Email OTP as requested
 
+  // ── Pending Referral Capture ──────────────────────────────
+  const [pendingRef] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      let ref = params.get('ref') || params.get('invite');
+      if (!ref && window.location.pathname.startsWith('/join/')) {
+        ref = window.location.pathname.replace('/join/', '');
+      }
+      if (ref) {
+        const clean = decodeURIComponent(ref).replace(/^@/, '').trim();
+        localStorage.setItem('talksphere_pending_ref', clean);
+        return clean;
+      }
+      return localStorage.getItem('talksphere_pending_ref') || '';
+    } catch {
+      return '';
+    }
+  });
+
   // ── Email / OTP State ─────────────────────────────────────
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -287,6 +306,30 @@ const LoginPage = () => {
             </div>
           </div>
         </div>
+
+        {/* ── Personal Invitation Banner (if referred) ── */}
+        {pendingRef && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-5 p-3 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-transparent border border-emerald-500/35 flex items-center gap-3 shadow-lg shadow-emerald-500/10"
+          >
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 font-bold shrink-0 shadow-md shadow-emerald-500/30 text-lg">
+              ✨
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-black uppercase text-emerald-400 tracking-wider">
+                Personal Invitation
+              </p>
+              <p className="text-xs text-white font-medium truncate mt-0.5">
+                Invited by <span className="font-bold text-emerald-300">@{pendingRef}</span>
+              </p>
+              <p className="text-[11px] text-gray-400">
+                Sign in with Google or Email to instantly connect!
+              </p>
+            </div>
+          </motion.div>
+        )}
 
         {/* ── 3 Primary Authentication Tabs (Email OTP -> Google -> Scan QR) ── */}
         <div className="mb-6">

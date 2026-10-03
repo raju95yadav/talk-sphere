@@ -9,10 +9,31 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './pages/Dashboard';
 import LoginPage from './pages/LoginPage';
 
+import { NotificationProvider } from './context/NotificationContext';
+
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || process.env.REACT_APP_GOOGLE_CLIENT_ID || 'your_google_client_id_here';
 
 const AppContent = () => {
   const { token, loading } = useAuth();
+
+  React.useEffect(() => {
+    // Capture invite referral parameter from URL if present
+    try {
+      const params = new URLSearchParams(window.location.search);
+      let ref = params.get('ref') || params.get('invite');
+      if (!ref && window.location.pathname.startsWith('/join/')) {
+        ref = window.location.pathname.replace('/join/', '');
+      }
+      if (ref) {
+        const clean = decodeURIComponent(ref).replace(/^@/, '').trim();
+        if (clean) {
+          localStorage.setItem('talksphere_pending_ref', clean);
+        }
+      }
+    } catch (e) {
+      console.warn('Referral detection error:', e);
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -32,15 +53,17 @@ function App() {
         <AuthProvider>
           <SocketProvider>
             <CallProvider>
-              <AppContent />
-              <CallModal />
-              <Toaster position="bottom-right" toastOptions={{
-                style: {
-                  background: 'var(--bg-card)',
-                  color: 'var(--text-main)',
-                  border: '1px solid var(--border-main)',
-                },
-              }} />
+              <NotificationProvider>
+                <AppContent />
+                <CallModal />
+                <Toaster position="bottom-right" toastOptions={{
+                  style: {
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-main)',
+                    border: '1px solid var(--border-main)',
+                  },
+                }} />
+              </NotificationProvider>
             </CallProvider>
           </SocketProvider>
         </AuthProvider>

@@ -15,10 +15,12 @@ import {
   Loader2,
   Sun,
   Moon,
+  Bell,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useTheme } from '../context/ThemeContext';
+import { useNotifications } from '../context/NotificationContext';
 import toast from 'react-hot-toast';
 import ProfileDisplayCard from './ProfileDisplayCard';
 import ProfileSettingsPage from './ProfileSettingsPage';
@@ -48,6 +50,12 @@ const SETTINGS_ITEMS = [
     icon: UserPlus,
     label: 'Invite a friend',
     description: 'Share your profile link',
+  },
+  {
+    id: 'notifications',
+    icon: Bell,
+    label: 'Notifications',
+    description: 'System alerts, invites, calls, and security',
   },
   {
     id: 'storage-data',
@@ -120,6 +128,7 @@ const SettingsRow = ({ item, onClick }) => {
 const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
   const { user, logout } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
+  const { openNotifications } = useNotifications();
   const socket = useSocket();
   const [query, setQuery] = useState('');
   const [activePage, setActivePage] = useState(null); // null | 'profile'
@@ -380,6 +389,9 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
                             setActivePage('linked-devices');
                           } else if (id === 'invite-friend') {
                             setActivePage('invite-friend');
+                          } else if (id === 'notifications') {
+                            onClose?.();
+                            openNotifications?.();
                           } else if (id === 'storage-data') {
                             setActivePage('storage-data');
                           } else {
