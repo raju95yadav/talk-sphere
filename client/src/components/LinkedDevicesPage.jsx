@@ -133,6 +133,7 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
   const [scannedToken, setScannedToken] = useState(null);
   const [targetDevice, setTargetDevice] = useState(null);
   const [approving, setApproving] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [approvalStatus, setApprovalStatus] = useState(null); // 'approved' | 'rejected'
 
   const scannerRef = useRef(null);
@@ -184,15 +185,20 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
       const match = trimmed.match(/token=([a-zA-Z0-9_-]+)/);
       if (match) return match[1];
     }
+    if (trimmed.includes('tsqr_')) {
+      const match = trimmed.match(/(tsqr_[a-zA-Z0-9_-]+)/);
+      if (match) return match[1];
+    }
     return trimmed;
   };
 
   const handleScanCaptured = useCallback(async (decodedText) => {
+    if (isVerifying || targetDevice) return;
+
     const token = extractToken(decodedText);
     if (!token) return toast.error('Unrecognized QR Code');
 
-    // Stop scanner video
-    stopScanner();
+    setIsVerifying(true);
     setScannedToken(token);
 
     try {
@@ -202,20 +208,26 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
     // Verify token with server and get target device details
     try {
       const res = await apiClient.post('/api/auth/qr/scan', { qrToken: token });
+      await stopScanner();
       setTargetDevice(res.data.device || { browser: 'Desktop Browser', os: 'Computer', ip: '127.0.0.1' });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Invalid or expired QR code');
       setScannedToken(null);
-      // Restart scanning after slight pause
-      setTimeout(() => startScanner(selectedCameraId), 1500);
+    } finally {
+      setIsVerifying(false);
     }
-  }, [selectedCameraId]);
+  }, [isVerifying, targetDevice]);
 
   const startScanner = async (camId) => {
     setScannerError(null);
     try {
       if (scannerRef.current) {
-        try { await scannerRef.current.stop(); } catch { /* ignore */ }
+        try {
+          if (scannerRef.current.isScanning) {
+            await scannerRef.current.stop();
+          }
+          await scannerRef.current.clear();
+        } catch { /* ignore */ }
       }
       const qrCode = new Html5Qrcode(readerId);
       scannerRef.current = qrCode;
@@ -223,7 +235,15 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
       const cameraConfig = camId ? { deviceId: { exact: camId } } : { facingMode: 'environment' };
       await qrCode.start(
         cameraConfig,
-        { fps: 15, qrbox: { width: 220, height: 220 }, aspectRatio: 1.0 },
+        {
+          fps: 15,
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            const size = Math.max(160, Math.floor(minEdge * 0.75));
+            return { width: size, height: size };
+          },
+          aspectRatio: 1.0
+        },
         (decodedText) => handleScanCaptured(decodedText),
         () => {}
       );
@@ -246,8 +266,13 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
   };
 
   const stopScanner = async () => {
-    if (scannerRef.current && scannerRef.current.isScanning) {
-      try { await scannerRef.current.stop(); } catch { /* ignore */ }
+    if (scannerRef.current) {
+      try {
+        if (scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+        }
+        await scannerRef.current.clear();
+      } catch { /* ignore */ }
     }
     setIsScanning(false);
   };
@@ -513,7 +538,7 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
                     <div id={readerId} className="w-full h-full overflow-hidden [&_video]:object-cover [&_video]:w-full [&_video]:h-full" />
 
                     {/* Viewfinder Target & Laser Overlay */}
-                    {isScanning && (
+                    {isScanning && !isVerifying && (
                       <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                         <div className="w-[170px] h-[170px] relative border-2 border-white/20 rounded-xl">
                           <motion.div
@@ -526,6 +551,15 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
                           <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-3 border-l-3 border-emerald-400 rounded-bl-md" />
                           <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-3 border-r-3 border-emerald-400 rounded-br-md" />
                         </div>
+                      </div>
+                    )}
+
+                    {/* Verifying Session Overlay */}
+                    {isVerifying && (
+                      <div className="absolute inset-0 bg-black/85 backdrop-blur-xs flex flex-col items-center justify-center p-3 text-center gap-2 z-20">
+                        <Loader2 size={32} className="text-emerald-400 animate-spin" />
+                        <span className="text-xs font-bold text-white">Verifying QR Code...</span>
+                        <span className="text-[10px] text-emerald-300">Connecting to session</span>
                       </div>
                     )}
 

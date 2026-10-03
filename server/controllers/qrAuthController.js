@@ -3,10 +3,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const RefreshToken = require('../models/RefreshToken');
 const DeviceSession = require('../models/DeviceSession');
-
-// ── In-memory active QR sessions ─────────────────────────────
-// Map: qrToken -> sessionData
-const qrSessions = new Map();
+const QRSession = require('../models/QRSession');
 
 // Parse User-Agent
 const parseUA = (ua = '') => {
@@ -36,19 +33,27 @@ const getClientIP = (req) => {
   );
 };
 
-// Periodic cleanup of expired tokens every 30 seconds
-setInterval(() => {
-  const now = Date.now();
-  for (const [token, data] of qrSessions.entries()) {
-    if (now > data.expiresAt + 10_000) {
-      qrSessions.delete(token);
+// Extract user from Authorization header if present (optional auth helper)
+const extractAuthUser = async (req) => {
+  if (req.user) return req.user;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded && decoded.id) {
+        return await User.findById(decoded.id).select('-otp');
+      }
+    } catch {
+      // ignore token verification error in optional auth
     }
   }
-}, 30_000);
+  return null;
+};
 
 /**
  * POST /api/auth/qr/generate
- * Public or Protected: Generates a fresh QR token for linking
+ * Public or Protected: Generates a fresh QR token for linking and stores it in MongoDB
  */
 exports.generateQR = async (req, res) => {
   try {
@@ -57,23 +62,20 @@ exports.generateQR = async (req, res) => {
     const { browser, os } = parseUA(ua);
     const ip = getClientIP(req);
 
+    const currentUser = await extractAuthUser(req);
     const qrToken = 'tsqr_' + crypto.randomBytes(24).toString('hex');
     const finalSessionId = sessionId || `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    const expiresAt = Date.now() + 90_000; // 90s TTL
+    const expiresAt = new Date(Date.now() + 120_000); // 120s TTL (2 minutes)
 
-    // If an authenticated user is generating this from Linked Devices (mode === 'show'):
-    const existingUserId = req.user ? req.user._id.toString() : null;
-
-    qrSessions.set(qrToken, {
+    const session = await QRSession.create({
       qrToken,
       sessionId: finalSessionId,
       status: 'pending',
       browser,
       os,
       ip,
-      createdAt: Date.now(),
       expiresAt,
-      userId: existingUserId,
+      userId: currentUser ? currentUser._id : null,
       token: null,
       refreshToken: null,
       user: null
@@ -81,9 +83,9 @@ exports.generateQR = async (req, res) => {
 
     res.json({
       success: true,
-      qrToken,
+      qrToken: session.qrToken,
       sessionId: finalSessionId,
-      expiresAt,
+      expiresAt: session.expiresAt.getTime(),
       device: { browser, os, ip }
     });
   } catch (error) {
@@ -101,13 +103,12 @@ exports.checkQRStatus = async (req, res) => {
     const { qrToken } = req.params;
     if (!qrToken) return res.status(400).json({ message: 'qrToken is required' });
 
-    const session = qrSessions.get(qrToken);
+    const session = await QRSession.findOne({ qrToken });
     if (!session) {
       return res.json({ status: 'invalid', message: 'QR Code is expired or invalid' });
     }
 
-    if (Date.now() > session.expiresAt) {
-      qrSessions.delete(qrToken);
+    if (new Date() > new Date(session.expiresAt)) {
       return res.json({ status: 'expired', message: 'QR Code has expired' });
     }
 
@@ -121,15 +122,12 @@ exports.checkQRStatus = async (req, res) => {
         });
       }
 
-      const responsePayload = {
+      return res.json({
         status: 'approved',
         token: session.token,
         refreshToken: session.refreshToken,
         user: session.user
-      };
-
-      qrSessions.delete(qrToken);
-      return res.json(responsePayload);
+      });
     }
 
     res.json({
@@ -151,20 +149,22 @@ exports.scanQR = async (req, res) => {
     const { qrToken } = req.body;
     if (!qrToken) return res.status(400).json({ message: 'qrToken is required' });
 
-    const session = qrSessions.get(qrToken);
+    const session = await QRSession.findOne({ qrToken });
     if (!session) {
       return res.status(404).json({ message: 'Invalid or expired QR code' });
     }
 
-    if (Date.now() > session.expiresAt) {
-      qrSessions.delete(qrToken);
+    if (new Date() > new Date(session.expiresAt)) {
+      session.status = 'expired';
+      await session.save();
       return res.status(400).json({ message: 'This QR code has expired' });
     }
 
     // Mark as scanned
     session.status = 'scanned';
-    session.scannedByUserId = req.user._id.toString();
-    session.scannedByName = req.user.name || req.user.username || req.user.email;
+    session.scannedByUserId = req.user._id;
+    session.scannedByName = req.user.name || req.user.username || req.user.email || 'User';
+    await session.save();
 
     res.json({
       success: true,
@@ -191,18 +191,20 @@ exports.approveQR = async (req, res) => {
     const { qrToken, allow } = req.body;
     if (!qrToken) return res.status(400).json({ message: 'qrToken is required' });
 
-    const session = qrSessions.get(qrToken);
+    const session = await QRSession.findOne({ qrToken });
     if (!session) {
       return res.status(404).json({ message: 'QR session not found or already processed' });
     }
 
-    if (Date.now() > session.expiresAt) {
-      qrSessions.delete(qrToken);
+    if (new Date() > new Date(session.expiresAt)) {
+      session.status = 'expired';
+      await session.save();
       return res.status(400).json({ message: 'QR session has expired' });
     }
 
     if (!allow) {
       session.status = 'rejected';
+      await session.save();
       return res.json({ success: true, status: 'rejected', message: 'Device connection declined' });
     }
 
@@ -236,10 +238,9 @@ exports.approveQR = async (req, res) => {
       { upsert: true, new: true }
     );
 
-    session.token = accessToken;
-    session.refreshToken = refreshToken;
-    session.user = {
-      id: user._id,
+    const userData = {
+      id: user._id.toString(),
+      _id: user._id.toString(),
       email: user.email,
       username: user.username,
       avatar: user.avatar,
@@ -248,7 +249,12 @@ exports.approveQR = async (req, res) => {
       age: user.age,
       address: user.address
     };
+
+    session.token = accessToken;
+    session.refreshToken = refreshToken;
+    session.user = userData;
     session.status = 'approved';
+    await session.save();
 
     const io = req.app.get('io');
     if (io) {
@@ -279,13 +285,14 @@ exports.claimQR = async (req, res) => {
     const { qrToken, sessionId } = req.body;
     if (!qrToken) return res.status(400).json({ message: 'qrToken is required' });
 
-    const session = qrSessions.get(qrToken);
+    const session = await QRSession.findOne({ qrToken });
     if (!session || !session.userId) {
       return res.status(400).json({ message: 'Invalid or expired QR code for login' });
     }
 
-    if (Date.now() > session.expiresAt) {
-      qrSessions.delete(qrToken);
+    if (new Date() > new Date(session.expiresAt)) {
+      session.status = 'expired';
+      await session.save();
       return res.status(400).json({ message: 'QR Code has expired' });
     }
 
@@ -324,8 +331,8 @@ exports.claimQR = async (req, res) => {
       { upsert: true, new: true }
     );
 
-    // Consume QR session
-    qrSessions.delete(qrToken);
+    session.status = 'approved';
+    await session.save();
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
@@ -339,7 +346,8 @@ exports.claimQR = async (req, res) => {
       token: accessToken,
       refreshToken,
       user: {
-        id: user._id,
+        id: user._id.toString(),
+        _id: user._id.toString(),
         email: user.email,
         username: user.username,
         avatar: user.avatar,

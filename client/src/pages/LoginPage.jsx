@@ -435,22 +435,21 @@ const LoginPage = () => {
                 <div className="relative p-3 rounded-3xl bg-white border-4 border-emerald-500/30 shadow-[0_0_35px_rgba(16,185,129,0.25)] flex items-center justify-center">
                   {/* Glowing TalkSphere shield overlay at the center */}
                   <div className="relative">
-                    <QRCodeSVG
-                      value={qrPayload || 'talk-sphere-login'}
-                      size={200}
-                      level="H"
-                      fgColor="#0a0d14"
-                      bgColor="#ffffff"
-                      includeMargin={false}
-                      imageSettings={{
-                        src: '/vite.svg',
-                        x: undefined,
-                        y: undefined,
-                        height: 38,
-                        width: 38,
-                        excavate: true,
-                      }}
-                    />
+                    {qrPayload ? (
+                      <QRCodeSVG
+                        value={qrPayload}
+                        size={200}
+                        level="M"
+                        fgColor="#0a0d14"
+                        bgColor="#ffffff"
+                        includeMargin={false}
+                        style={{ borderRadius: 8, display: 'block' }}
+                      />
+                    ) : (
+                      <div className="w-[200px] h-[200px] flex items-center justify-center bg-gray-50 rounded-xl">
+                        <Loader2 size={36} className="text-emerald-600 animate-spin" />
+                      </div>
+                    )}
 
                     {/* Loading Spinner Overlay */}
                     {qrLoading && (

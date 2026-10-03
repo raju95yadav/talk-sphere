@@ -60,6 +60,10 @@ const QRScannerModal = ({
       const match = trimmed.match(/token=([a-zA-Z0-9_-]+)/);
       if (match) return match[1];
     }
+    if (trimmed.includes('tsqr_')) {
+      const match = trimmed.match(/(tsqr_[a-zA-Z0-9_-]+)/);
+      if (match) return match[1];
+    }
     return trimmed;
   };
 
@@ -91,7 +95,10 @@ const QRScannerModal = ({
     try {
       if (scannerRef.current) {
         try {
-          await scannerRef.current.stop();
+          if (scannerRef.current.isScanning) {
+            await scannerRef.current.stop();
+          }
+          await scannerRef.current.clear();
         } catch { /* ignore */ }
       }
 
@@ -100,7 +107,11 @@ const QRScannerModal = ({
 
       const config = {
         fps: 15,
-        qrbox: { width: 230, height: 230 },
+        qrbox: (viewfinderWidth, viewfinderHeight) => {
+          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+          const size = Math.max(160, Math.floor(minEdge * 0.75));
+          return { width: size, height: size };
+        },
         aspectRatio: 1.0,
       };
 
