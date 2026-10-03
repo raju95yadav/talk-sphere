@@ -426,6 +426,7 @@ const StorageDataPage = ({ isOpen, onBack }) => {
         'ts_storage_prefs',
         'ts_webrtc_data_usage',
         'ts_notif_banner_dismissed',
+        'ts_device_id',
       ];
 
       Object.keys(localStorage)

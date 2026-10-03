@@ -1,26 +1,7 @@
 const crypto = require('crypto');
-const jwt    = require('jsonwebtoken');
+const jwt = require('jsonwebtoken');
 const DeviceSession = require('../models/DeviceSession');
-
-// ── Tiny UA parser (no dependency) ───────────────────────────
-const parseUA = (ua = '') => {
-  let browser = 'Browser';
-  let os      = 'Unknown OS';
-
-  if (/Edg\//i.test(ua))             browser = 'Edge';
-  else if (/Chrome\//i.test(ua))     browser = 'Chrome';
-  else if (/Firefox\//i.test(ua))    browser = 'Firefox';
-  else if (/Safari\//i.test(ua))     browser = 'Safari';
-  else if (/OPR\//i.test(ua))        browser = 'Opera';
-
-  if (/Windows NT/i.test(ua))        os = 'Windows';
-  else if (/Mac OS X/i.test(ua))     os = 'macOS';
-  else if (/Android/i.test(ua))      os = 'Android';
-  else if (/iPhone|iPad/i.test(ua))  os = 'iOS';
-  else if (/Linux/i.test(ua))        os = 'Linux';
-
-  return { browser, os };
-};
+const { parseDeviceInfo } = require('../utils/deviceParser');
 
 const getClientIP = (req) => {
   return (
@@ -35,44 +16,76 @@ const pendingQRTokens = new Map();
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/devices  –  List all sessions for the current user
+// Also cleans up older duplicate phantom sessions
 // ─────────────────────────────────────────────────────────────
 exports.getSessions = async (req, res) => {
   try {
-    const sessions = await DeviceSession.find({ user: req.user._id })
+    const rawSessions = await DeviceSession.find({ user: req.user._id })
       .sort({ lastActive: -1 })
       .lean();
-    res.json(sessions);
+
+    // Deduplicate phantom/redundant sessions that share the same browser, os, and deviceName/ip
+    const seen = new Map();
+    const uniqueSessions = [];
+    const idsToDelete = [];
+
+    for (const s of rawSessions) {
+      // Grouping key: browser + os + (deviceName || ip)
+      const key = `${s.browser}_${s.os}_${s.deviceName || s.ip}`;
+      if (!seen.has(key)) {
+        seen.set(key, s);
+        uniqueSessions.push(s);
+      } else {
+        // Keep the more recently active one, flag old duplicate for deletion
+        idsToDelete.push(s._id);
+      }
+    }
+
+    if (idsToDelete.length > 0) {
+      DeviceSession.deleteMany({ _id: { $in: idsToDelete } }).catch((e) =>
+        console.warn('Error purging duplicate sessions:', e.message)
+      );
+    }
+
+    res.json(uniqueSessions);
   } catch (err) {
+    console.error('getSessions error:', err);
     res.status(500).json({ message: 'Failed to fetch sessions' });
   }
 };
 
 // ─────────────────────────────────────────────────────────────
-// POST /api/devices/register  –  Register the current session
-// Called automatically on login / app boot
+// POST /api/devices/register  –  Register or refresh current session
 // ─────────────────────────────────────────────────────────────
 exports.registerSession = async (req, res) => {
   try {
-    const { sessionId } = req.body;
+    const { sessionId, clientModel, customName } = req.body || {};
     const ua = req.headers['user-agent'] || '';
-    const { browser, os } = parseUA(ua);
+    const { browser, os, deviceType, deviceName } = parseDeviceInfo(ua, clientModel);
     const ip = getClientIP(req);
 
     if (!sessionId) {
       return res.status(400).json({ message: 'sessionId required' });
     }
 
-    // Upsert: create or refresh the session
+    const updateData = {
+      user: req.user._id,
+      sessionId,
+      browser,
+      os,
+      deviceType,
+      deviceName,
+      ip,
+      lastActive: new Date(),
+    };
+
+    if (customName && customName.trim()) {
+      updateData.customName = customName.trim();
+    }
+
     const session = await DeviceSession.findOneAndUpdate(
       { user: req.user._id, sessionId },
-      {
-        user: req.user._id,
-        sessionId,
-        browser,
-        os,
-        ip,
-        lastActive: new Date(),
-      },
+      updateData,
       { upsert: true, new: true }
     );
 
@@ -84,20 +97,47 @@ exports.registerSession = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
+// PUT /api/devices/:sessionId/name  –  Set custom name for a device
+// ─────────────────────────────────────────────────────────────
+exports.updateSessionName = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { customName } = req.body || {};
+
+    if (!customName || !customName.trim()) {
+      return res.status(400).json({ message: 'Custom name cannot be empty' });
+    }
+
+    const session = await DeviceSession.findOneAndUpdate(
+      { user: req.user._id, sessionId },
+      { customName: customName.trim() },
+      { new: true }
+    );
+
+    if (!session) {
+      return res.status(404).json({ message: 'Device session not found' });
+    }
+
+    res.json({ message: 'Device name updated', session });
+  } catch (err) {
+    console.error('updateSessionName error:', err);
+    res.status(500).json({ message: 'Failed to update device name' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
 // POST /api/devices/qr-token  –  Generate a fresh QR payload
 // ─────────────────────────────────────────────────────────────
 exports.generateQRToken = async (req, res) => {
   try {
-    // One-time token, 60-second TTL
     const token = crypto.randomBytes(24).toString('hex');
     const expiresAt = Date.now() + 60_000;
 
     pendingQRTokens.set(token, {
-      userId:    req.user._id.toString(),
+      userId: req.user._id.toString(),
       expiresAt,
     });
 
-    // Auto-cleanup after expiry
     setTimeout(() => pendingQRTokens.delete(token), 62_000);
 
     res.json({ qrToken: token, expiresAt });
@@ -111,7 +151,7 @@ exports.generateQRToken = async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 exports.linkDevice = async (req, res) => {
   try {
-    const { qrToken, sessionId } = req.body;
+    const { qrToken, sessionId, clientModel } = req.body || {};
 
     if (!qrToken || !sessionId) {
       return res.status(400).json({ message: 'qrToken and sessionId required' });
@@ -126,25 +166,32 @@ exports.linkDevice = async (req, res) => {
       return res.status(400).json({ message: 'QR token has expired' });
     }
 
-    // Token consumed – remove it
     pendingQRTokens.delete(qrToken);
 
     const ua = req.headers['user-agent'] || '';
-    const { browser, os } = parseUA(ua);
+    const { browser, os, deviceType, deviceName } = parseDeviceInfo(ua, clientModel);
     const ip = getClientIP(req);
 
     const session = await DeviceSession.findOneAndUpdate(
       { user: pending.userId, sessionId },
-      { user: pending.userId, sessionId, browser, os, ip, lastActive: new Date() },
+      {
+        user: pending.userId,
+        sessionId,
+        browser,
+        os,
+        deviceType,
+        deviceName,
+        ip,
+        lastActive: new Date()
+      },
       { upsert: true, new: true }
     );
 
-    // Notify the scanning device via socket
     const io = req.app.get('io');
     if (io) {
       io.to(pending.userId).emit('device:linked', {
         session,
-        message: 'New device linked successfully',
+        message: `New device linked: ${deviceName || browser}`,
       });
     }
 
@@ -156,14 +203,14 @@ exports.linkDevice = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// DELETE /api/devices/:sessionId  –  Log out one session
+// DELETE /api/devices/:sessionId  –  Log out one specific remote session
 // ─────────────────────────────────────────────────────────────
 exports.removeSession = async (req, res) => {
   try {
     const { sessionId } = req.params;
     await DeviceSession.findOneAndDelete({ user: req.user._id, sessionId });
 
-    // Notify the removed device
+    // Notify the removed device specifically
     const io = req.app.get('io');
     if (io) {
       io.to(req.user._id.toString()).emit('device:removed', { sessionId });
@@ -176,11 +223,11 @@ exports.removeSession = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// DELETE /api/devices  –  Log out ALL sessions except current
+// DELETE /api/devices/all  –  Log out ALL other sessions except current
 // ─────────────────────────────────────────────────────────────
 exports.removeAllSessions = async (req, res) => {
   try {
-    const { currentSessionId } = req.body;
+    const { currentSessionId } = req.body || {};
 
     const query = { user: req.user._id };
     if (currentSessionId) {

@@ -14,6 +14,10 @@ const deviceSessionSchema = new mongoose.Schema({
   },
   browser: { type: String, default: 'Unknown Browser' },
   os:      { type: String, default: 'Unknown OS' },
+  deviceName: { type: String, default: '' },
+  customName: { type: String, default: '' },
+  deviceType: { type: String, default: 'desktop' }, // 'mobile' | 'tablet' | 'desktop'
+  clientModel: { type: String, default: '' },
   ip:      { type: String, default: '' },
   city:    { type: String, default: '' },
   country: { type: String, default: '' },

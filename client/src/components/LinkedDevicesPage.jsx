@@ -26,6 +26,8 @@ import {
   CheckCircle2,
   Loader2,
   Shield,
+  Edit2,
+  Check,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -35,13 +37,14 @@ import toast from 'react-hot-toast';
 // ─────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────
-const SESSION_KEY = 'ts_session_id';
+const SESSION_KEY = 'ts_device_id';
 
 const getOrCreateSessionId = () => {
-  let id = sessionStorage.getItem(SESSION_KEY);
+  let id = localStorage.getItem(SESSION_KEY);
   if (!id) {
-    id = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-    sessionStorage.setItem(SESSION_KEY, id);
+    id = sessionStorage.getItem('ts_session_id') || `sess_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(SESSION_KEY, id);
+    sessionStorage.setItem('ts_session_id', id);
   }
   return id;
 };
@@ -71,23 +74,24 @@ const fmtLastActive = (dateStr) => {
   const hrs   = Math.floor(diffMs / 3_600_000);
   const days  = Math.floor(diffMs / 86_400_000);
 
-  if (mins < 1)  return 'Just now';
+  if (mins < 1)  return 'Active now';
   if (mins < 60) return `${mins}m ago`;
   if (hrs  < 24) return `Today at ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   if (days === 1) return `Yesterday at ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 };
 
-// Pick an icon based on OS/browser strings
-const DeviceIcon = ({ os, size = 20, className = '' }) => {
+// Pick an icon based on OS/browser/deviceType strings
+const DeviceIcon = ({ os, deviceType, size = 20, className = '' }) => {
   const lower = (os || '').toLowerCase();
-  if (lower.includes('android') || lower.includes('ios')) {
+  const type = (deviceType || '').toLowerCase();
+  if (type === 'mobile' || lower.includes('android') || lower.includes('ios') || lower.includes('iphone')) {
     return <Smartphone size={size} className={className} />;
   }
-  if (lower.includes('ipad') || lower.includes('tablet')) {
+  if (type === 'tablet' || lower.includes('ipad') || lower.includes('tablet')) {
     return <Tablet size={size} className={className} />;
   }
-  if (lower.includes('windows') || lower.includes('macos') || lower.includes('linux')) {
+  if (type === 'desktop' || lower.includes('windows') || lower.includes('macos') || lower.includes('mac') || lower.includes('linux')) {
     return <Laptop size={size} className={className} />;
   }
   return <Monitor size={size} className={className} />;
@@ -482,10 +486,13 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
                       {/* Device Detail Card */}
                       <div className="w-full bg-[#171c28] border border-gray-800 rounded-2xl p-3.5 flex items-center gap-3 text-left">
                         <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-400 shrink-0">
-                          <DeviceIcon os={targetDevice.os} size={20} />
+                          <DeviceIcon os={targetDevice.os} deviceType={targetDevice.deviceType} size={20} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-white truncate">
+                            {targetDevice.deviceName || `${targetDevice.browser} on ${targetDevice.os}`}
+                          </p>
+                          <p className="text-[11px] text-emerald-400/90 font-medium truncate">
                             {targetDevice.browser} on {targetDevice.os}
                           </p>
                           <div className="flex items-center gap-2.5 mt-0.5 text-[11px] text-gray-400">
@@ -746,72 +753,140 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
 // ─────────────────────────────────────────────────────────────
 // Single Session Card
 // ─────────────────────────────────────────────────────────────
-const SessionCard = ({ session, isCurrent, onRemove, removing }) => (
-  <motion.div
-    variants={child}
-    layout
-    className={`
-      w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl border transition-all shadow-sm
-      ${isCurrent
-        ? 'border-emerald-500/30 bg-emerald-500/10'
-        : 'border-slate-200 dark:border-gray-800/70 bg-white dark:bg-gray-900/50 hover:bg-slate-50 dark:hover:bg-gray-900/80'}
-    `}
-  >
-    {/* Device icon bubble */}
-    <div
-      className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border ${
-        isCurrent
-          ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-600 dark:text-emerald-400'
-          : 'bg-slate-100 dark:bg-gray-800/80 border-slate-200 dark:border-gray-700/50 text-slate-600 dark:text-gray-400'
-      }`}
+const SessionCard = ({ session, isCurrent, onRemove, removing, onRename }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [nameInput, setNameInput] = useState(session.customName || '');
+
+  const displayName = session.customName || session.deviceName || `${session.browser} on ${session.os}`;
+  const deviceCategory = session.deviceType === 'mobile' ? 'Mobile Phone' : session.deviceType === 'tablet' ? 'Tablet' : 'Computer';
+
+  const handleSaveName = (e) => {
+    e.stopPropagation();
+    if (nameInput.trim() && nameInput.trim() !== session.customName) {
+      if (onRename) onRename(session.sessionId, nameInput.trim());
+    }
+    setIsEditing(false);
+  };
+
+  return (
+    <motion.div
+      variants={child}
+      layout
+      className={`
+        w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl border transition-all shadow-sm
+        ${isCurrent
+          ? 'border-emerald-500/30 bg-emerald-500/10'
+          : 'border-slate-200 dark:border-gray-800/70 bg-white dark:bg-gray-900/50 hover:bg-slate-50 dark:hover:bg-gray-900/80'}
+      `}
     >
-      <DeviceIcon os={session.os} size={18} />
-    </div>
-
-    {/* Details */}
-    <div className="flex-1 min-w-0">
-      <div className="flex items-center gap-2 mb-0.5">
-        <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate leading-tight">
-          {session.browser} on {session.os}
-        </p>
-        {isCurrent && (
-          <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded-full">
-            This device
-          </span>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2 flex-wrap">
-        {session.ip && session.ip !== 'Unknown' && (
-          <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-gray-400">
-            <MapPin size={9} />
-            {session.ip}
-          </span>
-        )}
-        <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-gray-400">
-          <Clock size={9} />
-          {fmtLastActive(session.lastActive)}
-        </span>
-      </div>
-    </div>
-
-    {/* Log out button */}
-    {!isCurrent && (
-      <button
-        id={`device-logout-${session.sessionId}`}
-        onClick={() => onRemove(session.sessionId)}
-        disabled={removing === session.sessionId}
-        className="shrink-0 w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/25 flex items-center justify-center text-red-600 dark:text-red-400 hover:bg-red-500/20 hover:text-red-700 dark:hover:text-red-300 transition-all cursor-pointer focus-visible:outline-none disabled:opacity-50"
-        title="Log out from this device"
-        aria-label="Log out from this device"
+      {/* Device icon bubble */}
+      <div
+        className={`shrink-0 w-11 h-11 rounded-xl flex items-center justify-center border ${
+          isCurrent
+            ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-600 dark:text-emerald-400'
+            : 'bg-slate-100 dark:bg-gray-800/80 border-slate-200 dark:border-gray-700/50 text-slate-600 dark:text-gray-400'
+        }`}
       >
-        {removing === session.sessionId
-          ? <Loader2 size={13} className="animate-spin" />
-          : <Unlink size={13} />}
-      </button>
-    )}
-  </motion.div>
-);
+        <DeviceIcon os={session.os} deviceType={session.deviceType} size={20} />
+      </div>
+
+      {/* Details */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          {isEditing ? (
+            <div className="flex items-center gap-1.5 flex-1" onClick={(e) => e.stopPropagation()}>
+              <input
+                type="text"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                placeholder="Give device a name"
+                className="px-2 py-0.5 text-xs bg-slate-100 dark:bg-gray-800 border border-emerald-500/50 rounded-lg text-slate-900 dark:text-white outline-none w-full max-w-[170px]"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveName(e);
+                  if (e.key === 'Escape') setIsEditing(false);
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleSaveName}
+                className="w-6 h-6 rounded-md bg-emerald-500 text-white flex items-center justify-center cursor-pointer hover:bg-emerald-600"
+                title="Save name"
+              >
+                <Check size={12} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                className="w-6 h-6 rounded-md bg-gray-700 text-gray-300 flex items-center justify-center cursor-pointer"
+                title="Cancel"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 min-w-0">
+              <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate leading-tight">
+                {displayName}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setNameInput(session.customName || session.deviceName || '');
+                  setIsEditing(true);
+                }}
+                className="text-gray-400 hover:text-emerald-400 transition-colors p-0.5"
+                title="Rename this device"
+              >
+                <Edit2 size={11} />
+              </button>
+            </div>
+          )}
+
+          {isCurrent && !isEditing && (
+            <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded-full">
+              This device
+            </span>
+          )}
+        </div>
+
+        {/* Subtitle with browser, OS, and category */}
+        <p className="text-[11px] text-slate-500 dark:text-gray-400 font-medium truncate mb-1">
+          {session.browser} on {session.os} • {deviceCategory}
+        </p>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {session.ip && session.ip !== 'Unknown' && (
+            <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-gray-400">
+              <MapPin size={9} />
+              {session.ip}
+            </span>
+          )}
+          <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-gray-400">
+            <Clock size={9} />
+            {fmtLastActive(session.lastActive)}
+          </span>
+        </div>
+      </div>
+
+      {/* Log out button */}
+      {!isCurrent && (
+        <button
+          id={`device-logout-${session.sessionId}`}
+          onClick={() => onRemove(session.sessionId)}
+          disabled={removing === session.sessionId}
+          className="shrink-0 w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/25 flex items-center justify-center text-red-600 dark:text-red-400 hover:bg-red-500/20 hover:text-red-700 dark:hover:text-red-300 transition-all cursor-pointer focus-visible:outline-none disabled:opacity-50"
+          title="Log out from this device"
+          aria-label="Log out from this device"
+        >
+          {removing === session.sessionId
+            ? <Loader2 size={13} className="animate-spin" />
+            : <Unlink size={13} />}
+        </button>
+      )}
+    </motion.div>
+  );
+};
 
 // ─────────────────────────────────────────────────────────────
 // Main LinkedDevicesPage
@@ -849,7 +924,17 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
   // ── Register current session on mount ────────────────────
   const registerCurrent = useCallback(async () => {
     try {
-      await apiClient.post('/api/devices/register', { sessionId: currentSessionId });
+      let clientModel = '';
+      if (navigator.userAgentData?.getHighEntropyValues) {
+        try {
+          const data = await navigator.userAgentData.getHighEntropyValues(['model']);
+          if (data?.model) clientModel = data.model;
+        } catch { /* ignore */ }
+      }
+      await apiClient.post('/api/devices/register', {
+        sessionId: currentSessionId,
+        clientModel,
+      });
     } catch { /* non-critical */ }
   }, [currentSessionId]);
 
@@ -858,15 +943,25 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
     registerCurrent().then(loadSessions);
   }, [isOpen, registerCurrent, loadSessions]);
 
+  // ── Rename device ────────────────────────────────────────
+  const handleRename = useCallback(async (sessionId, newName) => {
+    try {
+      const res = await apiClient.put(`/api/devices/${sessionId}/name`, { customName: newName });
+      setSessions((prev) =>
+        prev.map((s) => (s.sessionId === sessionId ? { ...s, customName: res.data.session.customName } : s))
+      );
+      toast.success('Device name updated');
+    } catch {
+      toast.error('Failed to update device name');
+    }
+  }, []);
+
   // ── Socket: real-time device events ─────────────────────
   useEffect(() => {
     if (!socket) return;
 
-    const onLinked = ({ session }) => {
-      setSessions((prev) => {
-        const exists = prev.find((s) => s.sessionId === session.sessionId);
-        return exists ? prev : [session, ...prev];
-      });
+    const onLinked = () => {
+      loadSessions();
       toast.success('New device linked!');
     };
 
@@ -889,7 +984,7 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
       socket.off('device:removed',     onRemoved);
       socket.off('device:all_removed', onAllRemoved);
     };
-  }, [socket]);
+  }, [socket, loadSessions]);
 
   // ── Remove one session ───────────────────────────────────
   const handleRemove = useCallback(async (sessionId) => {
@@ -1062,6 +1157,7 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
                     isCurrent
                     onRemove={handleRemove}
                     removing={removing}
+                    onRename={handleRename}
                   />
                 </motion.div>
               )}
@@ -1117,6 +1213,7 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
                           isCurrent={false}
                           onRemove={handleRemove}
                           removing={removing}
+                          onRename={handleRename}
                         />
                       ))}
                     </motion.div>

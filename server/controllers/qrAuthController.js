@@ -4,26 +4,7 @@ const User = require('../models/User');
 const RefreshToken = require('../models/RefreshToken');
 const DeviceSession = require('../models/DeviceSession');
 const QRSession = require('../models/QRSession');
-
-// Parse User-Agent
-const parseUA = (ua = '') => {
-  let browser = 'Browser';
-  let os = 'Unknown OS';
-
-  if (/Edg\//i.test(ua)) browser = 'Edge';
-  else if (/Chrome\//i.test(ua)) browser = 'Chrome';
-  else if (/Firefox\//i.test(ua)) browser = 'Firefox';
-  else if (/Safari\//i.test(ua)) browser = 'Safari';
-  else if (/OPR\//i.test(ua)) browser = 'Opera';
-
-  if (/Windows NT/i.test(ua)) os = 'Windows';
-  else if (/Mac OS X/i.test(ua)) os = 'macOS';
-  else if (/Android/i.test(ua)) os = 'Android';
-  else if (/iPhone|iPad/i.test(ua)) os = 'iOS';
-  else if (/Linux/i.test(ua)) os = 'Linux';
-
-  return { browser, os };
-};
+const { parseDeviceInfo } = require('../utils/deviceParser');
 
 const getClientIP = (req) => {
   return (
@@ -57,9 +38,9 @@ const extractAuthUser = async (req) => {
  */
 exports.generateQR = async (req, res) => {
   try {
-    const { sessionId, mode } = req.body || {};
+    const { sessionId, mode, clientModel } = req.body || {};
     const ua = req.headers['user-agent'] || '';
-    const { browser, os } = parseUA(ua);
+    const { browser, os, deviceType, deviceName } = parseDeviceInfo(ua, clientModel);
     const ip = getClientIP(req);
 
     const currentUser = await extractAuthUser(req);
@@ -73,6 +54,8 @@ exports.generateQR = async (req, res) => {
       status: 'pending',
       browser,
       os,
+      deviceName,
+      deviceType,
       ip,
       expiresAt,
       userId: currentUser ? currentUser._id : null,
@@ -86,7 +69,7 @@ exports.generateQR = async (req, res) => {
       qrToken: session.qrToken,
       sessionId: finalSessionId,
       expiresAt: session.expiresAt.getTime(),
-      device: { browser, os, ip }
+      device: { browser, os, ip, deviceName, deviceType }
     });
   } catch (error) {
     console.error('Error generating QR token:', error);
@@ -172,6 +155,8 @@ exports.scanQR = async (req, res) => {
       device: {
         browser: session.browser,
         os: session.os,
+        deviceName: session.deviceName || `${session.browser} on ${session.os}`,
+        deviceType: session.deviceType || 'desktop',
         ip: session.ip,
         createdAt: session.createdAt
       }
@@ -231,6 +216,8 @@ exports.approveQR = async (req, res) => {
         sessionId: session.sessionId,
         browser: session.browser,
         os: session.os,
+        deviceName: session.deviceName || `${session.browser} on ${session.os}`,
+        deviceType: session.deviceType || 'desktop',
         ip: session.ip,
         lastActive: new Date(),
         isCurrentSession: false
@@ -260,14 +247,14 @@ exports.approveQR = async (req, res) => {
     if (io) {
       io.to(user._id.toString()).emit('device:linked', {
         session: newDeviceSession,
-        message: `New device linked: ${session.browser} on ${session.os}`
+        message: `New device linked: ${session.deviceName || session.browser}`
       });
     }
 
     res.json({
       success: true,
       status: 'approved',
-      message: `Device (${session.browser} on ${session.os}) linked successfully!`,
+      message: `Device (${session.deviceName || session.browser}) linked successfully!`,
       session: newDeviceSession
     });
   } catch (error) {
@@ -312,7 +299,7 @@ exports.claimQR = async (req, res) => {
     });
 
     const ua = req.headers['user-agent'] || '';
-    const { browser, os } = parseUA(ua);
+    const { browser, os, deviceType, deviceName } = parseDeviceInfo(ua);
     const ip = getClientIP(req);
 
     const targetSessionId = sessionId || `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -324,6 +311,8 @@ exports.claimQR = async (req, res) => {
         sessionId: targetSessionId,
         browser,
         os,
+        deviceName,
+        deviceType,
         ip,
         lastActive: new Date(),
         isCurrentSession: true

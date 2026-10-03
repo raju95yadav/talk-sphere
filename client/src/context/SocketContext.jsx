@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import apiClient from '../api/apiClient';
@@ -71,10 +72,33 @@ export const SocketProvider = ({ children }) => {
         }
       });
 
-      // Session Invalidation listener (force logout from server when logged out elsewhere)
+      // Remote Device Disconnected specifically by user from Linked Devices
+      s.on('device:removed', (data) => {
+        const mySessionId = localStorage.getItem('ts_device_id') || sessionStorage.getItem('ts_session_id');
+        if (data?.sessionId && data.sessionId === mySessionId) {
+          console.warn('This device session was disconnected by the user.');
+          toast.error('This device was unlinked from your account');
+          logout();
+        }
+      });
+
+      // User clicked "Log out from all other devices"
+      s.on('device:all_removed', (data) => {
+        const mySessionId = localStorage.getItem('ts_device_id') || sessionStorage.getItem('ts_session_id');
+        if (data?.currentSessionId && data.currentSessionId !== mySessionId) {
+          console.warn('This device was logged out because user logged out all other devices.');
+          toast.error('You were logged out from this device');
+          logout();
+        }
+      });
+
+      // Targeted session invalidation listener
       s.on('session_invalidated', (data) => {
-        console.warn('Active session invalidated. Terminating locally.');
-        logout();
+        const mySessionId = localStorage.getItem('ts_device_id') || sessionStorage.getItem('ts_session_id');
+        if (!data?.sessionId || data.sessionId === mySessionId || data?.reason === 'password_reset') {
+          console.warn('Active session invalidated. Terminating locally.');
+          logout();
+        }
       });
       
       setSocket(s);

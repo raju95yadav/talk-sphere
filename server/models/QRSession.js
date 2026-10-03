@@ -18,6 +18,8 @@ const qrSessionSchema = new mongoose.Schema({
   },
   browser: { type: String, default: 'Desktop Browser' },
   os:      { type: String, default: 'Computer' },
+  deviceName: { type: String, default: '' },
+  deviceType: { type: String, default: 'desktop' },
   ip:      { type: String, default: '127.0.0.1' },
   expiresAt: {
     type: Date,

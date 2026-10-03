@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const RefreshToken = require('../models/RefreshToken');
+const DeviceSession = require('../models/DeviceSession');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
@@ -336,13 +337,14 @@ exports.refreshToken = async (req, res) => {
 exports.logout = async (req, res) => {
   try {
     const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
+    const { sessionId } = req.body || {};
     let userId = null;
+
     if (refreshToken) {
       try {
         const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
         userId = decoded.id;
       } catch (err) {
-        // Refresh token might be expired or failed verification, check database to find the user
         const storedToken = await RefreshToken.findOne({ token: refreshToken });
         if (storedToken) {
           userId = storedToken.user;
@@ -351,20 +353,17 @@ exports.logout = async (req, res) => {
       await RefreshToken.deleteOne({ token: refreshToken });
     }
 
+    // Clean up only the specific device's session record
+    if (sessionId) {
+      await DeviceSession.findOneAndDelete({ sessionId });
+    }
+
     // Clear HTTP-Only Cookie
     res.clearCookie('refreshToken', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict'
     });
-
-    // Broadcast logout event to all active socket connections for this user (multi-tab/device sync)
-    if (userId) {
-      const io = req.app.get('io');
-      if (io) {
-        io.to(userId.toString()).emit('session_invalidated', { reason: 'logout' });
-      }
-    }
 
     res.status(200).json({ message: 'Session terminated successfully' });
   } catch (error) {

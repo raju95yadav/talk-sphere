@@ -111,7 +111,8 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       const localRefreshToken = localStorage.getItem('talk_sphere_refresh_token');
-      await apiClient.post('/api/auth/logout', { refreshToken: localRefreshToken });
+      const sessionId = localStorage.getItem('ts_device_id') || sessionStorage.getItem('ts_session_id');
+      await apiClient.post('/api/auth/logout', { refreshToken: localRefreshToken, sessionId });
     } catch (err) {
       console.error('Failed to log out from server', err);
     } finally {
