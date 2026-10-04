@@ -400,3 +400,44 @@ exports.uploadGroupAvatar = async (req, res) => {
     res.status(500).json({ message: 'Failed to upload group avatar' });
   }
 };
+
+// Delete a group permanently (RBAC: Admin or Creator)
+exports.deleteGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+
+    const group = await Group.findById(groupId);
+    if (!group) return res.status(404).json({ message: 'Group not found' });
+
+    const currentUserRole = getMemberRole(group, req.user._id);
+    const isCreator = group.creator.toString() === req.user._id.toString();
+
+    if (!isCreator && currentUserRole !== 'Admin') {
+      return res.status(403).json({ message: 'Permission denied: Only Group Admins or the Creator can delete this group' });
+    }
+
+    const memberIds = group.members.map(m => (m.user?._id || m.user).toString());
+    const groupName = group.name;
+
+    // Delete all messages belonging to this group
+    await Message.deleteMany({ group: groupId });
+
+    // Delete the group document
+    await Group.findByIdAndDelete(groupId);
+
+    // Real-time broadcast to all members
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`group_${groupId}`).emit('group_deleted', { groupId, groupName });
+      memberIds.forEach(mId => {
+        io.to(mId).emit('group_deleted', { groupId, groupName });
+      });
+    }
+
+    res.json({ message: 'Group deleted successfully', groupId });
+  } catch (err) {
+    console.error('Delete Group Error:', err);
+    res.status(500).json({ message: 'Failed to delete group' });
+  }
+};
+

@@ -754,6 +754,24 @@ const ChatSection = ({ externalContact }) => {
         }
       });
 
+      socket.on('group_deleted', ({ groupId, groupName }) => {
+        toast(`Group "${groupName || 'Group'}" was deleted`, { icon: '🗑️' });
+        setGroups(prev => prev.filter(g => (g._id || g.id)?.toString() !== groupId?.toString()));
+        if (selectedGroupRef.current && (selectedGroupRef.current._id || selectedGroupRef.current.id)?.toString() === groupId?.toString()) {
+          setSelectedGroup(null);
+          setChatHistory([]);
+        }
+      });
+
+      socket.on('removed_from_group', ({ groupId, groupName }) => {
+        toast(`You were removed from group "${groupName || 'Group'}"`, { icon: 'ℹ️' });
+        setGroups(prev => prev.filter(g => (g._id || g.id)?.toString() !== groupId?.toString()));
+        if (selectedGroupRef.current && (selectedGroupRef.current._id || selectedGroupRef.current.id)?.toString() === groupId?.toString()) {
+          setSelectedGroup(null);
+          setChatHistory([]);
+        }
+      });
+
       socket.on('group_message_deleted', ({ messageId, groupId }) => {
         const currGroup = selectedGroupRef.current;
         if (currGroup && (currGroup._id || currGroup.id)?.toString() === (groupId)?.toString()) {
@@ -822,6 +840,7 @@ const ChatSection = ({ externalContact }) => {
         socket.off('group_typing');
         socket.off('group_stop_typing');
         socket.off('removed_from_group');
+        socket.off('group_deleted');
       }
     };
   }, [socket]);
@@ -1400,6 +1419,51 @@ const ChatSection = ({ externalContact }) => {
     }
   };
 
+  const handleDeleteGroup = async (groupToDelete) => {
+    const target = groupToDelete || selectedGroup;
+    if (!target) return;
+    const targetId = target._id || target.id;
+    const targetRole = getCurrentUserGroupRole(target);
+    const isCreator = (target.creator?._id || target.creator)?.toString() === currentUserId?.toString();
+    const isAdminOrCreator = isCreator || targetRole === 'Admin';
+
+    if (isAdminOrCreator) {
+      if (!window.confirm(`Permanently delete group "${target.name}"? All group messages and data will be removed for everyone.`)) {
+        return;
+      }
+      try {
+        await apiClient.delete(`/api/groups/${targetId}`);
+        toast.success(`Group "${target.name}" permanently deleted`);
+        setGroups(prev => prev.filter(g => (g._id || g.id)?.toString() !== targetId?.toString()));
+        if (selectedGroup && (selectedGroup._id || selectedGroup.id)?.toString() === targetId?.toString()) {
+          setSelectedGroup(null);
+          setShowGroupInfoModal(false);
+          setChatHistory([]);
+        }
+        fetchGroups();
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Failed to delete group');
+      }
+    } else {
+      if (!window.confirm(`Leave and remove group "${target.name}" from your active groups?`)) {
+        return;
+      }
+      try {
+        await apiClient.delete(`/api/groups/${targetId}/members/${currentUserId}`);
+        toast.success(`Left group "${target.name}"`);
+        setGroups(prev => prev.filter(g => (g._id || g.id)?.toString() !== targetId?.toString()));
+        if (selectedGroup && (selectedGroup._id || selectedGroup.id)?.toString() === targetId?.toString()) {
+          setSelectedGroup(null);
+          setShowGroupInfoModal(false);
+          setChatHistory([]);
+        }
+        fetchGroups();
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Failed to leave group');
+      }
+    }
+  };
+
   const handleAddGroupMembersSubmit = async (e) => {
     e.preventDefault();
     if (!selectedGroup || addMemberSelectedIds.length === 0) return;
@@ -1794,9 +1858,15 @@ const ChatSection = ({ externalContact }) => {
                     <UserPlus size={16} /> Add Members
                   </button>
                 )}
-                <button onClick={handleLeaveGroup} className="py-2.5 px-4 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 font-bold text-xs flex items-center justify-center gap-2 hover:bg-red-500 hover:text-white transition-all">
-                  <LogOut size={16} /> Leave Group
-                </button>
+                {(currentUserRole === 'Admin' || (selectedGroup.creator?._id || selectedGroup.creator)?.toString() === currentUserId?.toString()) ? (
+                  <button onClick={() => handleDeleteGroup(selectedGroup)} className="py-2.5 px-4 rounded-xl bg-red-500/15 text-red-400 border border-red-500/30 font-bold text-xs flex items-center justify-center gap-2 hover:bg-red-500 hover:text-white transition-all cursor-pointer" title="Permanently delete group for all members">
+                    <Trash2 size={16} /> Delete Group
+                  </button>
+                ) : (
+                  <button onClick={handleLeaveGroup} className="py-2.5 px-4 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 font-bold text-xs flex items-center justify-center gap-2 hover:bg-red-500 hover:text-white transition-all cursor-pointer">
+                    <LogOut size={16} /> Leave Group
+                  </button>
+                )}
               </div>
 
               <div className="space-y-3">
@@ -2736,13 +2806,25 @@ const ChatSection = ({ externalContact }) => {
                         </div>
                       </div>
                     </div>
-                    {unread > 0 ? (
-                      <div className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center shadow-lg shadow-red-500/40 animate-in zoom-in-50 ml-2 flex-shrink-0">
-                        {unread > 99 ? '99+' : unread}
-                      </div>
-                    ) : (
-                      <ChevronDown size={16} className="text-text-muted -rotate-90 group-hover:text-accent-primary transition-all ml-2 flex-shrink-0" />
-                    )}
+                    <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
+                      {unread > 0 && (
+                        <div className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center shadow-lg shadow-red-500/40 animate-in zoom-in-50">
+                          {unread > 99 ? '99+' : unread}
+                        </div>
+                      )}
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteGroup(g);
+                        }}
+                        className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all opacity-70 sm:opacity-0 group-hover:opacity-100 z-10 cursor-pointer"
+                        title={((g.creator?._id || g.creator)?.toString() === currentUserId?.toString() || getCurrentUserGroupRole(g) === 'Admin') ? "Delete Group" : "Leave Group"}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                      <ChevronDown size={16} className="text-text-muted -rotate-90 group-hover:text-accent-primary transition-all hidden sm:block" />
+                    </div>
                   </motion.div>
                 );
               })

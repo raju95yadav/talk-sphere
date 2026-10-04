@@ -11,7 +11,8 @@ const {
   removeMember,
   deleteGroupMessage,
   uploadGroupAvatar,
-  markGroupMessagesRead
+  markGroupMessagesRead,
+  deleteGroup
 } = require('../controllers/groupController');
 const { protect } = require('../middleware/authMiddleware');
 const multer = require('multer');
@@ -29,6 +30,7 @@ router.get('/:groupId', getGroupDetails);
 router.get('/:groupId/messages', getGroupMessages);
 router.put('/:groupId/read', markGroupMessagesRead);
 router.patch('/:groupId', updateGroupInfo);
+router.delete('/:groupId', deleteGroup);
 router.post('/:groupId/avatar', uploadMedia.single('avatar'), uploadGroupAvatar);
 router.post('/:groupId/members', addMembers);
 router.patch('/:groupId/members/:memberId/role', updateMemberRole);
