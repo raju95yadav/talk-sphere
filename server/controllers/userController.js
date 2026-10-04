@@ -165,27 +165,46 @@ exports.getAllUsers = async (req, res) => {
     }
 
     const queryStr = search.trim();
-    
+    // Allow user to search with or without leading '@'
+    const cleanStr = queryStr.startsWith('@') ? queryStr.slice(1).trim() : queryStr;
+    if (!cleanStr) {
+      return res.json([]);
+    }
+
     // Fetch current user to get their hiddenUsers array
     const currentUser = await User.findById(req.user._id).select('hiddenUsers');
     const hiddenList = currentUser?.hiddenUsers || [];
     
-    // Match exact username or exact email (case-insensitive)
-    const exactRegex = new RegExp(`^${escapeRegex(queryStr)}$`, 'i');
+    // Strict exact full string match (case-insensitive) - NO partial suggestions
+    // Only returns the user when the full, exact username, name, or email is entered
+    const escaped = escapeRegex(cleanStr);
+    const exactRegex = new RegExp(`^${escaped}$`, 'i');
+
+    const orConditions = [
+      { username: exactRegex },
+      { name: exactRegex },
+      { email: exactRegex }
+    ];
+
+    // If query has spaces (e.g. "raj sharma"), also check exact match without spaces for username (e.g. "rajsharma")
+    if (cleanStr.includes(' ')) {
+      const noSpaces = escapeRegex(cleanStr.replace(/\s+/g, ''));
+      if (noSpaces) {
+        orConditions.push({ username: new RegExp(`^${noSpaces}$`, 'i') });
+      }
+    }
+
     let query = { 
       _id: { 
         $ne: req.user._id,
         $nin: hiddenList
       },
-      $or: [
-        { username: exactRegex },
-        { email: exactRegex }
-      ]
+      $or: orConditions
     };
 
     const users = await User.find(query)
       .select('username name email avatar isOnline lastSeen')
-      .limit(20);
+      .limit(10);
 
     res.json(users);
   } catch (error) {

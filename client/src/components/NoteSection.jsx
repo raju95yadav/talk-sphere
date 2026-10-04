@@ -317,10 +317,10 @@ const NoteSection = () => {
 
             <input 
               type="text" 
-              placeholder="ENTER EXACT USERNAME OR GMAIL..."
+              placeholder="Search by username, name, or email..."
               value={shareSearch}
               onChange={(e) => handleShareSearchChange(e.target.value)}
-              className="w-full bg-bg-card-secondary border border-border-main rounded-xl px-4 py-2 text-xs text-text-main placeholder-text-muted focus:border-accent-primary outline-none transition-all uppercase tracking-wider font-bold mb-4"
+              className="w-full bg-bg-card-secondary border border-border-main rounded-xl px-4 py-2 text-xs text-text-main placeholder-text-muted focus:border-accent-primary outline-none transition-all font-medium mb-4"
             />
 
             <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">

@@ -2704,10 +2704,10 @@ const ChatSection = ({ externalContact }) => {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-accent-primary transition-colors" size={16} />
               <input 
                 type="text" 
-                placeholder="ENTER EXACT USERNAME OR GMAIL..." 
+                placeholder="Enter exact username, name, or email..." 
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="w-full bg-bg-card-secondary border border-border-main rounded-xl py-3 pl-12 pr-4 text-text-main text-[10px] font-black uppercase tracking-widest focus:border-accent-primary outline-none transition-all"
+                className="w-full bg-bg-card-secondary border border-border-main rounded-xl py-3 pl-12 pr-4 text-text-main text-xs font-semibold focus:border-accent-primary outline-none transition-all placeholder:text-text-muted/60"
               />
             </div>
             {searchResults.length > 0 ? (
@@ -2720,8 +2720,8 @@ const ChatSection = ({ externalContact }) => {
                         {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" /> : <User size={18} className="text-accent-primary" />}
                       </div>
                       <div>
-                        <p className="text-sm font-bold tracking-tight">{u.username || u.name}</p>
-                        {u.email && <p className="text-[10px] text-text-muted">{u.email}</p>}
+                        <p className="text-sm font-bold tracking-tight">{u.name || u.username}</p>
+                        <p className="text-[10px] text-text-muted">@{u.username} {u.email && `• ${u.email}`}</p>
                         <p className="text-[9px] text-accent-primary font-bold uppercase tracking-wider">{u.isOnline ? 'Online' : 'Offline'}</p>
                       </div>
                     </div>
@@ -2733,7 +2733,7 @@ const ChatSection = ({ externalContact }) => {
               </div>
             ) : searchQuery.trim().length > 0 && (
               <div className="p-6 text-center bg-bg-card-secondary rounded-xl border border-dashed border-border-main">
-                <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">No registered user found with this exact username or email address.</p>
+                <p className="text-[11px] font-semibold text-text-muted">No registered user found with exact username "{searchQuery}".</p>
               </div>
             )}
           </motion.div>
@@ -2959,10 +2959,10 @@ const ChatSection = ({ externalContact }) => {
                 <label className="text-[10px] font-black uppercase text-text-muted">Search & Add Members</label>
                 <input
                   type="text"
-                  placeholder="ENTER EXACT USERNAME OR GMAIL..."
+                  placeholder="Search by username, name, or email..."
                   value={groupSearchQuery}
                   onChange={(e) => handleGroupUserSearch(e.target.value)}
-                  className="w-full bg-bg-card-secondary border border-border-main rounded-xl p-2.5 text-xs text-text-main outline-none focus:border-accent-primary mt-1 mb-2 font-bold"
+                  className="w-full bg-bg-card-secondary border border-border-main rounded-xl p-2.5 text-xs text-text-main outline-none focus:border-accent-primary mt-1 mb-2 font-medium"
                 />
                 <div className="max-h-40 overflow-y-auto space-y-1.5 custom-scrollbar">
                   {(() => {
@@ -3024,10 +3024,10 @@ const ChatSection = ({ externalContact }) => {
             <form onSubmit={handleAddGroupMembersSubmit} className="space-y-4">
               <input
                 type="text"
-                placeholder="ENTER EXACT USERNAME OR GMAIL..."
+                placeholder="Search by username, name, or email..."
                 value={groupSearchQuery}
                 onChange={(e) => handleGroupUserSearch(e.target.value)}
-                className="w-full bg-bg-card-secondary border border-border-main rounded-xl p-2.5 text-xs text-text-main outline-none focus:border-accent-primary font-bold"
+                className="w-full bg-bg-card-secondary border border-border-main rounded-xl p-2.5 text-xs text-text-main outline-none focus:border-accent-primary font-medium"
               />
               <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar">
                 {(() => {
