@@ -56,11 +56,16 @@ function App() {
               <NotificationProvider>
                 <AppContent />
                 <CallModal />
-                <Toaster position="bottom-right" toastOptions={{
+                <Toaster position="top-right" toastOptions={{
+                  duration: 4000,
                   style: {
                     background: 'var(--bg-card)',
                     color: 'var(--text-main)',
                     border: '1px solid var(--border-main)',
+                    borderRadius: '16px',
+                    boxShadow: '0 12px 36px -4px rgba(0, 0, 0, 0.45)',
+                    fontSize: '13px',
+                    fontWeight: '500',
                   },
                 }} />
               </NotificationProvider>

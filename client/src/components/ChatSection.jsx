@@ -11,6 +11,7 @@ import WaveSurfer from 'wavesurfer.js';
 import { useTheme } from '../context/ThemeContext';
 import WhatsAppMediaBubble from './WhatsAppMediaBubble';
 import { loadStoragePrefs } from '../utils/storagePrefs';
+import { showIncomingMessageToast } from './IncomingMessageToast';
 
 
 const emojis = ['❤️', '👍', '😂', '😮', '😢', '🔥', '👏', '🎉'];
@@ -514,10 +515,27 @@ const ChatSection = ({ externalContact }) => {
         } else {
            socket.emit('message_delivered', { messageId: data._id, senderId: data.sender });
            
-           // Show notification
-           toast(`New message from ${data.senderName}: ${data.content.slice(0, 30)}${data.content.length > 30 ? '...' : ''}`, {
-             icon: '💬',
-             duration: 4000
+           // Show upper-side stylish interactive notification banner
+           showIncomingMessageToast({
+             id: data._id,
+             senderId: data.sender,
+             senderName: data.senderName,
+             senderAvatar: data.senderAvatar,
+             content: data.content,
+             type: data.type,
+             fileName: data.fileName,
+             isGroup: false,
+             onClick: () => {
+               const contactObj = allUsers.find(u => u._id.toString() === data.sender.toString()) || {
+                 _id: data.sender,
+                 username: data.senderName,
+                 name: data.senderName,
+                 avatar: data.senderAvatar
+               };
+               setSelectedGroup(null);
+               setSelectedContact(contactObj);
+               window.dispatchEvent(new CustomEvent('talksphere:open_chat', { detail: { contact: contactObj } }));
+             }
            });
 
            if (Notification.permission === 'granted') {
@@ -659,7 +677,27 @@ const ChatSection = ({ externalContact }) => {
           });
           apiClient.put(`/api/groups/${targetGId}/read`).catch(() => {});
         } else {
-          toast(`Group Message: ${data.content?.slice(0, 30) || 'Media'}`, { icon: '👥' });
+          const senderName = data.sender?.username || data.sender?.name || data.senderName || 'Member';
+          const senderAvatar = data.sender?.avatar || data.senderAvatar;
+          const groupObj = groups.find(g => (g._id || g.id)?.toString() === targetGId);
+
+          showIncomingMessageToast({
+            id: data._id,
+            senderId: data.sender?._id || data.sender,
+            senderName,
+            senderAvatar,
+            groupName: groupObj?.name || 'Group',
+            content: data.content,
+            type: data.type,
+            fileName: data.fileName,
+            isGroup: true,
+            onClick: () => {
+              if (groupObj) {
+                setSelectedContact(null);
+                setSelectedGroup(groupObj);
+              }
+            }
+          });
           setGroups(prev => prev.map(g => (g._id || g.id)?.toString() === targetGId ? {
             ...g,
             unreadCount: (g.unreadCount || 0) + 1,
