@@ -1,10 +1,12 @@
 /**
- * Storage and Data preferences & WebRTC network monitoring utilities
+ * Storage and Data preferences, WhatsApp-style media auto-download, & WebRTC utilities
  */
+import apiClient from '../api/apiClient';
 
 export const STORAGE_PREFS_KEY = 'ts_storage_prefs';
 export const WEBRTC_DATA_KEY = 'ts_webrtc_data_usage';
 export const NETWORK_STATS_RESET_KEY = 'ts_network_stats_reset_time';
+export const DOWNLOADED_MEDIA_KEY = 'ts_downloaded_media_registry';
 
 export const DEFAULT_STORAGE_PREFS = {
   // Mobile data auto-download
@@ -20,8 +22,9 @@ export const DEFAULT_STORAGE_PREFS = {
   wifiVideos: true,
   wifiDocs: true,
 
-  // Call quality
+  // Call quality & network
   useLessData: false,
+  networkMode: 'auto', // 'auto', 'wifi', 'mobile'
 };
 
 /**
@@ -38,15 +41,156 @@ export const loadStoragePrefs = () => {
   }
 };
 
+let syncTimeout = null;
+
+/**
+ * Sync preferences to backend user document with debouncing
+ */
+export const syncStoragePrefsToBackend = (prefs) => {
+  if (syncTimeout) clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(async () => {
+    try {
+      await apiClient.put('/api/users/storage-prefs', prefs);
+    } catch (err) {
+      console.warn('Failed to sync storage preferences to backend:', err);
+    }
+  }, 400);
+};
+
+/**
+ * Fetch preferences from backend and reconcile with localStorage
+ */
+export const fetchStoragePrefsFromBackend = async () => {
+  try {
+    const res = await apiClient.get('/api/users/storage-prefs');
+    if (res.data) {
+      const merged = { ...DEFAULT_STORAGE_PREFS, ...res.data };
+      localStorage.setItem(STORAGE_PREFS_KEY, JSON.stringify(merged));
+      window.dispatchEvent(new CustomEvent('ts_storage_prefs_changed', { detail: merged }));
+      return merged;
+    }
+  } catch (err) {
+    console.warn('Failed to fetch storage prefs from backend:', err);
+  }
+  return loadStoragePrefs();
+};
+
 /**
  * Persist preferences and notify listeners
  */
-export const saveStoragePrefs = (prefs) => {
+export const saveStoragePrefs = (prefs, syncBackend = true) => {
   try {
     localStorage.setItem(STORAGE_PREFS_KEY, JSON.stringify(prefs));
     window.dispatchEvent(new CustomEvent('ts_storage_prefs_changed', { detail: prefs }));
+    if (syncBackend) {
+      syncStoragePrefsToBackend(prefs);
+    }
   } catch (err) {
     console.warn('Failed to save storage prefs:', err);
+  }
+};
+
+/**
+ * Get active connection network type: 'wifi' or 'mobile'
+ */
+export const getCurrentNetworkType = (prefs = null) => {
+  const currentPrefs = prefs || loadStoragePrefs();
+  if (currentPrefs.networkMode === 'mobile') return 'mobile';
+  if (currentPrefs.networkMode === 'wifi') return 'wifi';
+
+  // In Auto mode: check browser navigator.connection API
+  try {
+    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (conn) {
+      if (conn.saveData) return 'mobile';
+      if (conn.type === 'cellular') return 'mobile';
+      if (['slow-2g', '2g', '3g'].includes(conn.effectiveType)) return 'mobile';
+    }
+  } catch (e) {
+    // fallback
+  }
+
+  return 'wifi';
+};
+
+/**
+ * Helper to check whether incoming media should be auto-downloaded
+ * based on WhatsApp rules & receiver's preferences
+ */
+export const shouldAutoDownload = (mediaType, prefs = null, forcedNetwork = null) => {
+  const currentPrefs = prefs || loadStoragePrefs();
+  const netType = forcedNetwork || getCurrentNetworkType(currentPrefs);
+  const type = (mediaType || '').toLowerCase();
+
+  const isPhoto = type === 'image' || type === 'photo';
+  const isAudio = type === 'audio' || type === 'voice';
+  const isVideo = type === 'video';
+  const isDoc = type === 'file' || type === 'document';
+
+  if (netType === 'mobile') {
+    if (isPhoto) return Boolean(currentPrefs.mobilePhotos);
+    if (isAudio) return Boolean(currentPrefs.mobileAudio);
+    if (isVideo) return Boolean(currentPrefs.mobileVideos);
+    if (isDoc) return Boolean(currentPrefs.mobileDocs);
+    return false;
+  }
+
+  // Wi-Fi network
+  if (isPhoto) return Boolean(currentPrefs.wifiPhotos);
+  if (isAudio) return Boolean(currentPrefs.wifiAudio);
+  if (isVideo) return Boolean(currentPrefs.wifiVideos);
+  if (isDoc) return Boolean(currentPrefs.wifiDocs);
+
+  return true;
+};
+
+/**
+ * Retrieve set of media message IDs downloaded on this client
+ */
+export const getDownloadedMediaSet = () => {
+  try {
+    const raw = localStorage.getItem(DOWNLOADED_MEDIA_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+};
+
+/**
+ * Check if a specific media message has been downloaded
+ */
+export const isMediaDownloaded = (msgId) => {
+  if (!msgId) return false;
+  const set = getDownloadedMediaSet();
+  return set.has(String(msgId));
+};
+
+/**
+ * Mark a media message as downloaded on this client
+ */
+export const markMediaDownloaded = (msgId) => {
+  if (!msgId) return;
+  try {
+    const set = getDownloadedMediaSet();
+    set.add(String(msgId));
+    localStorage.setItem(DOWNLOADED_MEDIA_KEY, JSON.stringify(Array.from(set)));
+    window.dispatchEvent(new CustomEvent('ts_media_downloaded', { detail: { msgId: String(msgId) } }));
+  } catch (err) {
+    console.warn('Failed to mark media downloaded:', err);
+  }
+};
+
+/**
+ * Clear locally downloaded media tracking (e.g. on Cache Clear)
+ */
+export const clearDownloadedMediaCache = () => {
+  try {
+    localStorage.removeItem(DOWNLOADED_MEDIA_KEY);
+    window.dispatchEvent(new CustomEvent('ts_media_downloaded', { detail: { cleared: true } }));
+  } catch (err) {
+    console.warn('Failed to clear downloaded media cache:', err);
   }
 };
 

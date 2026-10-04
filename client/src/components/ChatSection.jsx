@@ -9,6 +9,8 @@ import apiClient from '../api/apiClient';
 import toast from 'react-hot-toast';
 import WaveSurfer from 'wavesurfer.js';
 import { useTheme } from '../context/ThemeContext';
+import WhatsAppMediaBubble from './WhatsAppMediaBubble';
+import { loadStoragePrefs } from '../utils/storagePrefs';
 
 
 const emojis = ['❤️', '👍', '😂', '😮', '😢', '🔥', '👏', '🎉'];
@@ -161,6 +163,15 @@ const ChatSection = ({ externalContact }) => {
   const [messageSearchResults, setMessageSearchResults] = useState(null);
   const [forwardingMessage, setForwardingMessage] = useState(null);
   const [tick, setTick] = useState(0);
+  const [storagePrefs, setStoragePrefs] = useState(() => loadStoragePrefs());
+
+  useEffect(() => {
+    const handlePrefsChange = (e) => {
+      if (e?.detail) setStoragePrefs(e.detail);
+    };
+    window.addEventListener('ts_storage_prefs_changed', handlePrefsChange);
+    return () => window.removeEventListener('ts_storage_prefs_changed', handlePrefsChange);
+  }, []);
 
   // Group Chats & RBAC States
   const [groups, setGroups] = useState([]);
@@ -1526,32 +1537,16 @@ const ChatSection = ({ externalContact }) => {
                       )}
 
                       {/* Message Content Type Branching */}
-                      {msg.type === 'image' ? (
-                        <div className="overflow-hidden rounded-xl cursor-pointer my-1 group/img relative" onClick={() => setSelectedImage(msg.content)}>
-                          <img src={msg.content} className="max-w-full max-h-72 object-cover rounded-xl transition-transform duration-300 group-hover/img:scale-105" alt="Group Media" />
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                            <Maximize2 size={20} className="text-white drop-shadow-md" />
-                          </div>
-                        </div>
-                      ) : msg.type === 'video' ? (
-                        <div className="overflow-hidden rounded-xl my-1 max-w-full">
-                          <video src={msg.content} controls className="max-w-full max-h-72 rounded-xl" />
-                        </div>
-                      ) : msg.type === 'audio' ? (
-                        <VoiceNotePlayer src={msg.content} isDarkMode={true} />
-                      ) : msg.type === 'file' || msg.type === 'document' ? (
-                        <div className="flex items-center gap-3 p-2 bg-black/20 rounded-xl my-1 border border-white/10">
-                           <div className="p-2.5 bg-accent-primary/20 rounded-lg text-accent-primary flex-shrink-0">
-                              <FileText size={20} />
-                           </div>
-                           <div className="text-left overflow-hidden flex-1">
-                             <p className="text-sm font-bold truncate leading-tight">{msg.fileName || 'Document'}</p>
-                             <p className="text-[10px] opacity-50 uppercase font-black mt-0.5">{msg.fileSize || 'File'}</p>
-                           </div>
-                           <a href={msg.content} target="_blank" rel="noreferrer" download={msg.fileName} className="p-2 dark:hover:bg-white/10 hover:bg-black/5 rounded-full transition-colors flex-shrink-0">
-                             <Download size={16} className="text-text-main" />
-                           </a>
-                        </div>
+                      {['image', 'video', 'audio', 'file', 'document'].includes(msg.type) ? (
+                        <WhatsAppMediaBubble
+                          msg={msg}
+                          currentUserId={currentUserId}
+                          prefs={storagePrefs}
+                          onSelectImage={(url) => setSelectedImage(url)}
+                          onSelectPdf={(m) => setSelectedPdf(m)}
+                          AudioPlayerComponent={AudioPlayer}
+                          isGroup={true}
+                        />
                       ) : (
                         <p className={`text-[15px] font-normal leading-relaxed break-words ${msg.deletedForEveryone ? 'italic opacity-50' : ''}`}>{msg.content}</p>
                       )}
@@ -1968,72 +1963,16 @@ const ChatSection = ({ externalContact }) => {
                         </div>
                       )}
 
-                      {msg.type === 'image' ? (
-                        <div className="space-y-2">
-                           <div className="relative group/img overflow-hidden rounded-xl border border-border-main max-w-[260px] md:max-w-[320px] bg-black/20">
-                             <img 
-                               src={msg.content} 
-                               className="w-full max-h-[320px] object-cover rounded-lg cursor-pointer hover:scale-105 transition-transform duration-500" 
-                               alt="transmission" 
-                               onClick={() => { setSelectedImage(msg.content); setZoomLevel(1); }} 
-                             />
-                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                               <Search className="text-white" size={24} />
-                             </div>
-                           </div>
-                           <div className="flex items-center justify-between gap-4 px-1">
-                             <span className="text-[10px] opacity-40 font-bold uppercase tracking-widest">{msg.fileName || 'Image'}</span>
-                             <a href={msg.content} target="_blank" rel="noreferrer" download={msg.fileName} className="flex items-center gap-2 text-[10px] opacity-60 hover:opacity-100 transition-opacity">
-                               <Download size={12} />
-                             </a>
-                           </div>
-                        </div>
-                      ) : msg.type === 'video' ? (
-                        <div className="space-y-2">
-                           <div className="relative rounded-lg overflow-hidden bg-black/40 aspect-video flex items-center justify-center group/vid max-w-[260px] md:max-w-[320px]">
-                             <video src={msg.content} className="w-full max-h-[320px] object-cover" controls />
-                           </div>
-                           <div className="flex items-center justify-between gap-4">
-                             <span className="text-[10px] opacity-40 font-bold uppercase">{msg.fileName || 'Video'}</span>
-                             <a href={msg.content} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-[10px] opacity-60 hover:opacity-100 transition-opacity">
-                               <Download size={12} />
-                             </a>
-                           </div>
-                        </div>
-                      ) : msg.type === 'audio' ? (
-                        <div className="space-y-1">
-                           <AudioPlayer src={msg.content} />
-                           <div className="flex items-center justify-between gap-4 px-1">
-                             <span className="text-[10px] opacity-40 font-bold uppercase tracking-widest">{msg.fileName || 'Voice Note'}</span>
-                             <a href={msg.content} target="_blank" rel="noreferrer" download={msg.fileName} className="flex items-center gap-2 text-[10px] opacity-60 hover:opacity-100 transition-opacity">
-                               <Download size={12} />
-                             </a>
-                           </div>
-                        </div>
-                      ) : msg.type === 'file' || msg.type === 'document' ? (
-                        <div 
-                          className={`flex items-center gap-4 bg-black/5 dark:bg-black/20 p-3 rounded-xl border border-border-main min-w-[240px] ${msg.fileName?.toLowerCase().endsWith('.pdf') ? 'cursor-pointer hover:bg-black/15 dark:hover:bg-black/30 transition-colors' : ''}`}
-                          onClick={() => {
-                            if (msg.fileName?.toLowerCase().endsWith('.pdf')) {
-                              setSelectedPdf(msg);
-                            }
-                          }}
-                        >
-                           <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                             msg.fileName?.toLowerCase().endsWith('.pdf') ? 'bg-red-500/20 text-red-500' :
-                             msg.fileName?.toLowerCase().match(/\.(doc|docx)$/) ? 'bg-blue-500/20 text-blue-500' :
-                             'bg-accent-primary/20 text-accent-primary'
-                           }`}>
-                             <FileText size={20} />
-                           </div>
-                           <div className="text-left overflow-hidden flex-1">
-                             <p className="text-sm font-bold truncate leading-tight">{msg.fileName || 'Document'}</p>
-                             <p className="text-[10px] opacity-50 uppercase font-black mt-0.5">{msg.fileSize || 'File'}</p>
-                           </div>
-                           <a href={msg.content} target="_blank" rel="noreferrer" download={msg.fileName} className="p-2 dark:hover:bg-white/10 hover:bg-black/5 rounded-full transition-colors flex-shrink-0">
-                             <Download size={16} className="text-text-main" />
-                           </a>
-                        </div>
+                      {['image', 'video', 'audio', 'file', 'document'].includes(msg.type) ? (
+                        <WhatsAppMediaBubble
+                          msg={msg}
+                          currentUserId={currentUserId}
+                          prefs={storagePrefs}
+                          onSelectImage={(url) => { setSelectedImage(url); setZoomLevel(1); }}
+                          onSelectPdf={(m) => setSelectedPdf(m)}
+                          AudioPlayerComponent={AudioPlayer}
+                          isGroup={false}
+                        />
                       ) : msg.type === 'call' ? (
                         <div className="flex items-center gap-3 p-1 min-w-[200px]">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${

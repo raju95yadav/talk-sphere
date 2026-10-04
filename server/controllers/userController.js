@@ -242,3 +242,52 @@ exports.updatePresenceStatus = async (req, res) => {
     res.status(500).json({ message: 'Error updating presence status' });
   }
 };
+
+exports.getStoragePrefs = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('storagePrefs');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const defaultPrefs = {
+      mobilePhotos: true,
+      mobileAudio: false,
+      mobileVideos: false,
+      mobileDocs: true,
+      wifiAll: true,
+      wifiPhotos: true,
+      wifiAudio: true,
+      wifiVideos: true,
+      wifiDocs: true,
+      useLessData: false,
+      networkMode: 'auto'
+    };
+    const userPrefs = user.storagePrefs ? (user.storagePrefs.toObject ? user.storagePrefs.toObject() : user.storagePrefs) : {};
+    res.json({ ...defaultPrefs, ...userPrefs });
+  } catch (error) {
+    console.error('getStoragePrefs error:', error);
+    res.status(500).json({ message: 'Error fetching storage preferences' });
+  }
+};
+
+exports.updateStoragePrefs = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const current = user.storagePrefs ? (user.storagePrefs.toObject ? user.storagePrefs.toObject() : user.storagePrefs) : {};
+    const updated = { ...current, ...req.body };
+    user.storagePrefs = updated;
+    await user.save();
+
+    res.json({
+      message: 'Storage preferences saved successfully',
+      storagePrefs: user.storagePrefs
+    });
+  } catch (error) {
+    console.error('updateStoragePrefs error:', error);
+    res.status(500).json({ message: 'Error updating storage preferences' });
+  }
+};

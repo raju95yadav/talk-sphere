@@ -77,6 +77,19 @@ const userSchema = new mongoose.Schema({
   lastSeen: {
     type: Date,
     default: Date.now
+  },
+  storagePrefs: {
+    mobilePhotos: { type: Boolean, default: true },
+    mobileAudio: { type: Boolean, default: false },
+    mobileVideos: { type: Boolean, default: false },
+    mobileDocs: { type: Boolean, default: true },
+    wifiAll: { type: Boolean, default: true },
+    wifiPhotos: { type: Boolean, default: true },
+    wifiAudio: { type: Boolean, default: true },
+    wifiVideos: { type: Boolean, default: true },
+    wifiDocs: { type: Boolean, default: true },
+    useLessData: { type: Boolean, default: false },
+    networkMode: { type: String, enum: ['auto', 'wifi', 'mobile'], default: 'auto' }
   }
 }, { timestamps: true });
 

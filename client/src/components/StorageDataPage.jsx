@@ -36,8 +36,11 @@ import toast from 'react-hot-toast';
 import {
   loadStoragePrefs,
   saveStoragePrefs,
+  fetchStoragePrefsFromBackend,
   getWebrtcDataTransferred,
   resetNetworkUsageStats,
+  clearDownloadedMediaCache,
+  getCurrentNetworkType,
   DEFAULT_STORAGE_PREFS,
 } from '../utils/storagePrefs';
 
@@ -318,7 +321,10 @@ const StorageDataPage = ({ isOpen, onBack }) => {
   const updatePref = useCallback((key, value) => {
     setPrefs((prev) => {
       const next = { ...prev, [key]: value };
-      saveStoragePrefs(next);
+      if (['wifiPhotos', 'wifiAudio', 'wifiVideos', 'wifiDocs'].includes(key)) {
+        next.wifiAll = Boolean(next.wifiPhotos && next.wifiAudio && next.wifiVideos && next.wifiDocs);
+      }
+      saveStoragePrefs(next, true);
       return next;
     });
   }, []);
@@ -391,6 +397,9 @@ const StorageDataPage = ({ isOpen, onBack }) => {
     fetchStats();
     calculateLocalCache();
     setWebrtcTransferred(getWebrtcDataTransferred());
+    fetchStoragePrefsFromBackend().then((latest) => {
+      if (latest) setPrefs(latest);
+    });
   }, [isOpen, fetchStats, calculateLocalCache]);
 
   // ── Listen for real-time WebRTC stats updates ────────────
@@ -438,6 +447,9 @@ const StorageDataPage = ({ isOpen, onBack }) => {
       sessionStorage.clear();
       if (sid) sessionStorage.setItem('ts_session_id', sid);
 
+      // Clear downloaded media cache
+      clearDownloadedMediaCache();
+
       await new Promise((r) => setTimeout(r, 650)); // smooth visual feedback
       await calculateLocalCache();
       toast.success('App cache cleared successfully!', {
@@ -474,7 +486,7 @@ const StorageDataPage = ({ isOpen, onBack }) => {
         wifiVideos: enableAll,
         wifiDocs: enableAll,
       };
-      saveStoragePrefs(next);
+      saveStoragePrefs(next, true);
       return next;
     });
   }, []);
@@ -808,6 +820,53 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                   title="Media Auto-Download"
                   subtitle="Configure auto-download preferences across networks"
                 />
+
+                {/* Active Network Profile Card */}
+                <div className="rounded-2xl border border-slate-200 dark:border-gray-800/80 bg-white dark:bg-gray-900/40 p-3 space-y-2 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 dark:text-emerald-400">
+                        <Activity size={14} />
+                      </div>
+                      <div>
+                        <p className="text-[12px] font-bold text-slate-900 dark:text-white">Active Connection</p>
+                        <p className="text-[10px] text-slate-500 dark:text-gray-400">
+                          Current rules:{' '}
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400 uppercase">
+                            {getCurrentNetworkType(prefs) === 'mobile' ? 'Mobile Data' : 'Wi-Fi'}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50">
+                      {[
+                        { id: 'auto', label: 'Auto' },
+                        { id: 'wifi', label: 'Wi-Fi' },
+                        { id: 'mobile', label: 'Mobile' },
+                      ].map((mode) => {
+                        const isActive = (prefs.networkMode || 'auto') === mode.id;
+                        return (
+                          <button
+                            key={mode.id}
+                            type="button"
+                            onClick={() => updatePref('networkMode', mode.id)}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                              isActive
+                                ? 'bg-emerald-500 text-white shadow-sm'
+                                : 'text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
+                            }`}
+                          >
+                            {mode.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-500 dark:text-gray-400 leading-relaxed px-0.5">
+                    WhatsApp rule: Media auto-downloads when connected to matching network. If disabled, receiver sees a blurred preview with tap-to-download.
+                  </p>
+                </div>
 
                 {/* Mobile Data group */}
                 <div className="rounded-2xl border border-slate-200 dark:border-gray-800/80 bg-white dark:bg-gray-900/40 p-2 space-y-0.5 shadow-sm">

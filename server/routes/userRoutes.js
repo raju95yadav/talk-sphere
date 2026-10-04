@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getProfile, updateAvatar, updateProfile, getUserStats, getAllUsers, hideUser, updatePresenceStatus } = require('../controllers/userController');
+const { getProfile, updateAvatar, updateProfile, getUserStats, getAllUsers, hideUser, updatePresenceStatus, getStoragePrefs, updateStoragePrefs } = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
 const { upload } = require('../utils/cloudinary');
 
@@ -9,6 +9,8 @@ router.use(protect);
 router.get('/profile', getProfile);
 router.put('/profile', updateProfile);
 router.get('/stats', getUserStats);
+router.get('/storage-prefs', getStoragePrefs);
+router.put('/storage-prefs', updateStoragePrefs);
 router.get('/', getAllUsers);
 router.post('/hide/:userId', hideUser);
 router.patch('/presence', updatePresenceStatus);
