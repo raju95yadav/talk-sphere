@@ -6,6 +6,7 @@ import {
   FileText,
   Maximize2,
   FileVideo,
+  Image as ImageIcon,
   Check,
   CheckCheck,
   Clock,
@@ -144,7 +145,8 @@ const WhatsAppMediaBubble = ({
   }, [msg, currentUserId]);
 
   const activeNetwork = propNetworkType || getCurrentNetworkType(prefs);
-  const mediaType = (msg.type || '').toLowerCase();
+  const rawType = (msg.type || '').toLowerCase();
+  const mediaType = rawType === 'photo' ? 'image' : rawType;
 
   // Local state for whether this media has been downloaded on this client
   const [downloaded, setDownloaded] = useState(() => {
@@ -294,6 +296,12 @@ const WhatsAppMediaBubble = ({
             <div className="absolute inset-0 bg-slate-900" />
           )}
           <div className="absolute inset-0 bg-black/45 backdrop-blur-[5px]" />
+ 
+          {/* Top-left Photo Indicator Badge */}
+          <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/60 border border-white/10 text-[10px] font-bold text-white shadow-sm pointer-events-none">
+            <ImageIcon size={12} className="text-emerald-400" />
+            <span>Photo</span>
+          </div>
 
           {/* Centered WhatsApp download button */}
           <motion.div
@@ -403,7 +411,8 @@ const WhatsAppMediaBubble = ({
           onClick={handleManualDownload}
         >
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/80" />
-          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/60 border border-white/10 text-[10px] font-bold text-white">
+          {/* Top-left Video Indicator Badge */}
+          <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/60 border border-white/10 text-[10px] font-bold text-white shadow-sm pointer-events-none">
             <FileVideo size={12} className="text-emerald-400" />
             <span>Video</span>
           </div>
