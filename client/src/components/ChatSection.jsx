@@ -1564,59 +1564,83 @@ const ChatSection = ({ externalContact }) => {
                       </div>
                     )}
 
-                    <div className={`px-4 py-2.5 rounded-2xl shadow-lg inline-block relative min-w-[100px] transition-all ${
-                      msg.isSent 
-                        ? 'bg-gradient-to-br from-accent-primary to-accent-primary/80 text-white rounded-br-sm shadow-accent-primary/20' 
-                        : 'bg-bg-card-secondary text-text-main rounded-bl-sm border border-border-main'
-                    }`}>
+                    {(() => {
+                      const isPhotoOrVideo = ['image', 'video'].includes(msg.type);
+                      const isDocOrAudio = ['file', 'document', 'audio'].includes(msg.type);
 
-                      {/* Replying to Preview inside bubble */}
-                      {msg.repliedTo && (
-                        <div className="mb-2 p-2 rounded-xl bg-black/20 border-l-2 border-accent-primary text-left text-xs opacity-90">
-                          <p className="font-extrabold text-[10px] uppercase text-accent-primary">Replying to message</p>
-                          <p className="truncate opacity-80">{msg.repliedTo.content || 'Media'}</p>
+                      const bubbleClasses = isPhotoOrVideo
+                        ? `p-[3px] rounded-[18px] shadow-md inline-block relative overflow-hidden transition-all ${
+                            msg.isSent 
+                              ? 'bg-[#005c4b] dark:bg-[#005c4b] text-white rounded-br-xs border border-emerald-600/30 shadow-[0_2px_8px_rgba(0,92,75,0.25)]' 
+                              : 'bg-[#202c33] dark:bg-[#202c33] [data-theme=light]:bg-white [data-theme=light]:text-slate-800 text-white rounded-bl-xs border border-white/5 [data-theme=light]:border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
+                          }`
+                        : isDocOrAudio
+                        ? `p-2 rounded-2xl shadow-md inline-block relative transition-all min-w-[220px] ${
+                            msg.isSent 
+                              ? 'bg-[#005c4b] dark:bg-[#005c4b] text-white rounded-br-xs border border-emerald-600/30 shadow-[0_2px_8px_rgba(0,92,75,0.25)]' 
+                              : 'bg-[#202c33] dark:bg-[#202c33] [data-theme=light]:bg-white [data-theme=light]:text-slate-800 text-white rounded-bl-xs border border-white/5 [data-theme=light]:border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
+                          }`
+                        : `px-4 py-2.5 rounded-2xl shadow-lg inline-block relative min-w-[100px] transition-all ${
+                            msg.isSent 
+                              ? 'bg-gradient-to-br from-accent-primary to-accent-primary/80 text-white rounded-br-sm shadow-accent-primary/20' 
+                              : 'bg-bg-card-secondary text-text-main rounded-bl-sm border border-border-main'
+                          }`;
+
+                      return (
+                        <div className={bubbleClasses}>
+                          {/* Replying to Preview inside bubble */}
+                          {msg.repliedTo && (
+                            <div className="mb-1.5 p-2 rounded-xl bg-black/25 border-l-2 border-emerald-400 text-left text-xs opacity-90">
+                              <p className="font-extrabold text-[10px] uppercase text-emerald-400">Replying to message</p>
+                              <p className="truncate opacity-80">{msg.repliedTo.content || 'Media'}</p>
+                            </div>
+                          )}
+
+                          {/* Forwarded Tag */}
+                          {msg.isForwarded && (
+                            <div className="flex items-center gap-1 opacity-70 mb-1 px-1.5 pt-1">
+                              <Forward size={10} className="italic" />
+                              <span className="text-[9px] font-black uppercase italic tracking-widest">Forwarded</span>
+                            </div>
+                          )}
+
+                          {/* Message Content Type Branching */}
+                          {['image', 'video', 'audio', 'file', 'document'].includes(msg.type) ? (
+                            <WhatsAppMediaBubble
+                              msg={msg}
+                              currentUserId={currentUserId}
+                              prefs={storagePrefs}
+                              onSelectImage={(url) => setSelectedImage(url)}
+                              onSelectPdf={(m) => setSelectedPdf(m)}
+                              AudioPlayerComponent={AudioPlayer}
+                              isGroup={true}
+                              onRetryMessage={handleRetryMessage}
+                            />
+                          ) : (
+                            <p className={`text-[15px] font-normal leading-relaxed break-words ${msg.deletedForEveryone ? 'italic opacity-50' : ''}`}>{msg.content}</p>
+                          )}
+
+                          {/* Footer timestamp only for non-media text/call */}
+                          {!isPhotoOrVideo && !isDocOrAudio && (
+                            <div className="flex items-center justify-end gap-2 mt-1">
+                              {msg.isEdited && <p className="text-[7px] font-bold uppercase opacity-30 italic">Edited</p>}
+                              <p className="text-[9px] font-bold uppercase opacity-40">
+                                {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Emoji Reactions */}
+                          {msg.reactions && msg.reactions.length > 0 && (
+                            <div className="absolute -bottom-2 right-2 flex -space-x-1 z-20">
+                              {msg.reactions.map((r, ri) => (
+                                <span key={ri} className="text-[10px] bg-bg-card rounded-full px-1.5 py-0.5 border border-border-main shadow-lg" title={r.emoji}>{r.emoji}</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
-
-                      {/* Forwarded Tag */}
-                      {msg.isForwarded && (
-                        <div className="flex items-center gap-1 opacity-70 mb-1">
-                          <Forward size={10} className="italic" />
-                          <span className="text-[9px] font-black uppercase italic tracking-widest">Forwarded</span>
-                        </div>
-                      )}
-
-                      {/* Message Content Type Branching */}
-                      {['image', 'video', 'audio', 'file', 'document'].includes(msg.type) ? (
-                        <WhatsAppMediaBubble
-                          msg={msg}
-                          currentUserId={currentUserId}
-                          prefs={storagePrefs}
-                          onSelectImage={(url) => setSelectedImage(url)}
-                          onSelectPdf={(m) => setSelectedPdf(m)}
-                          AudioPlayerComponent={AudioPlayer}
-                          isGroup={true}
-                        />
-                      ) : (
-                        <p className={`text-[15px] font-normal leading-relaxed break-words ${msg.deletedForEveryone ? 'italic opacity-50' : ''}`}>{msg.content}</p>
-                      )}
-
-                      <div className="flex items-center justify-end gap-2 mt-1">
-                        {msg.isEdited && <p className="text-[7px] font-bold uppercase opacity-30 italic">Edited</p>}
-                        <p className="text-[9px] font-bold uppercase opacity-40">
-                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-
-                      {/* Emoji Reactions */}
-                      {msg.reactions && msg.reactions.length > 0 && (
-                        <div className="absolute -bottom-2 right-2 flex -space-x-1">
-                          {msg.reactions.map((r, ri) => (
-                            <span key={ri} className="text-[10px] bg-bg-card rounded-full px-1.5 py-0.5 border border-border-main shadow-lg" title={r.emoji}>{r.emoji}</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                      );
+                    })()}
 
                     {/* Options Bar on Hover */}
                     {!msg.deletedForEveryone && (
@@ -1978,133 +2002,157 @@ const ChatSection = ({ externalContact }) => {
                     onTouchEnd={handleTouchEnd}
                     className={`max-w-[85%] md:max-w-[65%] relative group ${msg.isSent ? 'text-right' : 'text-left'}`}
                   >
-                    <div className={`px-4 py-2.5 rounded-2xl shadow-lg inline-block relative min-w-[80px] transition-all duration-300 ${
-                      msg.isSent 
-                        ? 'bg-gradient-to-br from-accent-primary to-accent-primary/80 text-white rounded-br-sm shadow-accent-primary/20' 
-                        : 'bg-bg-card-secondary text-text-main rounded-bl-sm border border-border-main'
-                    }`}>
-                      
-                      {msg.status === 'uploading' && (
-                        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center rounded-2xl z-20 text-white p-2">
-                          <Loader2 className="animate-spin text-accent-primary mb-1" size={16} />
-                          <span className="text-[9px] font-black tracking-widest">{msg.progress || 0}%</span>
-                          <div className="w-20 h-1 bg-white/20 rounded-full overflow-hidden mt-1">
-                            <div className="h-full bg-accent-primary transition-all duration-300" style={{ width: `${msg.progress || 0}%` }}></div>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {msg.isForwarded && (
-                        <div className="flex items-center gap-1 opacity-70 mb-1">
-                          <Forward size={10} className="italic" />
-                          <span className="text-[9px] font-black uppercase italic tracking-widest">Forwarded</span>
-                        </div>
-                      )}
+                    {(() => {
+                      const isPhotoOrVideo = ['image', 'video'].includes(msg.type);
+                      const isDocOrAudio = ['file', 'document', 'audio'].includes(msg.type);
 
-                      {/* Replied Message Context */}
-                      {msg.repliedTo && (
-                        <div className={`mb-2 p-2 rounded-lg text-left border-l-4 bg-black/20 ${msg.isSent ? 'border-white/30' : 'border-accent-primary'}`}>
-                          <p className="text-[10px] font-black uppercase opacity-60 mb-1">
-                            {msg.repliedTo.sender === currentUserId ? 'You' : (selectedContact.username || selectedContact.name)}
-                          </p>
-                          <p className="text-[11px] line-clamp-1 opacity-80">
-                            {msg.repliedTo.type === 'image' ? '📷 Image' : msg.repliedTo.type === 'video' ? '🎥 Video' : msg.repliedTo.type === 'file' ? '📁 File' : msg.repliedTo.content}
-                          </p>
-                        </div>
-                      )}
+                      const bubbleClasses = isPhotoOrVideo
+                        ? `p-[3px] rounded-[18px] shadow-md inline-block relative overflow-hidden transition-all duration-300 ${
+                            msg.isSent 
+                              ? 'bg-[#005c4b] dark:bg-[#005c4b] text-white rounded-br-xs border border-emerald-600/30 shadow-[0_2px_8px_rgba(0,92,75,0.25)]' 
+                              : 'bg-[#202c33] dark:bg-[#202c33] [data-theme=light]:bg-white [data-theme=light]:text-slate-800 text-white rounded-bl-xs border border-white/5 [data-theme=light]:border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
+                          }`
+                        : isDocOrAudio
+                        ? `p-2 rounded-2xl shadow-md inline-block relative transition-all duration-300 min-w-[220px] ${
+                            msg.isSent 
+                              ? 'bg-[#005c4b] dark:bg-[#005c4b] text-white rounded-br-xs border border-emerald-600/30 shadow-[0_2px_8px_rgba(0,92,75,0.25)]' 
+                              : 'bg-[#202c33] dark:bg-[#202c33] [data-theme=light]:bg-white [data-theme=light]:text-slate-800 text-white rounded-bl-xs border border-white/5 [data-theme=light]:border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
+                          }`
+                        : `px-4 py-2.5 rounded-2xl shadow-lg inline-block relative min-w-[80px] transition-all duration-300 ${
+                            msg.isSent 
+                              ? 'bg-gradient-to-br from-accent-primary to-accent-primary/80 text-white rounded-br-sm shadow-accent-primary/20' 
+                              : 'bg-bg-card-secondary text-text-main rounded-bl-sm border border-border-main'
+                          }`;
 
-                      {['image', 'video', 'audio', 'file', 'document'].includes(msg.type) ? (
-                        <WhatsAppMediaBubble
-                          msg={msg}
-                          currentUserId={currentUserId}
-                          prefs={storagePrefs}
-                          onSelectImage={(url) => { setSelectedImage(url); setZoomLevel(1); }}
-                          onSelectPdf={(m) => setSelectedPdf(m)}
-                          AudioPlayerComponent={AudioPlayer}
-                          isGroup={false}
-                        />
-                      ) : msg.type === 'call' ? (
-                        <div className="flex items-center gap-3 p-1 min-w-[200px]">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            msg.callDetails?.status === 'missed' || msg.callDetails?.status === 'declined'
-                              ? 'bg-red-500/20 text-red-500'
-                              : 'bg-emerald-500/20 text-emerald-500'
-                          }`}>
-                            {msg.callDetails?.callType === 'video' ? <Video size={18} /> : <Phone size={18} />}
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-xs font-extrabold tracking-wide uppercase">{msg.content}</p>
-                            <p className="text-[9px] opacity-60 font-semibold uppercase tracking-wider">
-                              {msg.callDetails?.status === 'missed' ? 'Missed Call' : msg.callDetails?.status === 'declined' ? 'Declined Call' : 'Call Completed'}
-                            </p>
-                          </div>
-                          <button 
-                            type="button"
-                            onClick={() => startCall(selectedContact, msg.callDetails?.callType || 'video')}
-                            className="p-2 rounded-full bg-accent-primary/20 hover:bg-accent-primary text-accent-primary hover:text-white transition-all cursor-pointer"
-                            title="Call Back"
-                          >
-                            {msg.callDetails?.callType === 'video' ? <Video size={14} /> : <Phone size={14} />}
-                          </button>
-                        </div>
-                      ) : (
-                        <p className={`text-[15px] font-normal leading-relaxed break-words ${msg.deletedForEveryone ? 'italic opacity-50' : ''}`}>{msg.content}</p>
-                      )}
-                      
-                      <div className="flex items-center justify-end gap-2 mt-1">
-                        {msg.isEdited && <p className="text-[7px] font-bold uppercase opacity-30 italic">Edited {msg.editedAt && new Date(msg.editedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>}
-                        <p className="text-[9px] font-bold uppercase opacity-40">
-                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                        {msg.isSent && (
-                          <div className="ml-1 flex items-center gap-1">
-                            <AnimatePresence mode="wait">
-                              {msg.status === 'sending' && (
-                                <motion.span key="sending" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} title="Sending...">
-                                  <Clock size={11} className="dark:text-white/40 text-black/40 animate-spin" style={{ animationDuration: '3s' }} />
-                                </motion.span>
-                              )}
-                              {msg.status === 'sent' && (
-                                <motion.span key="sent" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} title="Sent">
-                                  <Check size={11} className="dark:text-white/50 text-black/50" />
-                                </motion.span>
-                              )}
-                              {msg.status === 'delivered' && (
-                                <motion.span key="delivered" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} title="Delivered">
-                                  <CheckCheck size={11} className="dark:text-white/60 text-black/60" />
-                                </motion.span>
-                              )}
-                              {msg.status === 'read' && (
-                                <motion.span key="read" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1.15, opacity: 1 }} transition={{ type: "spring", stiffness: 400, damping: 15 }} title="Read by recipient">
-                                  <CheckCheck size={11} className="text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.6)]" />
-                                </motion.span>
-                              )}
-                              {msg.status === 'failed' && (
-                                <motion.span key="failed" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-                                  <button 
-                                    type="button"
-                                    onClick={() => handleRetryMessage(msg)}
-                                    className="text-red-400 hover:text-red-300 p-0.5"
-                                    title="Failed to send. Click to retry."
-                                  >
-                                    <RefreshCw size={11} />
-                                  </button>
-                                </motion.span>
-                              )}
-                            </AnimatePresence>
-                          </div>
-                        )}
-                      </div>
+                      return (
+                        <div className={bubbleClasses}>
+                          {msg.status === 'uploading' && !isPhotoOrVideo && (
+                            <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center rounded-2xl z-20 text-white p-2">
+                              <Loader2 className="animate-spin text-accent-primary mb-1" size={16} />
+                              <span className="text-[9px] font-black tracking-widest">{msg.progress || 0}%</span>
+                              <div className="w-20 h-1 bg-white/20 rounded-full overflow-hidden mt-1">
+                                <div className="h-full bg-accent-primary transition-all duration-300" style={{ width: `${msg.progress || 0}%` }}></div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {msg.isForwarded && (
+                            <div className="flex items-center gap-1 opacity-70 mb-1 px-1.5 pt-1">
+                              <Forward size={10} className="italic" />
+                              <span className="text-[9px] font-black uppercase italic tracking-widest">Forwarded</span>
+                            </div>
+                          )}
 
-                      {/* Reactions Display */}
-                      {msg.reactions && msg.reactions.length > 0 && (
-                        <div className="absolute -bottom-2 right-2 flex -space-x-1">
-                          {msg.reactions.map((r, ri) => (
-                            <span key={ri} className="text-[10px] bg-bg-card rounded-full px-1.5 py-0.5 border border-border-main shadow-lg" title={r.emoji}>{r.emoji}</span>
-                          ))}
+                          {/* Replied Message Context */}
+                          {msg.repliedTo && (
+                            <div className={`mb-1.5 p-2 rounded-xl text-left border-l-2 bg-black/25 ${msg.isSent ? 'border-emerald-300' : 'border-accent-primary'}`}>
+                              <p className="text-[10px] font-black uppercase opacity-75 mb-0.5 text-emerald-400">
+                                {msg.repliedTo.sender === currentUserId ? 'You' : (selectedContact.username || selectedContact.name)}
+                              </p>
+                              <p className="text-[11px] line-clamp-1 opacity-80">
+                                {msg.repliedTo.type === 'image' ? '📷 Image' : msg.repliedTo.type === 'video' ? '🎥 Video' : msg.repliedTo.type === 'file' ? '📁 File' : msg.repliedTo.content}
+                              </p>
+                            </div>
+                          )}
+
+                          {['image', 'video', 'audio', 'file', 'document'].includes(msg.type) ? (
+                            <WhatsAppMediaBubble
+                              msg={msg}
+                              currentUserId={currentUserId}
+                              prefs={storagePrefs}
+                              onSelectImage={(url) => { setSelectedImage(url); setZoomLevel(1); }}
+                              onSelectPdf={(m) => setSelectedPdf(m)}
+                              AudioPlayerComponent={AudioPlayer}
+                              isGroup={false}
+                              onRetryMessage={handleRetryMessage}
+                            />
+                          ) : msg.type === 'call' ? (
+                            <div className="flex items-center gap-3 p-1 min-w-[200px]">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                msg.callDetails?.status === 'missed' || msg.callDetails?.status === 'declined'
+                                  ? 'bg-red-500/20 text-red-500'
+                                  : 'bg-emerald-500/20 text-emerald-500'
+                              }`}>
+                                {msg.callDetails?.callType === 'video' ? <Video size={18} /> : <Phone size={18} />}
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-xs font-extrabold tracking-wide uppercase">{msg.content}</p>
+                                <p className="text-[9px] opacity-60 font-semibold uppercase tracking-wider">
+                                  {msg.callDetails?.status === 'missed' ? 'Missed Call' : msg.callDetails?.status === 'declined' ? 'Declined Call' : 'Call Completed'}
+                                </p>
+                              </div>
+                              <button 
+                                type="button"
+                                onClick={() => startCall(selectedContact, msg.callDetails?.callType || 'video')}
+                                className="p-2 rounded-full bg-accent-primary/20 hover:bg-accent-primary text-accent-primary hover:text-white transition-all cursor-pointer"
+                                title="Call Back"
+                              >
+                                {msg.callDetails?.callType === 'video' ? <Video size={14} /> : <Phone size={14} />}
+                              </button>
+                            </div>
+                          ) : (
+                            <p className={`text-[15px] font-normal leading-relaxed break-words ${msg.deletedForEveryone ? 'italic opacity-50' : ''}`}>{msg.content}</p>
+                          )}
+                          
+                          {/* Footer timestamp only for non-media text/call */}
+                          {!isPhotoOrVideo && !isDocOrAudio && (
+                            <div className="flex items-center justify-end gap-2 mt-1">
+                              {msg.isEdited && <p className="text-[7px] font-bold uppercase opacity-30 italic">Edited {msg.editedAt && new Date(msg.editedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>}
+                              <p className="text-[9px] font-bold uppercase opacity-40">
+                                {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                              {msg.isSent && (
+                                <div className="ml-1 flex items-center gap-1">
+                                  <AnimatePresence mode="wait">
+                                    {msg.status === 'sending' && (
+                                      <motion.span key="sending" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} title="Sending...">
+                                        <Clock size={11} className="dark:text-white/40 text-black/40 animate-spin" style={{ animationDuration: '3s' }} />
+                                      </motion.span>
+                                    )}
+                                    {msg.status === 'sent' && (
+                                      <motion.span key="sent" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} title="Sent">
+                                        <Check size={11} className="dark:text-white/50 text-black/50" />
+                                      </motion.span>
+                                    )}
+                                    {msg.status === 'delivered' && (
+                                      <motion.span key="delivered" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} title="Delivered">
+                                        <CheckCheck size={11} className="dark:text-white/60 text-black/60" />
+                                      </motion.span>
+                                    )}
+                                    {msg.status === 'read' && (
+                                      <motion.span key="read" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1.15, opacity: 1 }} transition={{ type: "spring", stiffness: 400, damping: 15 }} title="Read by recipient">
+                                        <CheckCheck size={11} className="text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.6)]" />
+                                      </motion.span>
+                                    )}
+                                    {msg.status === 'failed' && (
+                                      <motion.span key="failed" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+                                        <button 
+                                          type="button"
+                                          onClick={() => handleRetryMessage(msg)}
+                                          className="text-red-400 hover:text-red-300 p-0.5"
+                                          title="Failed to send. Click to retry."
+                                        >
+                                          <RefreshCw size={11} />
+                                        </button>
+                                      </motion.span>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Reactions Display */}
+                          {msg.reactions && msg.reactions.length > 0 && (
+                            <div className="absolute -bottom-2 right-2 flex -space-x-1 z-20">
+                              {msg.reactions.map((r, ri) => (
+                                <span key={ri} className="text-[10px] bg-bg-card rounded-full px-1.5 py-0.5 border border-border-main shadow-lg" title={r.emoji}>{r.emoji}</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
+                      );
+                    })()}
 
                     {/* Message Options Hover */}
                     {!msg.deletedForEveryone && (
