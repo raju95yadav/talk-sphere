@@ -280,36 +280,38 @@ const WhatsAppMediaBubble = ({
       // Receiver blurred photo card with centered WhatsApp download button
       return (
         <div
-          className="relative overflow-hidden rounded-[15px] w-[260px] sm:w-[310px] h-[220px] bg-slate-950 flex items-center justify-center cursor-pointer group select-none shadow-md"
+          className="relative overflow-hidden rounded-[15px] w-[260px] sm:w-[320px] max-w-full h-[260px] sm:h-[300px] bg-slate-950 flex items-center justify-center cursor-pointer group select-none shadow-md"
           onClick={handleManualDownload}
         >
           {msg.content && !msg.content.startsWith('blob:') && !hasError ? (
-            <div
-              className="absolute inset-0 bg-cover bg-center filter blur-xl scale-110 opacity-40 brightness-75"
-              style={{ backgroundImage: `url(${msg.content})` }}
+            <img
+              src={msg.content}
+              className="absolute inset-0 w-full h-full object-cover filter blur-xl scale-110 opacity-50 brightness-75 pointer-events-none select-none"
+              alt=""
+              onError={() => setHasError(true)}
             />
           ) : (
             <div className="absolute inset-0 bg-slate-900" />
           )}
-          <div className="absolute inset-0 bg-black/55 backdrop-blur-[6px]" />
+          <div className="absolute inset-0 bg-black/45 backdrop-blur-[5px]" />
 
           {/* Centered WhatsApp download button */}
           <motion.div
-            whileHover={{ scale: 1.06 }}
-            whileTap={{ scale: 0.94 }}
-            className="relative z-10 flex flex-col items-center justify-center w-14 h-14 rounded-full bg-black/75 border border-white/20 shadow-2xl backdrop-blur-md group-hover:bg-black/90 group-hover:border-emerald-500/50 transition-all cursor-pointer"
+            whileHover={{ scale: 1.07 }}
+            whileTap={{ scale: 0.93 }}
+            className="relative z-10 flex flex-col items-center justify-center w-16 h-16 rounded-full bg-black/75 border border-white/20 shadow-2xl backdrop-blur-md group-hover:bg-black/90 group-hover:border-emerald-500/50 transition-all cursor-pointer"
           >
             {downloading ? (
               <div className="flex flex-col items-center">
-                <Loader2 size={22} className="text-emerald-400 animate-spin" />
+                <Loader2 size={24} className="text-emerald-400 animate-spin" />
                 <span className="text-[9px] font-bold text-emerald-400 font-mono mt-0.5">
                   {downloadProgress}%
                 </span>
               </div>
             ) : (
               <>
-                <Download size={18} className="text-white drop-shadow group-hover:text-emerald-400 transition-colors" />
-                <span className="text-[9.5px] font-bold text-white/90 font-mono mt-0.5 leading-none">
+                <Download size={20} className="text-white drop-shadow group-hover:text-emerald-400 transition-colors" />
+                <span className="text-[10px] font-bold text-white/90 font-mono mt-0.5 leading-none">
                   {msg.fileSize || 'Photo'}
                 </span>
               </>

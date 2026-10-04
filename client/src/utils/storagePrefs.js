@@ -3,24 +3,24 @@
  */
 import apiClient from '../api/apiClient';
 
-export const STORAGE_PREFS_KEY = 'ts_storage_prefs';
+export const STORAGE_PREFS_KEY = 'ts_storage_prefs_v3';
 export const WEBRTC_DATA_KEY = 'ts_webrtc_data_usage';
 export const NETWORK_STATS_RESET_KEY = 'ts_network_stats_reset_time';
-export const DOWNLOADED_MEDIA_KEY = 'ts_downloaded_media_registry';
+export const DOWNLOADED_MEDIA_KEY = 'ts_downloaded_media_registry_v3';
 
 export const DEFAULT_STORAGE_PREFS = {
-  // Mobile data auto-download
-  mobilePhotos: true,
+  // Mobile data auto-download (manual by default like WhatsApp clean data)
+  mobilePhotos: false,
   mobileAudio: false,
   mobileVideos: false,
-  mobileDocs: true,
+  mobileDocs: false,
 
-  // Wi-Fi auto-download (All media / None)
-  wifiAll: true,
-  wifiPhotos: true,
-  wifiAudio: true,
-  wifiVideos: true,
-  wifiDocs: true,
+  // Wi-Fi auto-download (manual by default so photos require clicking download)
+  wifiAll: false,
+  wifiPhotos: false,
+  wifiAudio: false,
+  wifiVideos: false,
+  wifiDocs: false,
 
   // Call quality & network
   useLessData: false,
@@ -141,7 +141,7 @@ export const shouldAutoDownload = (mediaType, prefs = null, forcedNetwork = null
   if (isVideo) return Boolean(currentPrefs.wifiVideos);
   if (isDoc) return Boolean(currentPrefs.wifiDocs);
 
-  return true;
+  return false;
 };
 
 /**
