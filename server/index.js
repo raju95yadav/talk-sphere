@@ -195,6 +195,13 @@ io.on('connection', (socket) => {
     
     if (!finalSenderId) return console.error('No sender ID provided for message');
 
+    // Prevent saving client-local blob: URLs into the database
+    if (content && typeof content === 'string' && content.startsWith('blob:')) {
+      console.warn('Rejected send_message with client-local blob URL from', finalSenderId);
+      socket.emit('message_error', { tempId, message: 'Invalid media URL. Please re-upload the file.' });
+      return;
+    }
+
     try {
       const newMessage = new Message({
         sender: finalSenderId,
@@ -394,6 +401,13 @@ io.on('connection', (socket) => {
     const { groupId, content, type, repliedTo, fileName, fileSize, isForwarded, tempId } = data;
     const finalSenderId = socket.userId;
     if (!finalSenderId || !groupId) return console.error('Missing sender or groupId');
+
+    // Prevent saving client-local blob: URLs into the database
+    if (content && typeof content === 'string' && content.startsWith('blob:')) {
+      console.warn('Rejected send_group_message with client-local blob URL from', finalSenderId);
+      socket.emit('message_error', { tempId, message: 'Invalid media URL. Please re-upload the file.' });
+      return;
+    }
 
     try {
       const newMessage = new Message({

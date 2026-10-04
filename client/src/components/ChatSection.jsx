@@ -854,6 +854,13 @@ const ChatSection = ({ externalContact }) => {
       return;
     }
 
+    // Safety check: local blob: URLs cannot be emitted directly without uploading to cloud
+    if (msg.content && typeof msg.content === 'string' && msg.content.startsWith('blob:')) {
+      toast.error('File transmission expired. Please select and send the file again.');
+      setChatHistory(prev => prev.map(m => m._id === msg._id ? { ...m, status: 'failed' } : m));
+      return;
+    }
+
     setChatHistory(prev => prev.map(m => m._id === msg._id ? { ...m, status: 'sending' } : m));
 
     socket.emit('send_message', {
@@ -1245,6 +1252,11 @@ const ChatSection = ({ externalContact }) => {
 
   const handleForwardMessage = (target) => {
     if (!forwardingMessage || !socket) return;
+
+    if (forwardingMessage.content && typeof forwardingMessage.content === 'string' && forwardingMessage.content.startsWith('blob:')) {
+      toast.error('Cannot forward media that has not finished uploading.');
+      return;
+    }
 
     if (target.isGroup || target.members) {
       socket.emit('send_group_message', {

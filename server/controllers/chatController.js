@@ -111,7 +111,17 @@ exports.getChatHistory = async (req, res) => {
     .populate('repliedTo', 'content type sender')
     .sort({ createdAt: 1 });
 
-    res.json(messages);
+    const sanitizedMessages = messages.map(m => {
+      if (m.content && typeof m.content === 'string' && m.content.startsWith('blob:')) {
+        const obj = m.toObject();
+        obj.content = '';
+        obj.isCorruptedMedia = true;
+        return obj;
+      }
+      return m;
+    });
+
+    res.json(sanitizedMessages);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching history' });
   }

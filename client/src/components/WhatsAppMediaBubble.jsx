@@ -12,6 +12,7 @@ import {
   CheckCircle,
   ArrowDownToLine,
   ExternalLink,
+  AlertCircle,
 } from 'lucide-react';
 import {
   isMediaDownloaded,
@@ -62,6 +63,14 @@ const WhatsAppMediaBubble = ({
 
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
+  const [hasError, setHasError] = useState(false);
+
+  // Check if media is corrupted or invalid (e.g. client-local blob on receiver or dead link)
+  const isInvalidMedia =
+    hasError ||
+    !msg.content ||
+    msg.isCorruptedMedia ||
+    (typeof msg.content === 'string' && msg.content.startsWith('blob:') && !isSender);
 
   // Sync if another tab or event marks it downloaded
   useEffect(() => {
@@ -98,7 +107,7 @@ const WhatsAppMediaBubble = ({
   // Manual download handler (simulating authentic WhatsApp download flow)
   const handleManualDownload = useCallback(async (e) => {
     if (e) e.stopPropagation();
-    if (downloading || downloaded) return;
+    if (downloading || downloaded || isInvalidMedia) return;
 
     setDownloading(true);
     setDownloadProgress(15);
@@ -115,13 +124,20 @@ const WhatsAppMediaBubble = ({
         });
       }, 120);
 
-      // Preload image/media
+      // Preload image/media safely
       if (mediaType === 'image') {
+        if (!msg.content || (msg.content.startsWith('blob:') && !isSender)) {
+          setHasError(true);
+          return;
+        }
         await new Promise((resolve) => {
           const img = new window.Image();
           img.src = msg.content;
           img.onload = () => resolve();
-          img.onerror = () => resolve();
+          img.onerror = () => {
+            setHasError(true);
+            resolve();
+          };
         });
       } else {
         await new Promise((r) => setTimeout(r, 600));
@@ -142,7 +158,26 @@ const WhatsAppMediaBubble = ({
     } finally {
       setDownloading(false);
     }
-  }, [downloading, downloaded, mediaType, msg._id, msg.content]);
+  }, [downloading, downloaded, isInvalidMedia, mediaType, msg._id, msg.content, isSender]);
+
+  // Render graceful fallback card if media is unavailable / dead link
+  if (isInvalidMedia) {
+    return (
+      <div className="space-y-1.5 my-1">
+        <div className="flex flex-col items-center justify-center p-4 rounded-xl border border-white/10 bg-slate-900/80 text-center max-w-[260px] md:max-w-[300px] shadow-sm">
+          <div className="w-9 h-9 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 mb-2">
+            <AlertCircle size={18} />
+          </div>
+          <p className="text-[12px] font-bold text-slate-200">
+            {mediaType === 'image' ? 'Photo Unavailable' : mediaType === 'video' ? 'Video Unavailable' : 'Media Unavailable'}
+          </p>
+          <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+            {isSender ? 'Upload was incomplete or local file has expired.' : 'This file was not uploaded to the server.'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // ─────────────────────────────────────────────────────────────
   // 1. IMAGE / PHOTO
@@ -156,11 +191,15 @@ const WhatsAppMediaBubble = ({
             className="relative overflow-hidden rounded-xl border border-white/10 max-w-[260px] md:max-w-[320px] h-[210px] bg-slate-900 flex items-center justify-center cursor-pointer group select-none shadow-md"
             onClick={handleManualDownload}
           >
-            {/* Blurred background preview */}
-            <div
-              className="absolute inset-0 bg-cover bg-center transition-all duration-500 filter blur-xl scale-110 opacity-40 brightness-75"
-              style={{ backgroundImage: `url(${msg.content})` }}
-            />
+            {/* Blurred background preview (only if valid remote url) */}
+            {msg.content && !msg.content.startsWith('blob:') && !hasError ? (
+              <div
+                className="absolute inset-0 bg-cover bg-center transition-all duration-500 filter blur-xl scale-110 opacity-40 brightness-75"
+                style={{ backgroundImage: `url(${msg.content})` }}
+              />
+            ) : (
+              <div className="absolute inset-0 bg-slate-800/80" />
+            )}
             {/* WhatsApp frosted dark vignette */}
             <div className="absolute inset-0 bg-black/55 backdrop-blur-[6px]" />
 
@@ -181,7 +220,7 @@ const WhatsAppMediaBubble = ({
                 <>
                   <Download size={20} className="text-white drop-shadow group-hover:text-emerald-400 transition-colors" />
                   <span className="text-[10px] font-bold text-white/90 font-mono mt-0.5 leading-none">
-                    {msg.fileSize || '420 KB'}
+                    {msg.fileSize || 'Photo'}
                   </span>
                 </>
               )}
@@ -212,6 +251,7 @@ const WhatsAppMediaBubble = ({
         >
           <img
             src={msg.content}
+            onError={() => setHasError(true)}
             className="w-full max-h-[320px] object-cover rounded-lg cursor-pointer hover:scale-[1.03] transition-transform duration-300"
             alt={msg.fileName || 'Photo'}
           />
