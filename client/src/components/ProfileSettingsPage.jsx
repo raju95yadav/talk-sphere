@@ -22,6 +22,8 @@ import {
   ShieldCheck,
   AlertCircle,
   Smile,
+  RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -87,7 +89,7 @@ const SectionLabel = ({ children }) => (
 // ─────────────────────────────────────────────────────────────
 const FieldCard = ({ children, className = '' }) => (
   <div
-    className={`w-full bg-white dark:bg-gray-900/60 border border-slate-200 dark:border-gray-800/70 rounded-2xl px-4 py-3 shadow-sm ${className}`}
+    className={`w-full bg-white dark:bg-gray-900/60 border border-slate-200 dark:border-gray-800/70 rounded-2xl px-4 py-3 shadow-sm transition-all duration-200 focus-within:border-emerald-500/50 focus-within:ring-2 focus-within:ring-emerald-500/15 ${className}`}
   >
     {children}
   </div>
@@ -169,15 +171,15 @@ const UsernameField = ({ value, onChange, currentUsername }) => {
   return (
     <FieldCard>
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-500 dark:text-gray-500 shrink-0">
+        <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-500 dark:text-gray-400 shrink-0">
           <AtSign size={15} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] text-slate-500 dark:text-gray-500 font-semibold uppercase tracking-wider mb-1">
+          <p className="text-[10px] text-slate-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-0.5">
             Username
           </p>
-          <div className="flex items-center gap-2">
-            <span className="text-slate-400 dark:text-gray-600 text-[13px] shrink-0">@</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-400 dark:text-gray-500 text-[13px] font-semibold select-none">@</span>
             <input
               id="profile-username-input"
               type="text"
@@ -185,24 +187,41 @@ const UsernameField = ({ value, onChange, currentUsername }) => {
               onChange={(e) => onChange('@' + e.target.value.replace(/^@/, '').replace(/\s/g, '').toLowerCase())}
               placeholder="yourhandle"
               maxLength={24}
-              className="flex-1 bg-transparent text-[13px] text-slate-900 dark:text-white font-medium outline-none placeholder-slate-400 dark:placeholder-gray-600 min-w-0"
+              className="flex-1 bg-transparent text-[13.5px] text-slate-900 dark:text-white font-medium outline-none placeholder-slate-400 dark:placeholder-gray-600 min-w-0"
             />
           </div>
         </div>
         {/* Availability indicator */}
-        <div className="shrink-0 w-5 flex justify-center">
-          {checking && <Loader2 size={14} className="text-gray-500 animate-spin" />}
-          {!checking && showStatus && available === true  && <Check size={14} className="text-emerald-400" />}
-          {!checking && showStatus && available === false && <X    size={14} className="text-red-400" />}
+        <div className="shrink-0 flex items-center">
+          {checking && (
+            <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-gray-500 font-medium">
+              <Loader2 size={13} className="animate-spin text-emerald-500" />
+              <span className="hidden sm:inline text-[10px]">Checking</span>
+            </div>
+          )}
+          {!checking && showStatus && available === true && (
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-semibold">
+              <Check size={12} strokeWidth={2.5} />
+              <span className="text-[10px]">Available</span>
+            </div>
+          )}
+          {!checking && showStatus && available === false && (
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[11px] font-semibold">
+              <X size={12} strokeWidth={2.5} />
+              <span className="text-[10px]">Taken</span>
+            </div>
+          )}
         </div>
       </div>
       {showStatus && !checking && (
-        <p className={`text-[10px] mt-1.5 px-1 font-medium ${available ? 'text-emerald-400' : 'text-red-400'}`}>
+        <p className={`text-[10px] mt-1.5 px-1 font-medium ${available ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
           {available ? '✓ Username available' : '✗ Username already taken'}
         </p>
       )}
-      {clean && clean.length < 3 && (
-        <p className="text-[10px] mt-1.5 px-1 text-gray-600">Minimum 3 characters</p>
+      {clean && clean.length > 0 && clean.length < 3 && (
+        <p className="text-[10px] mt-1.5 px-1 text-amber-500 dark:text-amber-400 font-medium">
+          Minimum 3 characters required
+        </p>
       )}
     </FieldCard>
   );
@@ -235,36 +254,43 @@ const BioField = ({ value, onChange }) => {
 
   return (
     <div className="space-y-2">
-      <FieldCard className="pb-2">
+      <FieldCard className="pb-2.5">
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-500 dark:text-gray-500 shrink-0 mt-0.5">
+          <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-500 dark:text-gray-400 shrink-0 mt-0.5">
             <FileText size={15} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] text-slate-500 dark:text-gray-500 font-semibold uppercase tracking-wider mb-1">
-              About / Bio
-            </p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[10px] text-slate-500 dark:text-gray-400 font-semibold uppercase tracking-wider">
+                About / Bio
+              </p>
+              <span className={`text-[10px] font-mono font-medium ${counterColor(value.length, BIO_MAX)}`}>
+                {remaining}
+              </span>
+            </div>
             <textarea
               ref={textareaRef}
               id="profile-bio-textarea"
               value={value}
               onChange={(e) => onChange(e.target.value.slice(0, BIO_MAX))}
-              placeholder="Write something about yourself…"
-              rows={3}
+              placeholder="Write a status or bio..."
+              rows={2}
               className="w-full bg-transparent text-[13px] text-slate-900 dark:text-white font-medium outline-none placeholder-slate-400 dark:placeholder-gray-600 resize-none leading-relaxed"
             />
-            <div className="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-gray-800/60 mt-1">
+            <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 dark:border-gray-800/60 mt-1">
               <button
                 type="button"
                 onClick={() => setShowEmoji((v) => !v)}
-                className="text-slate-400 hover:text-emerald-500 dark:text-gray-500 dark:hover:text-emerald-400 transition-colors cursor-pointer focus-visible:outline-none"
+                className={`flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-lg transition-colors cursor-pointer ${
+                  showEmoji
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    : 'text-slate-400 hover:text-emerald-500 dark:text-gray-500 dark:hover:text-emerald-400'
+                }`}
                 aria-label="Emoji picker"
               >
                 <Smile size={14} />
+                <span className="text-[10.5px]">Emoji</span>
               </button>
-              <span className={`text-[10px] font-mono ${counterColor(value.length, BIO_MAX)}`}>
-                {remaining}
-              </span>
             </div>
           </div>
         </div>
@@ -274,19 +300,19 @@ const BioField = ({ value, onChange }) => {
       <AnimatePresence>
         {showEmoji && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0, height: 0, y: -4 }}
+            animate={{ opacity: 1, height: 'auto', y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -4 }}
+            transition={{ duration: 0.18 }}
             className="overflow-hidden"
           >
-            <div className="flex flex-wrap gap-1.5 px-1 py-2 bg-slate-100 dark:bg-gray-900/40 border border-slate-200 dark:border-gray-800/50 rounded-xl">
+            <div className="flex flex-wrap gap-1.5 p-2 bg-slate-100/90 dark:bg-gray-900/60 border border-slate-200/80 dark:border-gray-800/60 rounded-xl backdrop-blur-sm">
               {EMOJI_QUICK.map((em) => (
                 <button
                   key={em}
                   type="button"
                   onClick={() => insertEmoji(em)}
-                  className="text-lg hover:scale-125 transition-transform cursor-pointer focus-visible:outline-none"
+                  className="w-8 h-8 flex items-center justify-center text-lg rounded-lg hover:bg-white dark:hover:bg-gray-800 hover:scale-115 active:scale-95 transition-all cursor-pointer focus-visible:outline-none"
                 >
                   {em}
                 </button>
@@ -296,18 +322,26 @@ const BioField = ({ value, onChange }) => {
         )}
       </AnimatePresence>
 
-      {/* Quick bio presets */}
-      <div className="flex flex-wrap gap-1.5 px-1">
-        {BIO_PRESETS.map((p) => (
-          <button
-            key={p.text}
-            type="button"
-            onClick={() => onChange(`${p.emoji} ${p.text}`.slice(0, BIO_MAX))}
-            className="text-[11px] font-medium text-slate-700 dark:text-gray-400 bg-white dark:bg-gray-800/60 border border-slate-200 dark:border-gray-700/50 rounded-full px-2.5 py-1 hover:border-emerald-500/40 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all cursor-pointer focus-visible:outline-none shadow-sm"
-          >
-            {p.emoji} {p.text}
-          </button>
-        ))}
+      {/* Quick bio presets - smooth horizontal scroller on phone, flex-wrap on larger screens */}
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 px-0.5 sm:flex-wrap">
+        {BIO_PRESETS.map((p) => {
+          const isSelected = value.trim() === `${p.emoji} ${p.text}`.trim();
+          return (
+            <button
+              key={p.text}
+              type="button"
+              onClick={() => onChange(`${p.emoji} ${p.text}`.slice(0, BIO_MAX))}
+              className={`shrink-0 text-[11px] font-medium rounded-full px-3 py-1 transition-all duration-200 cursor-pointer focus-visible:outline-none shadow-sm active:scale-95 flex items-center gap-1.5 ${
+                isSelected
+                  ? 'bg-emerald-500 text-white font-semibold shadow-emerald-500/25'
+                  : 'text-slate-700 dark:text-gray-300 bg-white dark:bg-gray-800/70 border border-slate-200 dark:border-gray-700/60 hover:border-emerald-500/40 hover:text-emerald-600 dark:hover:text-emerald-400'
+              }`}
+            >
+              <span>{p.emoji}</span>
+              <span>{p.text}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -488,6 +522,13 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
     );
   }, [name, username, bio, user]);
 
+  // ── Reset handler (revert changes to original user data) ─────
+  const handleReset = () => {
+    setName(user?.name || '');
+    setUsername('@' + (user?.username || ''));
+    setBio(user?.bio || '');
+  };
+
   // ── Avatar change callback (from AvatarEditor) ─────────────
   const handleAvatarChange = useCallback(
     (newAvatarUrl) => {
@@ -555,6 +596,7 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
           className="
             absolute inset-0 z-50
             flex flex-col
+            h-full max-h-[100dvh]
             overflow-hidden
             bg-[#f8fafc] dark:bg-[#11141a]
             text-slate-900 dark:text-white
@@ -566,7 +608,7 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
 
           {/* ── Fixed header ── */}
           <div
-            className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-slate-200 dark:border-gray-800/60 shrink-0 bg-white/90 dark:bg-[#11141a]/90 backdrop-blur-md"
+            className="flex items-center gap-3 px-4 pt-4 sm:pt-5 pb-3 border-b border-slate-200 dark:border-gray-800/60 shrink-0 bg-white/95 dark:bg-[#11141a]/95 backdrop-blur-md z-10"
           >
             <motion.button
               id="profile-settings-back"
@@ -614,7 +656,7 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
             variants={stagger}
             initial="hidden"
             animate="visible"
-            className="flex-1 overflow-y-auto px-4 pb-32 pt-2 space-y-6"
+            className="flex-1 overflow-y-auto px-4 pt-2.5 pb-6 space-y-5 overscroll-contain"
           >
             {/* Avatar section */}
             <AvatarEditor user={user} onAvatarChange={handleAvatarChange} />
@@ -691,45 +733,98 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
             </motion.div>
           </motion.div>
 
-          {/* ── Sticky Save Changes button ── */}
+          {/* ── Responsive Modern Save Changes Action Bar ── */}
           <div
-            className="absolute bottom-0 inset-x-0 px-4 pb-5 pt-4 bg-gradient-to-t from-[#f8fafc] via-[#f8fafc]/95 dark:from-[#11141a] dark:via-[#11141a]/95 to-transparent"
+            className="
+              shrink-0 z-20
+              px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom,16px))]
+              border-t border-slate-200/90 dark:border-gray-800/90
+              bg-white/95 dark:bg-[#11141a]/95
+              backdrop-blur-xl
+              shadow-[0_-10px_25px_-5px_rgba(0,0,0,0.06)] dark:shadow-[0_-12px_28px_-5px_rgba(0,0,0,0.45)]
+              transition-colors duration-300
+            "
           >
+            {/* Status indicator row: Unsaved changes + Reset / Clean state */}
+            <AnimatePresence mode="wait">
+              {isDirty ? (
+                <motion.div
+                  key="dirty-indicator"
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  transition={{ duration: 0.18 }}
+                  className="flex items-center justify-between text-[11px] mb-2 px-1"
+                >
+                  <span className="flex items-center gap-1.5 font-bold text-amber-500 dark:text-amber-400">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shadow-sm shadow-amber-500/50" />
+                    Unsaved changes
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer py-0.5 px-2 rounded-lg hover:bg-slate-100 dark:hover:bg-gray-800 active:scale-95"
+                  >
+                    <RotateCcw size={11} />
+                    Reset
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="clean-indicator"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="flex items-center justify-center text-[10.5px] mb-2 font-medium text-slate-400 dark:text-gray-500 gap-1.5"
+                >
+                  <Check size={12} className="text-emerald-500" strokeWidth={2.5} />
+                  <span>Profile details up to date</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Action button */}
             <motion.button
               id="profile-settings-save-btn"
-              whileHover={isDirty ? { scale: 1.02 } : {}}
-              whileTap={isDirty ? { scale: 0.98 } : {}}
+              whileHover={isDirty && !saving ? { scale: 1.01 } : {}}
+              whileTap={isDirty && !saving ? { scale: 0.98 } : {}}
               onClick={handleSave}
               disabled={!isDirty || saving}
               className={`
-                w-full flex items-center justify-center gap-2
-                py-3.5 rounded-2xl
+                relative overflow-hidden w-full
+                h-12 rounded-2xl
+                flex items-center justify-center gap-2.5
                 text-[13px] font-black uppercase tracking-wider
-                transition-all duration-300 shadow-xl
-                focus-visible:outline-none
+                transition-all duration-300
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50
+                select-none
                 ${isDirty
-                  ? 'bg-emerald-500 text-white hover:bg-emerald-400 shadow-emerald-500/30 cursor-pointer'
-                  : 'bg-slate-200 dark:bg-gray-800/60 text-slate-400 dark:text-gray-500 border border-slate-300/80 dark:border-gray-700/50 cursor-not-allowed'}
+                  ? 'bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-500 text-white shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 cursor-pointer active:scale-[0.98]'
+                  : 'bg-slate-100 dark:bg-gray-800/40 text-slate-400 dark:text-gray-500 border border-slate-200/80 dark:border-gray-700/50 cursor-not-allowed opacity-85'}
               `}
             >
+              {isDirty && !saving && (
+                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/15 to-white/0 pointer-events-none -translate-x-full animate-[shimmer_2.5s_infinite]" />
+              )}
+
               {saving ? (
                 <>
-                  <Loader2 size={15} className="animate-spin" />
-                  Saving…
+                  <Loader2 size={16} className="animate-spin text-white" />
+                  <span>Saving Changes…</span>
+                </>
+              ) : isDirty ? (
+                <>
+                  <Check size={16} strokeWidth={2.5} className="text-white" />
+                  <span>Save Changes</span>
                 </>
               ) : (
                 <>
-                  <Check size={15} />
-                  Save Changes
+                  <Check size={15} className="text-slate-400 dark:text-gray-500" />
+                  <span>Save Changes</span>
                 </>
               )}
             </motion.button>
-
-            {isDirty && (
-              <p className="text-center text-[10px] text-amber-600 dark:text-amber-400 mt-2 font-semibold">
-                You have unsaved changes
-              </p>
-            )}
           </div>
         </motion.div>
       )}

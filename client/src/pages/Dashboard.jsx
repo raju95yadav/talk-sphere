@@ -364,7 +364,7 @@ const Dashboard = () => {
               aria-hidden="true"
             />
             {/* Panel */}
-            <div className="fixed inset-y-0 left-0 z-[201] flex">
+            <div className="fixed inset-y-0 left-0 right-0 sm:right-auto z-[201] flex h-full h-[100dvh] max-h-[100dvh]">
               <SettingsPanel
                 isOpen={showSettings}
                 onClose={() => setShowSettings(false)}

@@ -208,7 +208,7 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
           className="
             relative flex flex-col
             w-full sm:w-96 max-w-full sm:max-w-md
-            min-h-screen md:min-h-0 md:h-full
+            h-full h-[100dvh] max-h-[100dvh]
             bg-[#f8fafc] dark:bg-[#11141a]
             text-slate-900 dark:text-white
             border-r border-slate-200 dark:border-gray-800/60

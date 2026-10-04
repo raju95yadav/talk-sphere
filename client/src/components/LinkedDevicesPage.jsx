@@ -1236,7 +1236,7 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
             {/* ── Sticky "Log out all" footer ── */}
             {otherSessions.length > 0 && (
               <div
-                className="absolute bottom-0 inset-x-0 px-4 pb-5 pt-4 bg-gradient-to-t from-[#f8fafc] via-[#f8fafc]/95 dark:from-[#11141a] dark:via-[#11141a]/95 to-transparent"
+                className="absolute bottom-0 inset-x-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom,16px))] pt-4 bg-gradient-to-t from-[#f8fafc] via-[#f8fafc]/95 dark:from-[#11141a] dark:via-[#11141a]/95 to-transparent z-20"
               >
                 <motion.button
                   id="linked-devices-logout-all"
