@@ -268,10 +268,16 @@ io.on('connection', (socket) => {
     const userId = socket.userId?.toString();
     
     if (userId) {
-      // Clean up any active call in progress for this disconnected user
+      // Clean up any active call in progress for this disconnected user ONLY IF this specific socket was the one in the call, or if the user has no remaining sockets
+      const userSockets = onlineUsers.get(userId);
+      const remainingSocketsCount = userSockets ? (userSockets.has(socket.id) ? userSockets.size - 1 : userSockets.size) : 0;
+
       for (const [key, call] of activeCalls.entries()) {
-        if (call.caller === userId || call.receiver === userId) {
-          console.log(`[WebRTC] User ${userId} disconnected during active call (key: ${key})`);
+        const isCallSocket = (call.callerSocketId === socket.id || call.receiverSocketId === socket.id);
+        const isUserParticipant = (call.caller === userId || call.receiver === userId);
+
+        if (isCallSocket || (isUserParticipant && remainingSocketsCount === 0)) {
+          console.log(`[WebRTC] Socket ${socket.id} (User ${userId}) disconnected during active call (key: ${key})`);
           if (call.timeoutId) {
             clearTimeout(call.timeoutId);
             call.timeoutId = null;
@@ -576,7 +582,9 @@ io.on('connection', (socket) => {
         reactions: []
       };
 
+      // Emit to both receiver and sender so active chat view updates immediately
       io.to(receiverId.toString()).emit('receive_message', messageData);
+      io.to(senderId.toString()).emit('receive_message', messageData);
       io.to(senderId.toString()).emit('message_sent', messageData);
 
       // Emit real-time call log update to both caller and receiver
@@ -614,7 +622,7 @@ io.on('connection', (socket) => {
 
   // WebRTC Signaling Handlers
   socket.on('call_user', (data) => {
-    const { userToCall, signalData, from, callerName, callerAvatar, callType } = data;
+    const { userToCall, signalData, from, callerName, callerAvatar, callType } = data || {};
     const callerId = getUserIdStr(from) || socket.userId?.toString();
     const receiverId = getUserIdStr(userToCall);
 
@@ -639,7 +647,13 @@ io.on('connection', (socket) => {
 
     const key = `${callerId}_${receiverId}`;
     
-    // Set 35-second ringing timeout (only fires if NOT answered)
+    // Clear any previous timeout for this pair if it exists
+    if (activeCalls.has(key)) {
+      const prev = activeCalls.get(key);
+      if (prev.timeoutId) clearTimeout(prev.timeoutId);
+    }
+
+    // Set 35-second ringing timeout (only fires if call is NOT answered)
     const timeoutId = setTimeout(async () => {
       const currentCall = activeCalls.get(key);
       if (currentCall && !currentCall.answered) {
@@ -654,6 +668,8 @@ io.on('connection', (socket) => {
     activeCalls.set(key, {
       caller: callerId,
       receiver: receiverId,
+      callerSocketId: socket.id,
+      receiverSocketId: null,
       callType: callType || 'video',
       startTime: Date.now(),
       answered: false,
@@ -668,31 +684,26 @@ io.on('connection', (socket) => {
       callerAvatar,
       callType
     });
-
-    io.to(`group_${receiverId}`).emit('incoming_call', {
-      signal: signalData,
-      from: callerId,
-      callerName,
-      callerAvatar,
-      callType
-    });
   });
 
   socket.on('answer_call', (data) => {
-    const { to, signal } = data;
-    const calleeId = socket.userId?.toString();
+    const { to, signal, from } = data || {};
+    const calleeId = getUserIdStr(from) || socket.userId?.toString();
     const callerId = getUserIdStr(to);
 
-    console.log(`[WebRTC] Call answered by ${calleeId} for caller ${callerId}`);
+    console.log(`[WebRTC] Call answered by callee ${calleeId} for caller ${callerId}`);
     
-    // Search active calls by matching caller and receiver pair
+    // Search active calls by matching caller and receiver pair and clear ringing timeout immediately
     for (const [key, call] of activeCalls.entries()) {
-      if (
-        (call.caller === callerId && call.receiver === calleeId) ||
-        (call.caller === calleeId && call.receiver === callerId)
-      ) {
+      const matchPair = (call.caller === callerId && call.receiver === calleeId) ||
+                        (call.caller === calleeId && call.receiver === callerId);
+      const matchCaller = (call.caller === callerId || call.receiver === callerId);
+      const matchCallee = calleeId && (call.caller === calleeId || call.receiver === calleeId);
+
+      if (matchPair || matchCaller || matchCallee) {
         call.answered = true;
         call.answeredTime = Date.now();
+        call.receiverSocketId = socket.id;
         if (call.timeoutId) {
           clearTimeout(call.timeoutId);
           call.timeoutId = null;
@@ -704,43 +715,43 @@ io.on('connection', (socket) => {
     // Dismiss incoming call modal on other tabs of the recipient
     if (calleeId) socket.to(calleeId).emit('dismiss_incoming_call');
 
+    // Emit single canonical event to caller with remote answer signal
     if (callerId) {
-      io.to(callerId).emit('call_accepted', { signal });
-      io.to(callerId).emit('call-accepted', { signal });
-      io.to(callerId).emit('call_answered', { signal });
-      io.to(callerId).emit('call-answered', { signal });
+      io.to(callerId).emit('call_accepted', { signal, from: calleeId });
     }
   });
 
   socket.on('ice_candidate', (data) => {
-    const { to, candidate } = data;
+    const { to, candidate } = data || {};
     const targetId = getUserIdStr(to);
-    if (targetId) io.to(targetId).emit('ice_candidate', { candidate });
+    if (targetId && candidate) io.to(targetId).emit('ice_candidate', { candidate });
   });
 
   socket.on('end_call', async (data) => {
-    const { to } = data;
+    const { to, from } = data || {};
     if (!to) return;
 
-    const currentId = socket.userId?.toString();
+    const currentId = getUserIdStr(from) || socket.userId?.toString();
     const targetId = getUserIdStr(to);
 
     console.log(`[WebRTC] Call ended signal sent between ${currentId} and ${targetId}`);
     if (targetId) io.to(targetId).emit('call_ended');
 
     for (const [key, call] of activeCalls.entries()) {
-      if (
-        (call.caller === currentId && call.receiver === targetId) ||
-        (call.caller === targetId && call.receiver === currentId)
-      ) {
+      const matchPair = (call.caller === currentId && call.receiver === targetId) ||
+                        (call.caller === targetId && call.receiver === currentId);
+      const matchTarget = (call.caller === targetId || call.receiver === targetId);
+      const matchCurrent = currentId && (call.caller === currentId || call.receiver === currentId);
+
+      if (matchPair || matchTarget || matchCurrent) {
         if (call.timeoutId) {
           clearTimeout(call.timeoutId);
           call.timeoutId = null;
         }
         activeCalls.delete(key);
 
-        if (call.answered && call.answeredTime) {
-          const duration = Math.max(1, Math.round((Date.now() - call.answeredTime) / 1000));
+        if (call.answered) {
+          const duration = call.answeredTime ? Math.max(1, Math.round((Date.now() - call.answeredTime) / 1000)) : 1;
           await createCallLogMessage(call.caller, call.receiver, call.callType, 'completed', duration);
         } else {
           await createCallLogMessage(call.caller, call.receiver, call.callType, 'missed', 0);
@@ -750,10 +761,10 @@ io.on('connection', (socket) => {
   });
 
   socket.on('reject_call', async (data) => {
-    const { to } = data;
+    const { to, from } = data || {};
     if (!to) return;
 
-    const currentId = socket.userId?.toString();
+    const currentId = getUserIdStr(from) || socket.userId?.toString();
     const targetId = getUserIdStr(to);
 
     console.log(`[WebRTC] Call rejected signal sent between ${currentId} and ${targetId}`);
@@ -762,10 +773,12 @@ io.on('connection', (socket) => {
     if (currentId) socket.to(currentId).emit('dismiss_incoming_call');
 
     for (const [key, call] of activeCalls.entries()) {
-      if (
-        (call.caller === currentId && call.receiver === targetId) ||
-        (call.caller === targetId && call.receiver === currentId)
-      ) {
+      const matchPair = (call.caller === currentId && call.receiver === targetId) ||
+                        (call.caller === targetId && call.receiver === currentId);
+      const matchTarget = (call.caller === targetId || call.receiver === targetId);
+      const matchCurrent = currentId && (call.caller === currentId || call.receiver === currentId);
+
+      if (matchPair || matchTarget || matchCurrent) {
         if (call.timeoutId) {
           clearTimeout(call.timeoutId);
           call.timeoutId = null;

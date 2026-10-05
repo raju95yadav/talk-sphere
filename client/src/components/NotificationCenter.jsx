@@ -29,7 +29,7 @@ const formatTimeAgo = (dateStr) => {
   if (diffInMin < 60) return `${diffInMin}m ago`;
   const diffInHours = Math.floor(diffInMin / 60);
   if (diffInHours < 24) return `${diffInHours}h ago`;
-  const diffInDays = Math.floor(diffInDays / 24);
+  const diffInDays = Math.floor(diffInHours / 24);
   if (diffInDays < 7) return `${diffInDays}d ago`;
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 };

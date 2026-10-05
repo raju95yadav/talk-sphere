@@ -504,18 +504,25 @@ const ChatSection = ({ externalContact }) => {
 
       socket.on('receive_message', (data) => {
         const currentSelected = selectedContactRef.current;
-        const isCurrentChat = currentSelected && data.sender.toString() === currentSelected._id.toString();
+        const senderIdStr = (data.sender?._id || data.sender)?.toString();
+        const receiverIdStr = (data.receiver?._id || data.receiver)?.toString();
+        const isFromSender = currentSelected && senderIdStr === currentSelected._id?.toString();
+        const isToReceiver = currentSelected && receiverIdStr === currentSelected._id?.toString();
+        const isCurrentChat = isFromSender || (data.type === 'call' && isToReceiver);
+        const isMine = senderIdStr === currentUserId?.toString();
         
         if (isCurrentChat) {
            setChatHistory(prev => {
              if (prev.some(m => m._id === data._id)) return prev;
-             return [...prev, { ...data, isSent: false }];
+             return [...prev, { ...data, isSent: isMine }];
            });
-           socket.emit('mark_read', { messageIds: [data._id], senderId: data.sender, receiverId: currentUserId });
-        } else {
+           if (!isMine) {
+             socket.emit('mark_read', { messageIds: [data._id], senderId: data.sender, receiverId: currentUserId });
+           }
+        } else if (!isMine) {
            socket.emit('message_delivered', { messageId: data._id, senderId: data.sender });
            
-           // Show upper-side stylish interactive notification banner
+           // Show upper-side stylish interactive notification banner for incoming messages
            showIncomingMessageToast({
              id: data._id,
              senderId: data.sender,
@@ -547,20 +554,21 @@ const ChatSection = ({ externalContact }) => {
         }
         
         // Update local chat list instantly
+        const otherUserId = isMine ? receiverIdStr : senderIdStr;
         setConversations(prev => {
-          const index = prev.findIndex(c => c.user._id.toString() === data.sender.toString());
+          const index = prev.findIndex(c => c.user?._id?.toString() === otherUserId);
           if (index !== -1) {
             const updated = [...prev];
             updated[index] = {
               ...updated[index],
               lastMessage: {
                 _id: data._id,
-                content: data.type === 'text' ? data.content : `📷 ${data.type.toUpperCase()}`,
+                content: (data.type === 'call' || data.type === 'text') ? data.content : `📷 ${data.type.toUpperCase()}`,
                 createdAt: data.createdAt,
                 sender: data.sender,
-                status: isCurrentChat ? 'read' : 'delivered'
+                status: isCurrentChat ? 'read' : isMine ? 'sent' : 'delivered'
               },
-              unreadCount: isCurrentChat ? 0 : (updated[index].unreadCount || 0) + 1
+              unreadCount: isCurrentChat || isMine ? 0 : (updated[index].unreadCount || 0) + 1
             };
             const item = updated.splice(index, 1)[0];
             return [item, ...updated];
@@ -844,6 +852,21 @@ const ChatSection = ({ externalContact }) => {
       }
     };
   }, [socket]);
+
+  useEffect(() => {
+    const handleCallEndedEvent = () => {
+      fetchConversations();
+      if (selectedContactRef.current) {
+        apiClient.get(`/api/chat/messages/${selectedContactRef.current._id}`).then(res => {
+          if (res.data) setChatHistory(res.data);
+        }).catch(() => {});
+      }
+    };
+    window.addEventListener('talksphere:call_ended', handleCallEndedEvent);
+    return () => {
+      window.removeEventListener('talksphere:call_ended', handleCallEndedEvent);
+    };
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });

@@ -34,6 +34,14 @@ const CallLogsSection = () => {
 
   useEffect(() => {
     fetchCallLogs();
+
+    const handleCallEndedEvent = () => {
+      fetchCallLogs();
+    };
+    window.addEventListener('talksphere:call_ended', handleCallEndedEvent);
+    return () => {
+      window.removeEventListener('talksphere:call_ended', handleCallEndedEvent);
+    };
   }, []);
 
   useEffect(() => {
@@ -43,28 +51,39 @@ const CallLogsSection = () => {
       console.log('[CallLogs] Real-time call log received:', newLog);
       if (!newLog || !newLog._id) return;
       setLogs(prevLogs => {
-        if (prevLogs.some(l => l._id === newLog._id)) {
-          return prevLogs.map(l => l._id === newLog._id ? newLog : l);
+        const idStr = newLog._id.toString();
+        if (prevLogs.some(l => l._id?.toString() === idStr)) {
+          return prevLogs.map(l => l._id?.toString() === idStr ? newLog : l);
         }
         return [newLog, ...prevLogs];
       });
+    };
+
+    const handleReceiveMessage = (data) => {
+      if (data?.type === 'call') {
+        fetchCallLogs();
+      }
     };
 
     socket.on('receive_call_log', handleNewCallLog);
     socket.on('receive-call-log', handleNewCallLog);
     socket.on('update-call-history', handleNewCallLog);
     socket.on('update_call_history', handleNewCallLog);
+    socket.on('receive_message', handleReceiveMessage);
 
     return () => {
       socket.off('receive_call_log', handleNewCallLog);
       socket.off('receive-call-log', handleNewCallLog);
       socket.off('update-call-history', handleNewCallLog);
       socket.off('update_call_history', handleNewCallLog);
+      socket.off('receive_message', handleReceiveMessage);
     };
   }, [socket]);
 
   const filteredLogs = logs.filter(log => {
-    const isSender = log.sender?._id === currentUserId;
+    const senderIdStr = (log.sender?._id || log.sender)?.toString();
+    const currentIdStr = currentUserId?.toString();
+    const isSender = senderIdStr === currentIdStr;
     const peer = isSender ? log.receiver : log.sender;
     const peerName = peer?.name || peer?.username || peer?.email || '';
 

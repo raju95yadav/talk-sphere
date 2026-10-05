@@ -157,6 +157,7 @@ export const CallProvider = ({ children }) => {
   const screenTrackRef = useRef(null);
   const statsIntervalRef = useRef(null);
   const callLastBytesRef = useRef(0);
+  const disconnectGraceTimeoutRef = useRef(null);
 
   // Audio Analyser refs
   const audioContextRef = useRef(null);
@@ -238,6 +239,11 @@ export const CallProvider = ({ children }) => {
     ringtone.stop();
     stopAudioAnalyser();
     
+    if (disconnectGraceTimeoutRef.current) {
+      clearTimeout(disconnectGraceTimeoutRef.current);
+      disconnectGraceTimeoutRef.current = null;
+    }
+
     if (ringingTimeoutRef.current) {
       clearTimeout(ringingTimeoutRef.current);
       ringingTimeoutRef.current = null;
@@ -257,6 +263,7 @@ export const CallProvider = ({ children }) => {
     if (pcRef.current) {
       pcRef.current.ontrack = null;
       pcRef.current.onicecandidate = null;
+      pcRef.current.onconnectionstatechange = null;
       pcRef.current.close();
       pcRef.current = null;
     }
@@ -285,17 +292,20 @@ export const CallProvider = ({ children }) => {
     setIsMinimized(false);
     setDurationSec(0);
     pendingCandidatesRef.current = [];
+
+    // Notify other components that a call completed/ended for real-time history refresh
+    window.dispatchEvent(new CustomEvent('talksphere:call_ended'));
   }, []);
 
   // End Ongoing Call
   const endCall = useCallback((notifyPeer = true) => {
     const peerId = targetUser?._id || targetUser?.id || incomingCallData?.from;
     if (notifyPeer && peerId && socket) {
-      socket.emit('end_call', { to: peerId });
+      socket.emit('end_call', { to: peerId, from: currentUserId });
     }
     resetCallState();
     toast('Call ended');
-  }, [targetUser, incomingCallData, socket, resetCallState]);
+  }, [targetUser, incomingCallData, socket, currentUserId, resetCallState]);
 
   // Format seconds -> 00:00
   const formattedDuration = useCallback(() => {
@@ -366,7 +376,26 @@ export const CallProvider = ({ children }) => {
 
     pc.onconnectionstatechange = () => {
       console.log('[WebRTC] Connection state changed:', pc.connectionState);
-      if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+      if (pc.connectionState === 'connected') {
+        if (disconnectGraceTimeoutRef.current) {
+          clearTimeout(disconnectGraceTimeoutRef.current);
+          disconnectGraceTimeoutRef.current = null;
+        }
+      } else if (pc.connectionState === 'disconnected') {
+        // ICE may be transiently switching networks or renegotiating; allow a 6-second grace window before ending call
+        if (!disconnectGraceTimeoutRef.current) {
+          disconnectGraceTimeoutRef.current = setTimeout(() => {
+            if (pcRef.current && (pcRef.current.connectionState === 'disconnected' || pcRef.current.connectionState === 'failed')) {
+              toast('Call connection terminated');
+              endCall(true);
+            }
+          }, 6000);
+        }
+      } else if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        if (disconnectGraceTimeoutRef.current) {
+          clearTimeout(disconnectGraceTimeoutRef.current);
+          disconnectGraceTimeoutRef.current = null;
+        }
         toast('Call connection terminated');
         endCall(true);
       }
@@ -531,6 +560,7 @@ export const CallProvider = ({ children }) => {
 
       socket.emit('answer_call', {
         to: peerId,
+        from: currentUserId,
         signal: answer
       });
 
@@ -545,7 +575,7 @@ export const CallProvider = ({ children }) => {
   // Reject Call
   const rejectCall = () => {
     if (incomingCallData && socket) {
-      socket.emit('reject_call', { to: incomingCallData.from });
+      socket.emit('reject_call', { to: incomingCallData.from, from: currentUserId });
     }
     resetCallState();
     toast('Call declined');
@@ -667,7 +697,7 @@ export const CallProvider = ({ children }) => {
     const handleIncomingCall = (data) => {
       console.log('[WebRTC] Incoming call received:', data);
       if (callStatus !== 'idle') {
-        socket.emit('reject_call', { to: data.from });
+        console.warn('[WebRTC] Ignoring incoming call because user is already busy or in a call');
         return;
       }
       setIncomingCallData(data);
@@ -690,16 +720,28 @@ export const CallProvider = ({ children }) => {
       setCallStatus('connected');
       
       if (pcRef.current) {
-        await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.signal));
-        while (pendingCandidatesRef.current.length > 0) {
-          const candidate = pendingCandidatesRef.current.shift();
-          await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+        // Guard against duplicate / wrong state
+        if (pcRef.current.signalingState !== 'have-local-offer') {
+          console.warn('[WebRTC] Skipping setRemoteDescription because signalingState is:', pcRef.current.signalingState);
+          return;
+        }
+        try {
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.signal));
+          while (pendingCandidatesRef.current.length > 0) {
+            const candidate = pendingCandidatesRef.current.shift();
+            if (candidate) {
+              await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => console.warn(e));
+            }
+          }
+        } catch (err) {
+          console.error('[WebRTC] Failed to set remote description on call_accepted:', err);
         }
       }
       startDurationTimer();
     };
 
     const handleIceCandidate = async (data) => {
+      if (!data?.candidate) return;
       if (pcRef.current && pcRef.current.remoteDescription) {
         try {
           await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
@@ -722,6 +764,10 @@ export const CallProvider = ({ children }) => {
     };
 
     const handleCallTimeout = () => {
+      if (callStatus === 'connected') {
+        console.warn('[WebRTC] Received call_timeout while call is already connected, ignoring');
+        return;
+      }
       toast.error('Call unanswered (Timed out)');
       resetCallState();
     };
@@ -745,9 +791,6 @@ export const CallProvider = ({ children }) => {
 
     socket.on('incoming_call', handleIncomingCall);
     socket.on('call_accepted', handleCallAccepted);
-    socket.on('call-accepted', handleCallAccepted);
-    socket.on('call_answered', handleCallAccepted);
-    socket.on('call-answered', handleCallAccepted);
     socket.on('ice_candidate', handleIceCandidate);
     socket.on('call_rejected', handleCallRejected);
     socket.on('call_ended', handleCallEnded);
@@ -759,9 +802,6 @@ export const CallProvider = ({ children }) => {
     return () => {
       socket.off('incoming_call', handleIncomingCall);
       socket.off('call_accepted', handleCallAccepted);
-      socket.off('call-accepted', handleCallAccepted);
-      socket.off('call_answered', handleCallAccepted);
-      socket.off('call-answered', handleCallAccepted);
       socket.off('ice_candidate', handleIceCandidate);
       socket.off('call_rejected', handleCallRejected);
       socket.off('call_ended', handleCallEnded);
