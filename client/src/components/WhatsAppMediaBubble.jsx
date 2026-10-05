@@ -282,7 +282,7 @@ const WhatsAppMediaBubble = ({
       // Receiver blurred photo card with centered WhatsApp download button
       return (
         <div
-          className="relative overflow-hidden rounded-[15px] w-[260px] sm:w-[320px] max-w-full h-[260px] sm:h-[300px] bg-slate-950 flex items-center justify-center cursor-pointer group select-none shadow-md"
+          className="relative overflow-hidden rounded-[15px] w-full max-w-[260px] sm:max-w-[320px] aspect-square bg-slate-950 flex items-center justify-center cursor-pointer group select-none shadow-md"
           onClick={handleManualDownload}
         >
           {msg.content && !msg.content.startsWith('blob:') && !hasError ? (
@@ -407,7 +407,7 @@ const WhatsAppMediaBubble = ({
     if (!downloaded) {
       return (
         <div
-          className="relative overflow-hidden rounded-[15px] w-[260px] sm:w-[310px] h-[200px] bg-slate-950 flex items-center justify-center cursor-pointer group select-none shadow-md"
+          className="relative overflow-hidden rounded-[15px] w-full max-w-[260px] sm:max-w-[310px] h-[180px] sm:h-[200px] bg-slate-950 flex items-center justify-center cursor-pointer group select-none shadow-md"
           onClick={handleManualDownload}
         >
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/80" />
@@ -471,7 +471,7 @@ const WhatsAppMediaBubble = ({
       return (
         <div
           onClick={handleManualDownload}
-          className="flex items-center gap-3 p-2.5 rounded-xl bg-black/20 hover:bg-black/30 cursor-pointer transition-all group min-w-[230px] max-w-[300px]"
+          className="flex items-center gap-2 sm:gap-3 p-2.5 rounded-xl bg-black/20 hover:bg-black/30 cursor-pointer transition-all group w-full min-w-0 max-w-[260px] sm:max-w-[300px]"
         >
           <div className="w-10 h-10 rounded-full flex items-center justify-center bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex-shrink-0 group-hover:scale-105 transition-transform">
             {downloading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
@@ -480,7 +480,7 @@ const WhatsAppMediaBubble = ({
             <p className="text-[12px] font-bold text-white truncate">
               {msg.fileName || 'Voice Note'}
             </p>
-            <p className="text-[10px] font-mono text-emerald-400 font-semibold mt-0.5">
+            <p className="text-[10px] font-mono text-emerald-400 font-semibold mt-0.5 truncate">
               {downloading ? `Downloading ${downloadProgress}%` : `Tap to download (${msg.fileSize || '220 KB'})`}
             </p>
           </div>
@@ -489,7 +489,7 @@ const WhatsAppMediaBubble = ({
     }
 
     return (
-      <div className="w-full min-w-[230px] max-w-[320px]">
+      <div className="w-full min-w-0 max-w-[260px] sm:max-w-[320px]">
         {AudioPlayerComponent && <AudioPlayerComponent src={msg.content} />}
         <div className="flex items-center justify-end gap-1.5 px-1 pt-1 text-[10px] text-white/70">
           {msg.isEdited && <span className="text-[8px] uppercase opacity-75 font-semibold mr-0.5">edited</span>}
@@ -508,7 +508,7 @@ const WhatsAppMediaBubble = ({
     const { ext, badgeClass, Icon } = getDocumentMeta(msg.fileName);
 
     return (
-      <div className="w-full min-w-[240px] max-w-[320px] select-none">
+      <div className="w-full min-w-0 max-w-[260px] sm:max-w-[320px] select-none">
         <div
           onClick={() => {
             if (!downloaded) {

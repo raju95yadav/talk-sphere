@@ -148,7 +148,7 @@ const CallModal = () => {
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative w-full max-w-4xl h-[85vh] max-h-[750px] bg-bg-card/90 border border-border-main rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between"
+          className="relative w-full max-w-4xl h-[92vh] sm:h-[85vh] max-h-[750px] bg-bg-card/90 border border-border-main rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between"
         >
           {/* Ambient Glow */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent-primary/10 blur-[120px] pointer-events-none rounded-full"></div>
@@ -251,7 +251,7 @@ const CallModal = () => {
 
               {/* Hardware Device Settings Switcher Panel */}
               {showDeviceSettings && (
-                <div className="absolute top-16 right-4 z-30 w-72 bg-bg-card/95 backdrop-blur-2xl border border-border-main p-4 rounded-2xl shadow-2xl text-left">
+                <div className="absolute top-16 right-2 sm:right-4 z-30 w-[calc(100vw-36px)] max-w-xs sm:w-72 bg-bg-card/95 backdrop-blur-2xl border border-border-main p-4 rounded-2xl shadow-2xl text-left">
                   <div className="flex items-center justify-between mb-3 border-b border-border-main pb-2">
                     <span className="text-xs font-black uppercase text-white tracking-wider">Media Devices</span>
                     <button onClick={() => setShowDeviceSettings(false)} className="text-text-muted hover:text-white"><X size={14} /></button>
@@ -376,7 +376,7 @@ const CallModal = () => {
 
           {/* Floating Control Bar for Active Call */}
           {callStatus === 'connected' && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 sm:gap-4 bg-black/60 backdrop-blur-2xl p-3 px-6 rounded-full border border-white/15 shadow-2xl">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 sm:gap-4 bg-black/70 backdrop-blur-2xl p-2.5 sm:p-3 px-4 sm:px-6 rounded-full border border-white/15 shadow-2xl max-w-[95vw]">
               {/* Mic Toggle */}
               <button 
                 onClick={toggleAudio}

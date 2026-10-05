@@ -81,7 +81,7 @@ const AudioPlayer = ({ src }) => {
   };
 
   return (
-    <div className="flex items-center gap-3 w-full min-w-[220px] max-w-[280px] p-1">
+    <div className="flex items-center gap-2 sm:gap-3 w-full min-w-0 max-w-[280px] p-1">
       <button 
         onClick={togglePlayPause} 
         disabled={!isReady}
@@ -1627,7 +1627,7 @@ const ChatSection = ({ externalContact }) => {
         </div>
 
         {/* Group Message Stream */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar bg-bg-main relative">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 custom-scrollbar bg-bg-main relative w-full max-w-full">
           <AnimatePresence initial={false}>
             {chatHistory.length === 0 ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col items-center justify-center opacity-20 space-y-4">
@@ -1642,7 +1642,7 @@ const ChatSection = ({ externalContact }) => {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   className={`flex ${msg.isSent ? 'justify-end' : 'justify-start'} relative z-10`}
                 >
-                  <div className={`max-w-[85%] md:max-w-[65%] relative group ${msg.isSent ? 'text-right' : 'text-left'}`}>
+                  <div className={`max-w-[85%] md:max-w-[65%] relative group min-w-0 break-words ${msg.isSent ? 'text-right' : 'text-left'}`}>
                     {!msg.isSent && (
                       <div className="flex items-center gap-2 mb-1 pl-1">
                         <span className="text-[10px] font-black text-accent-primary tracking-wide">
@@ -1731,7 +1731,7 @@ const ChatSection = ({ externalContact }) => {
 
                     {/* Options Bar on Hover */}
                     {!msg.deletedForEveryone && (
-                      <div className={`absolute top-1/2 -translate-y-1/2 ${msg.isSent ? 'right-full mr-2' : 'left-full ml-2'} opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 bg-bg-card/90 border border-border-main rounded-xl p-1 shadow-xl z-20`}>
+                      <div className={`hidden md:flex absolute top-1/2 -translate-y-1/2 ${msg.isSent ? 'right-full mr-2' : 'left-full ml-2'} opacity-0 group-hover:opacity-100 transition-all items-center gap-1 bg-bg-card/90 border border-border-main rounded-xl p-1 shadow-xl z-20 pointer-events-none group-hover:pointer-events-auto`}>
                         <button onClick={() => setReplyingTo(msg)} title="Reply" className="p-1.5 hover:bg-accent-primary/20 text-text-muted hover:text-text-main rounded-lg transition-colors">
                           <Reply size={14} />
                         </button>
@@ -1804,7 +1804,7 @@ const ChatSection = ({ externalContact }) => {
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSendMessage} className="p-3 pb-[calc(12px+env(safe-area-inset-bottom))] md:p-5 bg-bg-card/80 backdrop-blur-xl border-t border-border-main flex gap-2 md:gap-3 items-center relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
+          <form onSubmit={handleSendMessage} className="p-2 sm:p-3 pb-[calc(10px+env(safe-area-inset-bottom))] md:p-5 bg-bg-card/80 backdrop-blur-xl border-t border-border-main flex gap-2 md:gap-3 items-center relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] w-full max-w-full box-border">
             <input type="file" id="group-chat-file" className="hidden" onChange={handleFileUpload} />
             <button type="button" onClick={() => document.getElementById('group-chat-file').click()} disabled={isUploading} className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-bg-card-secondary text-text-muted hover:text-text-main dark:hover:bg-white/10 hover:bg-black/5 flex items-center justify-center transition-all flex-shrink-0 relative overflow-hidden">
               {isUploading ? (
@@ -1954,7 +1954,7 @@ const ChatSection = ({ externalContact }) => {
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
-        className="fixed inset-0 z-[60] bg-bg-main flex flex-col overflow-hidden"
+        className="fixed inset-0 z-[60] bg-bg-main flex flex-col overflow-hidden w-full max-w-full"
       >
         {/* Dedicated Transmissions & Groups Background Layer */}
         <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
@@ -1966,8 +1966,8 @@ const ChatSection = ({ externalContact }) => {
           <div className="absolute inset-0 bg-gradient-to-t from-bg-main/90 via-bg-main/50 to-bg-main/80" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_15%,_var(--bg-main)_88%)]" />
         </div>
-        <div className="p-4 pt-[calc(16px+env(safe-area-inset-top))] border-b border-border-main flex items-center justify-between bg-bg-card/80 backdrop-blur-md relative z-50">
-          <div className="flex items-center gap-3">
+        <div className="p-3 sm:p-4 pt-[calc(14px+env(safe-area-inset-top))] border-b border-border-main flex items-center justify-between bg-bg-card/80 backdrop-blur-md relative z-50 w-full max-w-full overflow-hidden">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <button onClick={() => {
               setSelectedContact(null); 
               setEditingMessage(null); 
@@ -1975,22 +1975,22 @@ const ChatSection = ({ externalContact }) => {
               setIsSearchingMessages(false);
               setMessageSearchQuery('');
               setMessageSearchResults(null);
-            }} className="p-2 dark:hover:bg-white/10 hover:bg-black/5 rounded-full text-text-muted hover:text-text-main transition-colors">
-              <ArrowLeft size={22} />
+            }} className="p-1.5 sm:p-2 dark:hover:bg-white/10 hover:bg-black/5 rounded-full text-text-muted hover:text-text-main transition-colors flex-shrink-0">
+              <ArrowLeft size={20} />
             </button>
-            <div className="relative">
-              <div className="w-11 h-11 rounded-full bg-accent-primary/20 flex items-center justify-center border border-border-main overflow-hidden">
+            <div className="relative flex-shrink-0">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-accent-primary/20 flex items-center justify-center border border-border-main overflow-hidden">
                  {selectedContact.avatar ? (
                    <img src={selectedContact.avatar} className="w-full h-full object-cover" alt="avatar" />
                  ) : (
-                   <User size={22} className="text-accent-primary" />
+                   <User size={20} className="text-accent-primary" />
                  )}
               </div>
-              <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-bg-card ${selectedContact.isOnline ? 'bg-green-500' : 'bg-gray-500'}`}></div>
+              <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border-2 border-bg-card ${selectedContact.isOnline ? 'bg-green-500' : 'bg-gray-500'}`}></div>
             </div>
-            <div>
-              <h4 className="font-bold text-base text-text-main tracking-tight leading-tight">{selectedContact.username || selectedContact.name}</h4>
-              <p className="text-xs text-text-muted mt-0.5 font-bold uppercase tracking-wider">
+            <div className="min-w-0 flex-1">
+              <h4 className="font-bold text-sm sm:text-base text-text-main tracking-tight leading-tight truncate">{selectedContact.username || selectedContact.name}</h4>
+              <p className="text-[10px] sm:text-xs text-text-muted mt-0.5 font-bold uppercase tracking-wider truncate">
                 {isTyping ? (
                   <span className="inline-flex items-center gap-1.5 text-accent-primary font-extrabold normal-case text-xs tracking-normal">
                     <span>typing</span>
@@ -2006,13 +2006,13 @@ const ChatSection = ({ externalContact }) => {
               </p>
             </div>
           </div>
-          <div className="flex gap-1 items-center">
+          <div className="flex gap-0.5 sm:gap-1 items-center flex-shrink-0">
             {/* WebRTC Audio Call Button */}
             <button 
               onClick={() => startCall(selectedContact, 'audio')}
               disabled={callStatus !== 'idle'}
               title="Start Encrypted Audio Call"
-              className="p-2.5 rounded-full dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-emerald-400 transition-all disabled:opacity-30 cursor-pointer active:scale-95"
+              className="p-2 sm:p-2.5 rounded-full dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-emerald-400 transition-all disabled:opacity-30 cursor-pointer active:scale-95"
             >
               <Phone size={18} />
             </button>
@@ -2022,17 +2022,17 @@ const ChatSection = ({ externalContact }) => {
               onClick={() => startCall(selectedContact, 'video')}
               disabled={callStatus !== 'idle'}
               title="Start Encrypted Video Call"
-              className="p-2.5 rounded-full dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-accent-primary transition-all disabled:opacity-30 cursor-pointer active:scale-95"
+              className="p-2 sm:p-2.5 rounded-full dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-accent-primary transition-all disabled:opacity-30 cursor-pointer active:scale-95"
             >
               <Video size={18} />
             </button>
 
-            <button onClick={() => setIsSearchingMessages(!isSearchingMessages)} className={`p-2.5 rounded-full transition-all ${isSearchingMessages ? 'bg-accent-primary text-white' : 'dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-text-main'}`}>
+            <button onClick={() => setIsSearchingMessages(!isSearchingMessages)} className={`p-2 sm:p-2.5 rounded-full transition-all ${isSearchingMessages ? 'bg-accent-primary text-white' : 'dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-text-main'}`}>
               <Search size={18} />
             </button>
 
             <div className="relative">
-              <button onClick={() => setShowOptions(!showOptions)} className={`p-2.5 rounded-full transition-all ${showOptions ? 'bg-accent-primary text-white' : 'dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-text-main'}`}>
+              <button onClick={() => setShowOptions(!showOptions)} className={`p-2 sm:p-2.5 rounded-full transition-all ${showOptions ? 'bg-accent-primary text-white' : 'dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-text-main'}`}>
                 <MoreHorizontal size={18} />
               </button>
               {showOptions && (
@@ -2047,7 +2047,7 @@ const ChatSection = ({ externalContact }) => {
         </div>
 
         {isSearchingMessages && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="px-4 py-2 bg-bg-card-secondary/50 border-b border-border-main">
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="px-4 py-2 bg-bg-card-secondary/50 border-b border-border-main w-full max-w-full">
             <div className="relative group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-accent-primary transition-colors" size={16} />
               <input 
@@ -2061,7 +2061,7 @@ const ChatSection = ({ externalContact }) => {
           </motion.div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar bg-bg-main relative" onClick={() => setShowOptions(false)}>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 custom-scrollbar bg-bg-main relative w-full max-w-full" onClick={() => setShowOptions(false)}>
           {/* Subtle background pattern */}
           <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at center, var(--text-muted) 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
           
@@ -2087,31 +2087,31 @@ const ChatSection = ({ externalContact }) => {
                   initial={{ opacity: 0, scale: 0.9, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                  className={`flex ${msg.isSent ? 'justify-end' : 'justify-start'} relative z-10`}
+                  className={`flex ${msg.isSent ? 'justify-end' : 'justify-start'} relative z-10 w-full`}
                 >
                   <div 
                     onTouchStart={(e) => handleTouchStart(e, msg)}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
-                    className={`max-w-[85%] md:max-w-[65%] relative group ${msg.isSent ? 'text-right' : 'text-left'}`}
+                    className={`max-w-[88%] sm:max-w-[80%] md:max-w-[65%] min-w-0 break-words relative group ${msg.isSent ? 'text-right' : 'text-left'}`}
                   >
                     {(() => {
                       const isPhotoOrVideo = ['image', 'video'].includes(msg.type);
                       const isDocOrAudio = ['file', 'document', 'audio'].includes(msg.type);
 
                       const bubbleClasses = isPhotoOrVideo
-                        ? `p-[3px] rounded-[18px] shadow-md inline-block relative overflow-hidden transition-all duration-300 ${
+                        ? `p-[3px] rounded-[18px] shadow-md inline-block relative overflow-hidden transition-all duration-300 max-w-full ${
                             msg.isSent 
                               ? 'bg-[#005c4b] dark:bg-[#005c4b] text-white rounded-br-xs border border-emerald-600/30 shadow-[0_2px_8px_rgba(0,92,75,0.25)]' 
                               : 'bg-[#202c33] dark:bg-[#202c33] [data-theme=light]:bg-white [data-theme=light]:text-slate-800 text-white rounded-bl-xs border border-white/5 [data-theme=light]:border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
                           }`
                         : isDocOrAudio
-                        ? `p-2 rounded-2xl shadow-md inline-block relative transition-all duration-300 min-w-[220px] ${
+                        ? `p-2 rounded-2xl shadow-md inline-block relative transition-all duration-300 min-w-0 max-w-full ${
                             msg.isSent 
                               ? 'bg-[#005c4b] dark:bg-[#005c4b] text-white rounded-br-xs border border-emerald-600/30 shadow-[0_2px_8px_rgba(0,92,75,0.25)]' 
                               : 'bg-[#202c33] dark:bg-[#202c33] [data-theme=light]:bg-white [data-theme=light]:text-slate-800 text-white rounded-bl-xs border border-white/5 [data-theme=light]:border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
                           }`
-                        : `px-4 py-2.5 rounded-2xl shadow-lg inline-block relative min-w-[80px] transition-all duration-300 ${
+                        : `px-4 py-2.5 rounded-2xl shadow-lg inline-block relative min-w-0 max-w-full transition-all duration-300 ${
                             msg.isSent 
                               ? 'bg-gradient-to-br from-accent-primary to-accent-primary/80 text-white rounded-br-sm shadow-accent-primary/20' 
                               : 'bg-bg-card-secondary text-text-main rounded-bl-sm border border-border-main'
@@ -2160,24 +2160,24 @@ const ChatSection = ({ externalContact }) => {
                               onRetryMessage={handleRetryMessage}
                             />
                           ) : msg.type === 'call' ? (
-                            <div className="flex items-center gap-3 p-1 min-w-[200px]">
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            <div className="flex items-center gap-2 sm:gap-3 p-1 min-w-0 w-full max-w-full">
+                              <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
                                 msg.callDetails?.status === 'missed' || msg.callDetails?.status === 'declined'
                                   ? 'bg-red-500/20 text-red-500'
                                   : 'bg-emerald-500/20 text-emerald-500'
                               }`}>
-                                {msg.callDetails?.callType === 'video' ? <Video size={18} /> : <Phone size={18} />}
+                                {msg.callDetails?.callType === 'video' ? <Video size={17} /> : <Phone size={17} />}
                               </div>
-                              <div className="flex-1">
-                                <p className="text-xs font-extrabold tracking-wide uppercase">{msg.content}</p>
-                                <p className="text-[9px] opacity-60 font-semibold uppercase tracking-wider">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-extrabold tracking-wide uppercase truncate">{msg.content}</p>
+                                <p className="text-[9px] opacity-60 font-semibold uppercase tracking-wider truncate">
                                   {msg.callDetails?.status === 'missed' ? 'Missed Call' : msg.callDetails?.status === 'declined' ? 'Declined Call' : 'Call Completed'}
                                 </p>
                               </div>
                               <button 
                                 type="button"
                                 onClick={() => startCall(selectedContact, msg.callDetails?.callType || 'video')}
-                                className="p-2 rounded-full bg-accent-primary/20 hover:bg-accent-primary text-accent-primary hover:text-white transition-all cursor-pointer"
+                                className="p-2 rounded-full bg-accent-primary/20 hover:bg-accent-primary text-accent-primary hover:text-white transition-all cursor-pointer flex-shrink-0"
                                 title="Call Back"
                               >
                                 {msg.callDetails?.callType === 'video' ? <Video size={14} /> : <Phone size={14} />}
@@ -2247,9 +2247,9 @@ const ChatSection = ({ externalContact }) => {
                       );
                     })()}
 
-                    {/* Message Options Hover */}
+                    {/* Message Options Hover (Desktop only to prevent mobile overflow) */}
                     {!msg.deletedForEveryone && (
-                      <div className={`absolute top-1/2 -translate-y-1/2 ${msg.isSent ? 'right-full mr-2 origin-right' : 'left-full ml-2 origin-left'} opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 flex flex-row items-center gap-1 z-20 bg-bg-card/90 backdrop-blur-xl border border-border-main rounded-2xl p-1 shadow-2xl`}>
+                      <div className={`hidden md:flex absolute top-1/2 -translate-y-1/2 ${msg.isSent ? 'right-full mr-2 origin-right' : 'left-full ml-2 origin-left'} opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 flex-row items-center gap-1 z-20 bg-bg-card/90 backdrop-blur-xl border border-border-main rounded-2xl p-1 shadow-2xl pointer-events-none group-hover:pointer-events-auto`}>
                         <button onClick={() => setReplyingTo(msg)} className="p-2 hover:bg-accent-primary/20 rounded-xl text-text-muted hover:text-text-main transition-all hover:scale-110">
                           <Reply size={16} />
                         </button>
@@ -2387,49 +2387,49 @@ const ChatSection = ({ externalContact }) => {
 
         {/* Reply Context Bar */}
         {replyingTo && (
-          <div className="px-4 py-3 bg-bg-card border-t border-border-main flex justify-between items-center animate-in slide-in-from-bottom-2">
-            <div className="flex items-center gap-3 border-l-4 border-accent-primary pl-3">
-              <Reply size={16} className="text-accent-primary" />
-              <div className="overflow-hidden">
-                <p className="text-[10px] font-black uppercase text-accent-primary">Replying to {replyingTo.sender === currentUserId ? 'yourself' : (selectedContact.username || selectedContact.name)}</p>
-                <p className="text-xs text-text-muted truncate max-w-md">
+          <div className="px-3 sm:px-4 py-2 sm:py-3 bg-bg-card border-t border-border-main flex justify-between items-center animate-in slide-in-from-bottom-2 w-full max-w-full">
+            <div className="flex items-center gap-2 sm:gap-3 border-l-4 border-accent-primary pl-2 sm:pl-3 min-w-0 flex-1">
+              <Reply size={16} className="text-accent-primary flex-shrink-0" />
+              <div className="overflow-hidden min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase text-accent-primary truncate">Replying to {replyingTo.sender === currentUserId ? 'yourself' : (selectedContact.username || selectedContact.name)}</p>
+                <p className="text-xs text-text-muted truncate">
                   {replyingTo.type === 'image' ? '📷 Image' : replyingTo.type === 'video' ? '🎥 Video' : replyingTo.type === 'file' ? '📁 File' : replyingTo.content}
                 </p>
               </div>
             </div>
-            <button onClick={() => setReplyingTo(null)} className="p-1.5 dark:hover:bg-white/10 hover:bg-black/5 rounded-full text-text-muted transition-colors"><X size={18} /></button>
+            <button onClick={() => setReplyingTo(null)} className="p-1.5 dark:hover:bg-white/10 hover:bg-black/5 rounded-full text-text-muted transition-colors flex-shrink-0"><X size={18} /></button>
           </div>
         )}
 
         {editingMessage && (
-          <div className="px-4 py-3 bg-accent-primary/10 border-t border-accent-primary/20 flex justify-between items-center animate-in slide-in-from-bottom-2">
-            <div className="flex items-center gap-3 border-l-4 border-accent-primary pl-3">
-              <Edit3 size={16} className="text-accent-primary" />
-              <div className="overflow-hidden">
+          <div className="px-3 sm:px-4 py-2 sm:py-3 bg-accent-primary/10 border-t border-accent-primary/20 flex justify-between items-center animate-in slide-in-from-bottom-2 w-full max-w-full">
+            <div className="flex items-center gap-2 sm:gap-3 border-l-4 border-accent-primary pl-2 sm:pl-3 min-w-0 flex-1">
+              <Edit3 size={16} className="text-accent-primary flex-shrink-0" />
+              <div className="overflow-hidden min-w-0 flex-1">
                 <p className="text-[10px] font-black uppercase text-accent-primary">Editing Message</p>
-                <p className="text-xs text-text-muted truncate max-w-md">{editingMessage.content}</p>
+                <p className="text-xs text-text-muted truncate">{editingMessage.content}</p>
               </div>
             </div>
-            <button onClick={() => {setEditingMessage(null); setMessage('');}} className="p-1.5 dark:hover:bg-white/10 hover:bg-black/5 rounded-full text-text-muted transition-colors"><X size={18} /></button>
+            <button onClick={() => {setEditingMessage(null); setMessage('');}} className="p-1.5 dark:hover:bg-white/10 hover:bg-black/5 rounded-full text-text-muted transition-colors flex-shrink-0"><X size={18} /></button>
           </div>
         )}
 
         {isRecording ? (
-          <div className="p-3 pb-[calc(12px+env(safe-area-inset-bottom))] md:p-5 bg-bg-card/80 backdrop-blur-xl border-t border-border-main flex gap-2 md:gap-4 items-center relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
+          <div className="p-2 sm:p-3 pb-[calc(10px+env(safe-area-inset-bottom))] md:p-5 bg-bg-card/80 backdrop-blur-xl border-t border-border-main flex gap-2 md:gap-4 items-center relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] w-full max-w-full box-border">
             <button onClick={cancelRecording} className="p-2 md:p-3 rounded-full text-red-500 hover:bg-red-500/20 transition-all flex-shrink-0">
               <Trash2 size={20} />
             </button>
-            <div className="flex-1 flex items-center justify-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse"></div>
-              <span className="text-red-500 font-mono font-bold text-lg tracking-widest">{formatDuration(recordingDuration)}</span>
-              <span className="text-[10px] text-text-muted uppercase font-black tracking-widest ml-2">Recording Voice Note...</span>
+            <div className="flex-1 flex items-center justify-center gap-2 sm:gap-3 min-w-0">
+              <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-red-500 animate-pulse flex-shrink-0"></div>
+              <span className="text-red-500 font-mono font-bold text-base sm:text-lg tracking-widest">{formatDuration(recordingDuration)}</span>
+              <span className="text-[9px] sm:text-[10px] text-text-muted uppercase font-black tracking-widest truncate hidden sm:inline ml-2">Recording Voice Note...</span>
             </div>
             <button onClick={stopRecording} className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-accent-primary text-white shadow-xl flex items-center justify-center transition-all flex-shrink-0 hover:scale-110 active:scale-95 shadow-accent-primary/20">
               <Send size={18} className="ml-0.5" />
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSendMessage} className="p-3 pb-[calc(12px+env(safe-area-inset-bottom))] md:p-5 bg-bg-card/80 backdrop-blur-xl border-t border-border-main flex gap-2 md:gap-3 items-center relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
+          <form onSubmit={handleSendMessage} className="p-2 sm:p-3 pb-[calc(10px+env(safe-area-inset-bottom))] md:p-5 bg-bg-card/80 backdrop-blur-xl border-t border-border-main flex gap-2 md:gap-3 items-center relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] w-full max-w-full box-border">
             <input type="file" id="chat-file" className="hidden" onChange={handleFileUpload} />
             <button type="button" onClick={() => document.getElementById('chat-file').click()} disabled={isUploading} className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-bg-card-secondary text-text-muted hover:text-text-main dark:hover:bg-white/10 hover:bg-black/5 flex items-center justify-center transition-all flex-shrink-0 relative overflow-hidden">
               {isUploading ? (
@@ -2439,13 +2439,13 @@ const ChatSection = ({ externalContact }) => {
                 </div>
               ) : <Paperclip size={18} />}
             </button>
-            <div className="flex-1 relative group">
+            <div className="flex-1 relative group min-w-0">
               <input 
                 type="text" 
                 value={message} 
                 onChange={handleTyping} 
                 placeholder={editingMessage ? "Update message..." : "Type a message..."} 
-                className="w-full bg-bg-card-secondary border border-border-main group-focus-within:border-accent-primary/50 group-focus-within:bg-bg-card rounded-full px-5 py-3 md:py-3.5 text-sm font-medium text-text-main outline-none transition-all duration-300 placeholder:text-text-muted/50 shadow-inner" 
+                className="w-full bg-bg-card-secondary border border-border-main group-focus-within:border-accent-primary/50 group-focus-within:bg-bg-card rounded-full px-4 sm:px-5 py-2.5 sm:py-3 md:py-3.5 text-sm font-medium text-text-main outline-none transition-all duration-300 placeholder:text-text-muted/50 shadow-inner" 
               />
             </div>
             {message.trim() ? (
@@ -2453,7 +2453,7 @@ const ChatSection = ({ externalContact }) => {
                 <Send size={18} className="ml-0.5" />
               </button>
             ) : (
-              <button type="button" onClick={startRecording} className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-bg-card-secondary text-text-muted hover:text-text-main dark:hover:bg-white/10 hover:bg-black/5 hover:scale-110 active:scale-95">
+              <button type="button" onClick={startRecording} className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-bg-card-secondary text-text-muted hover:text-text-main dark:hover:bg-white/10 hover:bg-black/5 hover:scale-110 active:scale-95 flex-shrink-0 flex items-center justify-center">
                 <Mic size={18} />
               </button>
             )}
