@@ -75,14 +75,14 @@ export const NotificationProvider = ({ children }) => {
             <div
               className={`${
                 t.visible ? 'animate-enter' : 'animate-leave'
-              } max-w-md w-full bg-slate-900/95 dark:bg-gray-900/95 border border-emerald-500/40 shadow-2xl shadow-emerald-500/20 rounded-2xl pointer-events-auto flex p-4 backdrop-blur-xl`}
+              } max-w-md w-full bg-slate-900/95 dark:bg-[#12131C]/95 border border-indigo-500/40 shadow-2xl shadow-indigo-500/20 rounded-2xl pointer-events-auto flex p-4 backdrop-blur-xl`}
             >
               <div className="flex-1 w-0 flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white text-lg font-bold shrink-0 shadow-md shadow-emerald-500/30">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white text-lg font-bold shrink-0 shadow-md shadow-indigo-500/30">
                   🤝
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
+                  <p className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
                     {notif.title}
                   </p>
                   <p className="text-sm font-medium text-white truncate mt-0.5">
@@ -95,7 +95,7 @@ export const NotificationProvider = ({ children }) => {
                   toast.dismiss(t.id);
                   setIsOpen(true);
                 }}
-                className="ml-3 px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/25 shrink-0 self-center"
+                className="ml-3 px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-500/25 shrink-0 self-center"
               >
                 View
               </button>

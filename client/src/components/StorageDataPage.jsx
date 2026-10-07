@@ -102,7 +102,7 @@ const estimateMediaBytes = (images = 0, videos = 0, audio = 0, documents = 0) =>
 // ─────────────────────────────────────────────────────────────
 const SectionHeader = ({ icon: Icon, title, subtitle }) => (
   <div className="flex items-center gap-2 mb-2 px-1">
-    {Icon && <Icon size={14} className="text-emerald-500 dark:text-emerald-400" />}
+    {Icon && <Icon size={14} className="text-indigo-500 dark:text-indigo-400" />}
     <div>
       <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-gray-400">
         {title}
@@ -112,14 +112,14 @@ const SectionHeader = ({ icon: Icon, title, subtitle }) => (
   </div>
 );
 
-const ToggleSwitch = ({ id, checked, onChange, label, sub, icon: Icon, accentColor = '#10b981' }) => (
+const ToggleSwitch = ({ id, checked, onChange, label, sub, icon: Icon, accentColor = '#6366f1' }) => (
   <div className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors">
     <div className="flex items-center gap-2.5 min-w-0 flex-1">
       {Icon && (
         <div
           className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border transition-colors ${
             checked
-              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+              ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600 dark:text-indigo-400'
               : 'bg-slate-100 dark:bg-white/[0.04] border-slate-200 dark:border-white/[0.08] text-slate-500 dark:text-gray-400'
           }`}
         >
@@ -141,8 +141,8 @@ const ToggleSwitch = ({ id, checked, onChange, label, sub, icon: Icon, accentCol
       onClick={() => onChange(!checked)}
       className={`
         relative shrink-0 w-10 h-5.5 rounded-full transition-all duration-300 cursor-pointer
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50
-        ${checked ? 'bg-emerald-500 shadow-sm shadow-emerald-500/30' : 'bg-slate-300 dark:bg-gray-700/80 border border-slate-300/80 dark:border-gray-600/50'}
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50
+        ${checked ? 'bg-indigo-600 shadow-sm shadow-indigo-500/30' : 'bg-slate-300 dark:bg-gray-700/80 border border-slate-300/80 dark:border-gray-600/50'}
       `}
       style={{ height: 22, width: 40 }}
     >
@@ -255,7 +255,7 @@ const ConfirmModal = ({ isOpen, title, message, subtext, confirmLabel, cancelLab
             className={`flex-1 py-3.5 text-[13px] font-bold transition-colors cursor-pointer ${
               dangerous
                 ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10'
-                : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
+                : 'text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10'
             }`}
           >
             {confirmLabel || 'Confirm'}
@@ -269,9 +269,9 @@ const ConfirmModal = ({ isOpen, title, message, subtext, confirmLabel, cancelLab
 // ─────────────────────────────────────────────────────────────
 // Real-time Network Stat Card
 // ─────────────────────────────────────────────────────────────
-const StatBox = ({ icon: Icon, label, value, sub, color = '#10b981', live = false }) => (
+const StatBox = ({ icon: Icon, label, value, sub, color = '#6366f1', live = false }) => (
   <div
-    className="relative flex items-center gap-3 p-3.5 rounded-2xl border border-slate-200 dark:border-gray-800/80 bg-white dark:bg-white/[0.02] shadow-sm transition-all duration-200"
+    className="relative flex items-center gap-3 p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1C1D2A] shadow-sm transition-all duration-200"
   >
     <div
       className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border"
@@ -290,8 +290,8 @@ const StatBox = ({ icon: Icon, label, value, sub, color = '#10b981', live = fals
         </span>
         {live && (
           <span className="flex h-1.5 w-1.5 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-500"></span>
           </span>
         )}
       </div>
@@ -590,14 +590,14 @@ const StorageDataPage = ({ isOpen, onBack }) => {
             animate="visible"
             exit="exit"
             aria-label="Storage and data panel"
-            className="absolute inset-0 z-50 flex flex-col overflow-hidden select-none bg-[#f8fafc] dark:bg-[#11141a] text-slate-900 dark:text-white transition-colors duration-300"
+            className="absolute inset-0 z-50 flex flex-col overflow-hidden select-none bg-[#f8fafc] dark:bg-[#12131C] text-slate-900 dark:text-white transition-colors duration-300"
           >
             {/* Top highlight ambient glow */}
-            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent pointer-events-none z-10" />
+            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent pointer-events-none z-10" />
 
             {/* ── HEADER ── */}
             <header
-              className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-slate-200 dark:border-gray-800/60 shrink-0 bg-white/90 dark:bg-[#11141a]/90 backdrop-blur-md"
+              className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-slate-200 dark:border-white/10 shrink-0 bg-white/90 dark:bg-[#12131C]/90 backdrop-blur-md"
             >
               <motion.button
                 id="storage-data-back-btn"
@@ -614,7 +614,7 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                 <h2 className="text-[17px] font-black tracking-tight text-slate-900 dark:text-white leading-tight">
                   Storage and data
                 </h2>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400/80 leading-none mt-0.5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400/85 leading-none mt-0.5">
                   Network usage, auto-download, local cache
                 </p>
               </div>
@@ -633,7 +633,7 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                 title="Refresh stats"
                 className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer focus-visible:outline-none"
               >
-                <RefreshCw size={14} className={loading ? 'animate-spin text-emerald-500 dark:text-emerald-400' : ''} />
+                <RefreshCw size={14} className={loading ? 'animate-spin text-indigo-500 dark:text-indigo-400' : ''} />
               </motion.button>
             </header>
 
@@ -657,7 +657,7 @@ const StorageDataPage = ({ isOpen, onBack }) => {
 
                 {/* Hero storage container card */}
                 <div
-                  className="rounded-2xl border border-slate-200 dark:border-gray-800/80 p-4 space-y-3.5 relative overflow-hidden shadow-sm bg-white dark:bg-gray-900/60"
+                  className="rounded-2xl border border-slate-200 dark:border-white/10 p-4 space-y-3.5 relative overflow-hidden shadow-sm bg-white dark:bg-[#1C1D2A]"
                 >
                   {/* Total used indicator */}
                   <div className="flex items-start justify-between gap-2">
@@ -674,9 +674,9 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                         </span>
                       </div>
                     </div>
-                    <div className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                    <div className="px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/25 flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                      <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
                         {((totalUsedBytes / totalDeviceBytes) * 100).toFixed(1)}% Used
                       </span>
                     </div>
@@ -825,14 +825,14 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                 <div className="rounded-2xl border border-slate-200 dark:border-gray-800/80 bg-white dark:bg-gray-900/40 p-3 space-y-2 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 dark:text-emerald-400">
+                      <div className="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-500 dark:text-indigo-400">
                         <Activity size={14} />
                       </div>
                       <div>
                         <p className="text-[12px] font-bold text-slate-900 dark:text-white">Active Connection</p>
                         <p className="text-[10px] text-slate-500 dark:text-gray-400">
                           Current rules:{' '}
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400 uppercase">
+                          <span className="font-bold text-indigo-600 dark:text-indigo-400 uppercase">
                             {getCurrentNetworkType(prefs) === 'mobile' ? 'Mobile Data' : 'Wi-Fi'}
                           </span>
                         </p>
@@ -853,7 +853,7 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                             onClick={() => updatePref('networkMode', mode.id)}
                             className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
                               isActive
-                                ? 'bg-emerald-500 text-white shadow-sm'
+                                ? 'bg-indigo-600 text-white shadow-sm'
                                 : 'text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
                             }`}
                           >
@@ -919,9 +919,9 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                 <div className="rounded-2xl border border-slate-200 dark:border-gray-800/80 bg-white dark:bg-gray-900/40 p-3 space-y-2.5 shadow-sm">
                   <div className="flex items-center justify-between border-b border-slate-200 dark:border-gray-800/50 pb-2.5">
                     <div className="flex items-center gap-2">
-                      <Wifi size={13} className="text-emerald-500 dark:text-emerald-400" />
+                      <Wifi size={13} className="text-indigo-500 dark:text-indigo-400" />
                       <div>
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                           When connected to Wi-Fi
                         </span>
                         <p className="text-[10px] text-slate-500 dark:text-gray-400">
@@ -941,7 +941,7 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                         onClick={() => handleWifiAllToggle(true)}
                         className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
                           isWifiAllActive
-                            ? 'bg-emerald-500 text-white shadow-sm'
+                            ? 'bg-indigo-600 text-white shadow-sm'
                             : 'text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
@@ -1090,16 +1090,16 @@ const StorageDataPage = ({ isOpen, onBack }) => {
                   <div
                     className="p-3 rounded-xl border flex items-start gap-3 transition-colors"
                     style={{
-                      background: prefs.useLessData ? 'rgba(245, 158, 11, 0.08)' : 'rgba(16, 185, 129, 0.08)',
-                      borderColor: prefs.useLessData ? 'rgba(245, 158, 11, 0.25)' : 'rgba(16, 185, 129, 0.25)',
+                      background: prefs.useLessData ? 'rgba(245, 158, 11, 0.08)' : 'rgba(99, 102, 241, 0.08)',
+                      borderColor: prefs.useLessData ? 'rgba(245, 158, 11, 0.25)' : 'rgba(99, 102, 241, 0.25)',
                     }}
                   >
                     <div
                       className={`w-2.5 h-2.5 rounded-full shrink-0 mt-1 ${
-                        prefs.useLessData ? 'bg-amber-400' : 'bg-emerald-400'
+                        prefs.useLessData ? 'bg-amber-400' : 'bg-indigo-400'
                       }`}
                       style={{
-                        boxShadow: prefs.useLessData ? '0 0 8px #f59e0b' : '0 0 8px #10b981',
+                        boxShadow: prefs.useLessData ? '0 0 8px #f59e0b' : '0 0 8px #6366f1',
                       }}
                     />
                     <div className="flex-1 min-w-0">

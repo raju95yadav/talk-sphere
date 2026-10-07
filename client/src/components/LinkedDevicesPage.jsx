@@ -389,11 +389,11 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 24 }}
         transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-full max-w-sm rounded-3xl border border-gray-700/60 shadow-2xl shadow-black/80 overflow-hidden flex flex-col"
-        style={{ background: '#121620' }}
+        className="relative w-full max-w-sm rounded-3xl border border-white/10 shadow-2xl shadow-black/80 overflow-hidden flex flex-col"
+        style={{ background: '#12131C' }}
       >
-        {/* Top emerald accent line */}
-        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500" />
+        {/* Top accent line */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500" />
 
         {/* Modal Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-800">
@@ -422,7 +422,7 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
                 onClick={() => setActiveTab('scan')}
                 className={`flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'scan'
-                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -435,7 +435,7 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
                 onClick={() => setActiveTab('show')}
                 className={`flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'show'
-                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -458,7 +458,7 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
                 <div className="w-full flex flex-col items-center text-center space-y-4 py-2">
                   {approvalStatus === 'approved' ? (
                     <div className="py-6 flex flex-col items-center gap-2.5">
-                      <CheckCircle2 size={48} className="text-emerald-400 animate-bounce" />
+                      <CheckCircle2 size={48} className="text-indigo-400 animate-bounce" />
                       <h4 className="text-base font-black text-white">Device Linked!</h4>
                       <p className="text-xs text-gray-400">
                         {targetDevice.browser} on {targetDevice.os} is now connected.
@@ -472,7 +472,7 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
                     </div>
                   ) : (
                     <>
-                      <div className="w-13 h-13 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-lg">
+                      <div className="w-13 h-13 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-lg">
                         <Shield size={28} />
                       </div>
 
@@ -484,15 +484,15 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
                       </div>
 
                       {/* Device Detail Card */}
-                      <div className="w-full bg-[#171c28] border border-gray-800 rounded-2xl p-3.5 flex items-center gap-3 text-left">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-400 shrink-0">
+                      <div className="w-full bg-[#1C1D2A] border border-white/10 rounded-2xl p-3.5 flex items-center gap-3 text-left">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center text-indigo-400 shrink-0">
                           <DeviceIcon os={targetDevice.os} deviceType={targetDevice.deviceType} size={20} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-white truncate">
                             {targetDevice.deviceName || `${targetDevice.browser} on ${targetDevice.os}`}
                           </p>
-                          <p className="text-[11px] text-emerald-400/90 font-medium truncate">
+                          <p className="text-[11px] text-indigo-400/90 font-medium truncate">
                             {targetDevice.browser} on {targetDevice.os}
                           </p>
                           <div className="flex items-center gap-2.5 mt-0.5 text-[11px] text-gray-400">
@@ -530,7 +530,7 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
                           type="button"
                           disabled={approving}
                           onClick={() => handleApproveDecision(true)}
-                          className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/30 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                          className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-indigo-500/30 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
                         >
                           {approving ? <Loader2 size={14} className="animate-spin" /> : <span>Allow & Link</span>}
                         </button>
@@ -541,7 +541,7 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
               ) : (
                 /* Camera Scanner Viewfinder */
                 <div className="w-full flex flex-col items-center">
-                  <div className="relative w-[230px] h-[230px] rounded-2xl overflow-hidden bg-black border-2 border-emerald-500/40 shadow-inner flex items-center justify-center my-1">
+                  <div className="relative w-[230px] h-[230px] rounded-2xl overflow-hidden bg-black border-2 border-indigo-500/40 shadow-inner flex items-center justify-center my-1">
                     <div id={readerId} className="w-full h-full overflow-hidden [&_video]:object-cover [&_video]:w-full [&_video]:h-full" />
 
                     {/* Viewfinder Target & Laser Overlay */}
@@ -551,12 +551,12 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
                           <motion.div
                             animate={{ y: [0, 150, 0] }}
                             transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                            className="absolute top-2 inset-x-2 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_10px_#10b981]"
+                            className="absolute top-2 inset-x-2 h-[2px] bg-gradient-to-r from-transparent via-indigo-400 to-transparent shadow-[0_0_10px_#6366f1]"
                           />
-                          <div className="absolute -top-1 -left-1 w-5 h-5 border-t-3 border-l-3 border-emerald-400 rounded-tl-md" />
-                          <div className="absolute -top-1 -right-1 w-5 h-5 border-t-3 border-r-3 border-emerald-400 rounded-tr-md" />
-                          <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-3 border-l-3 border-emerald-400 rounded-bl-md" />
-                          <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-3 border-r-3 border-emerald-400 rounded-br-md" />
+                          <div className="absolute -top-1 -left-1 w-5 h-5 border-t-3 border-l-3 border-indigo-400 rounded-tl-md" />
+                          <div className="absolute -top-1 -right-1 w-5 h-5 border-t-3 border-r-3 border-indigo-400 rounded-tr-md" />
+                          <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-3 border-l-3 border-indigo-400 rounded-bl-md" />
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-3 border-r-3 border-indigo-400 rounded-br-md" />
                         </div>
                       </div>
                     )}
@@ -564,9 +564,9 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
                     {/* Verifying Session Overlay */}
                     {isVerifying && (
                       <div className="absolute inset-0 bg-black/85 backdrop-blur-xs flex flex-col items-center justify-center p-3 text-center gap-2 z-20">
-                        <Loader2 size={32} className="text-emerald-400 animate-spin" />
+                        <Loader2 size={32} className="text-indigo-400 animate-spin" />
                         <span className="text-xs font-bold text-white">Verifying QR Code...</span>
-                        <span className="text-[10px] text-emerald-300">Connecting to session</span>
+                        <span className="text-[10px] text-indigo-300">Connecting to session</span>
                       </div>
                     )}
 
@@ -576,7 +576,7 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
                         <p className="text-[11px] text-gray-300 leading-snug">{scannerError}</p>
                         <button
                           onClick={() => startScanner(selectedCameraId)}
-                          className="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-[11px] font-bold"
+                          className="px-3 py-1 rounded-lg bg-indigo-500/20 text-indigo-400 text-[11px] font-bold"
                         >
                           Retry Camera
                         </button>
@@ -620,7 +620,7 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
                       onClick={() => fileInputRef.current?.click()}
                       className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold"
                     >
-                      <Upload size={12} className="text-emerald-400" />
+                      <Upload size={12} className="text-indigo-400" />
                       <span>Upload QR Image</span>
                     </button>
                     <input
@@ -655,7 +655,7 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
                   <circle
                     cx="105" cy="105" r="101"
                     fill="none"
-                    stroke={isWarning ? '#ef4444' : '#10b981'}
+                    stroke={isWarning ? '#ef4444' : '#6366f1'}
                     strokeWidth="4"
                     strokeDasharray={`${2 * Math.PI * 101}`}
                     strokeDashoffset={`${2 * Math.PI * 101 * (1 - pct / 100)}`}
@@ -676,8 +676,8 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
                         animate={{ scale: 1, opacity: 1 }}
                         className="flex flex-col items-center gap-2"
                       >
-                        <CheckCircle2 size={48} className="text-emerald-500" />
-                        <span className="text-[12px] font-bold text-emerald-600">Device Linked!</span>
+                        <CheckCircle2 size={48} className="text-indigo-400" />
+                        <span className="text-[12px] font-bold text-indigo-400">Device Linked!</span>
                       </motion.div>
                     ) : loadingQR ? (
                       <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -720,7 +720,7 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
                 <button
                   onClick={fetchToken}
                   disabled={loadingQR}
-                  className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-emerald-400 transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-indigo-400 transition-colors cursor-pointer"
                 >
                   <RefreshCw size={12} className={loadingQR ? 'animate-spin' : ''} />
                   Refresh QR Code
@@ -735,7 +735,7 @@ const LinkDeviceModal = ({ onClose, onLinked }) => {
                   { n: '3', text: 'Point your camera at this QR code to link' },
                 ].map((step) => (
                   <div key={step.n} className="flex items-start gap-2.5">
-                    <span className="shrink-0 w-4.5 h-4.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-[10px] font-black text-emerald-400">
+                    <span className="shrink-0 w-4.5 h-4.5 rounded-full bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center text-[10px] font-black text-indigo-400">
                       {step.n}
                     </span>
                     <p className="text-[11px] text-gray-400 leading-snug">{step.text}</p>
@@ -775,15 +775,15 @@ const SessionCard = ({ session, isCurrent, onRemove, removing, onRename }) => {
       className={`
         w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl border transition-all shadow-sm
         ${isCurrent
-          ? 'border-emerald-500/30 bg-emerald-500/10'
-          : 'border-slate-200 dark:border-gray-800/70 bg-white dark:bg-gray-900/50 hover:bg-slate-50 dark:hover:bg-gray-900/80'}
+          ? 'border-indigo-500/30 bg-indigo-500/10'
+          : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#1C1D2A] hover:bg-slate-50 dark:hover:bg-[#1C1D2A]/80'}
       `}
     >
       {/* Device icon bubble */}
       <div
         className={`shrink-0 w-11 h-11 rounded-xl flex items-center justify-center border ${
           isCurrent
-            ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-600 dark:text-emerald-400'
+            ? 'bg-indigo-500/15 border-indigo-500/25 text-indigo-600 dark:text-indigo-400'
             : 'bg-slate-100 dark:bg-gray-800/80 border-slate-200 dark:border-gray-700/50 text-slate-600 dark:text-gray-400'
         }`}
       >
@@ -800,7 +800,7 @@ const SessionCard = ({ session, isCurrent, onRemove, removing, onRename }) => {
                 value={nameInput}
                 onChange={(e) => setNameInput(e.target.value)}
                 placeholder="Give device a name"
-                className="px-2 py-0.5 text-xs bg-slate-100 dark:bg-gray-800 border border-emerald-500/50 rounded-lg text-slate-900 dark:text-white outline-none w-full max-w-[170px]"
+                className="px-2 py-0.5 text-xs bg-slate-100 dark:bg-gray-800 border border-indigo-500/50 rounded-lg text-slate-900 dark:text-white outline-none w-full max-w-[170px]"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSaveName(e);
@@ -810,7 +810,7 @@ const SessionCard = ({ session, isCurrent, onRemove, removing, onRename }) => {
               <button
                 type="button"
                 onClick={handleSaveName}
-                className="w-6 h-6 rounded-md bg-emerald-500 text-white flex items-center justify-center cursor-pointer hover:bg-emerald-600"
+                className="w-6 h-6 rounded-md bg-indigo-600 text-white flex items-center justify-center cursor-pointer hover:bg-indigo-500"
                 title="Save name"
               >
                 <Check size={12} />
@@ -835,7 +835,7 @@ const SessionCard = ({ session, isCurrent, onRemove, removing, onRename }) => {
                   setNameInput(session.customName || session.deviceName || '');
                   setIsEditing(true);
                 }}
-                className="text-gray-400 hover:text-emerald-400 transition-colors p-0.5"
+                className="text-gray-400 hover:text-indigo-400 transition-colors p-0.5"
                 title="Rename this device"
               >
                 <Edit2 size={11} />
@@ -844,7 +844,7 @@ const SessionCard = ({ session, isCurrent, onRemove, removing, onRename }) => {
           )}
 
           {isCurrent && !isEditing && (
-            <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded-full">
+            <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-indigo-400 bg-indigo-500/15 border border-indigo-500/30 px-1.5 py-0.5 rounded-full">
               This device
             </span>
           )}
@@ -1030,14 +1030,14 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
             animate="visible"
             exit="exit"
             aria-label="Linked devices"
-            className="absolute inset-0 z-50 flex flex-col overflow-hidden bg-[#f8fafc] dark:bg-[#11141a] text-slate-900 dark:text-white transition-colors duration-300"
+            className="absolute inset-0 z-50 flex flex-col overflow-hidden bg-[#f8fafc] dark:bg-[#12131C] text-slate-900 dark:text-white transition-colors duration-300"
           >
             {/* Top highlight line */}
-            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-500/35 to-transparent pointer-events-none z-10" />
+            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/35 to-transparent pointer-events-none z-10" />
 
             {/* ── Header ── */}
             <div
-              className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-slate-200 dark:border-gray-800/60 shrink-0 bg-white/90 dark:bg-[#11141a]/90 backdrop-blur-md"
+              className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-slate-200 dark:border-white/10 shrink-0 bg-white/90 dark:bg-[#12131C]/90 backdrop-blur-md"
             >
               <motion.button
                 id="linked-devices-back"
@@ -1053,7 +1053,7 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
                 <h2 className="text-[17px] font-black tracking-tight text-slate-900 dark:text-white leading-tight">
                   Linked Devices
                 </h2>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400/75 leading-none mt-0.5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400/85 leading-none mt-0.5">
                   Manage active sessions
                 </p>
               </div>
@@ -1087,7 +1087,7 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
                     <div className="w-16 h-11 rounded-t-lg bg-slate-200 dark:bg-gray-800 border border-slate-300 dark:border-gray-700/80 flex items-center justify-center shadow-md">
                       <div className="w-12 h-7 rounded bg-slate-100 dark:bg-gray-900 border border-slate-300 dark:border-gray-700/60 flex items-center justify-center">
                         <div className="w-6 h-4 rounded-sm"
-                          style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+                          style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' }}
                         />
                       </div>
                     </div>
@@ -1099,7 +1099,7 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
                     <div className="w-3 h-0.5 rounded-full bg-slate-400 dark:bg-gray-700" />
                     <div className="w-5 h-7 rounded bg-slate-100 dark:bg-gray-900 border border-slate-300 dark:border-gray-700/60 flex items-center justify-center">
                       <div className="w-2.5 h-3.5 rounded-sm"
-                        style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+                        style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' }}
                       />
                     </div>
                     <div className="w-3 h-3 rounded-full border border-slate-300 dark:border-gray-600/60" />
@@ -1109,7 +1109,7 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
                   <div className="absolute -top-1 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 opacity-60">
                     {[14, 10, 6].map((s, i) => (
                       <div key={i}
-                        className="rounded-full border-t-2 border-emerald-400"
+                        className="rounded-full border-t-2 border-indigo-400"
                         style={{ width: s, height: s / 2 }}
                       />
                     ))}
@@ -1133,13 +1133,13 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
                   onClick={() => setShowQR(true)}
                   className="relative w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl text-[13px] font-black uppercase tracking-wider text-white overflow-hidden cursor-pointer focus-visible:outline-none shadow-xl"
                   style={{
-                    background: 'linear-gradient(135deg, #10b981 0%, #059669 60%, #047857 100%)',
-                    boxShadow: '0 8px 32px -4px rgba(16,185,129,0.4)',
+                    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 60%, #4338ca 100%)',
+                    boxShadow: '0 8px 32px -4px rgba(99,102,241,0.4)',
                   }}
                 >
                   {/* Pulse rings */}
                   <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <span className="w-full h-full rounded-2xl border-2 border-emerald-400/30 animate-ping absolute" />
+                    <span className="w-full h-full rounded-2xl border-2 border-indigo-400/30 animate-ping absolute" />
                   </span>
                   <Link2 size={17} />
                   Link a Device
@@ -1177,7 +1177,7 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
                       exit={{ opacity: 0 }}
                       className="py-10 flex flex-col items-center gap-3"
                     >
-                      <Loader2 size={24} className="text-emerald-500 dark:text-gray-500 animate-spin" />
+                      <Loader2 size={24} className="text-indigo-500 dark:text-indigo-400 animate-spin" />
                       <p className="text-[11px] text-slate-500 dark:text-gray-400 font-medium">Loading sessions…</p>
                     </motion.div>
                   ) : otherSessions.length === 0 ? (
@@ -1186,7 +1186,7 @@ const LinkedDevicesPage = ({ isOpen, onBack }) => {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="py-8 flex flex-col items-center gap-3 border border-dashed border-slate-300 dark:border-gray-800/60 rounded-2xl bg-white/50 dark:bg-transparent"
+                      className="py-8 flex flex-col items-center gap-3 border border-dashed border-slate-300 dark:border-white/10 rounded-2xl bg-white/50 dark:bg-transparent"
                     >
                       <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-gray-800/60 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center">
                         <WifiOff size={18} className="text-slate-400 dark:text-gray-500" />

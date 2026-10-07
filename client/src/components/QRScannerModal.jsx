@@ -258,15 +258,15 @@ const QRScannerModal = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.92, y: 20 }}
           transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full max-w-md rounded-3xl border border-gray-800 bg-[#0d1117] text-white shadow-2xl overflow-hidden flex flex-col"
+          className="relative w-full max-w-md rounded-3xl border border-white/10 bg-[#12131C] text-white shadow-2xl overflow-hidden flex flex-col"
         >
           {/* Top highlight bar */}
-          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500" />
+          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500" />
 
           {/* Modal Header */}
-          <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-800/80">
+          <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-white/10">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <div className="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
                 <Camera size={16} />
               </div>
               <div>
@@ -286,7 +286,7 @@ const QRScannerModal = ({
           {/* Viewfinder area */}
           <div className="relative p-5 flex flex-col items-center justify-center min-h-[320px]">
             {/* Camera feed canvas container */}
-            <div className="relative w-[280px] h-[280px] rounded-2xl overflow-hidden bg-black border-2 border-emerald-500/40 shadow-inner flex items-center justify-center">
+            <div className="relative w-[280px] h-[280px] rounded-2xl overflow-hidden bg-black border-2 border-indigo-500/40 shadow-inner flex items-center justify-center">
               <div id={readerElementId} className="w-full h-full overflow-hidden [&_video]:object-cover [&_video]:w-full [&_video]:h-full" />
 
               {/* Viewfinder Reticle / Overlay */}
@@ -298,14 +298,14 @@ const QRScannerModal = ({
                     <motion.div
                       animate={{ y: [0, 180, 0] }}
                       transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-                      className="absolute top-2 inset-x-2 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_12px_#10b981]"
+                      className="absolute top-2 inset-x-2 h-[2px] bg-gradient-to-r from-transparent via-indigo-400 to-transparent shadow-[0_0_12px_#6366f1]"
                     />
 
                     {/* Corner Reticles */}
-                    <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-emerald-400 rounded-tl-lg" />
-                    <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-emerald-400 rounded-tr-lg" />
-                    <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-emerald-400 rounded-bl-lg" />
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-emerald-400 rounded-br-lg" />
+                    <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-indigo-400 rounded-tl-lg" />
+                    <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-indigo-400 rounded-tr-lg" />
+                    <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-indigo-400 rounded-bl-lg" />
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-indigo-400 rounded-br-lg" />
                   </div>
                 </div>
               )}
@@ -313,7 +313,7 @@ const QRScannerModal = ({
               {/* Success Result Overlay */}
               {scannedResult && (
                 <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center gap-3 p-4">
-                  <CheckCircle2 size={54} className="text-emerald-400 animate-bounce" />
+                  <CheckCircle2 size={54} className="text-indigo-400 animate-bounce" />
                   <span className="text-sm font-extrabold text-white">QR Code Captured!</span>
                   <span className="text-[11px] text-gray-400 text-center">Verifying session details...</span>
                 </div>
@@ -326,7 +326,7 @@ const QRScannerModal = ({
                   <p className="text-xs text-gray-300 leading-relaxed font-medium">{errorMsg}</p>
                   <button
                     onClick={() => startScanner(selectedCameraId)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold hover:bg-emerald-500/30 transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs font-bold hover:bg-indigo-500/30 transition-all cursor-pointer"
                   >
                     <RefreshCw size={12} />
                     Try Again
@@ -366,13 +366,13 @@ const QRScannerModal = ({
           </div>
 
           {/* Footer: Alternative Image Upload */}
-          <div className="px-5 py-3.5 bg-gray-900/60 border-t border-gray-800/80 flex items-center justify-between gap-3">
+          <div className="px-5 py-3.5 bg-[#1C1D2A] border-t border-white/10 flex items-center justify-between gap-3">
             <span className="text-[11px] text-gray-400">Can't use camera?</span>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gray-800 border border-gray-700 hover:border-emerald-500/40 text-gray-200 hover:text-white text-xs font-semibold transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gray-800 border border-gray-700 hover:border-indigo-500/50 text-gray-200 hover:text-white text-xs font-semibold transition-all cursor-pointer"
             >
-              <Upload size={13} className="text-emerald-400" />
+              <Upload size={13} className="text-indigo-400" />
               <span>Scan QR from Image</span>
             </button>
             <input

@@ -91,9 +91,9 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
       case 'invite_joined':
         return {
           icon: UserPlus,
-          bg: 'bg-emerald-500/15 border-emerald-500/25 text-emerald-600 dark:text-emerald-400',
+          bg: 'bg-indigo-500/15 border-indigo-500/25 text-indigo-400',
           badge: 'INVITE CONNECTED',
-          badgeColor: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+          badgeColor: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30'
         };
       case 'login_alert':
         return {
@@ -112,9 +112,9 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
       case 'friend_request':
         return {
           icon: UserCheck,
-          bg: 'bg-cyan-500/15 border-cyan-500/25 text-cyan-600 dark:text-cyan-400',
+          bg: 'bg-violet-500/15 border-violet-500/25 text-violet-400',
           badge: 'NEW CONTACT',
-          badgeColor: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border-cyan-500/30'
+          badgeColor: 'bg-violet-500/15 text-violet-400 border-violet-500/30'
         };
       case 'ai_alert':
         return {
@@ -126,9 +126,9 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
       default:
         return {
           icon: Bell,
-          bg: 'bg-blue-500/15 border-blue-500/25 text-blue-600 dark:text-blue-400',
+          bg: 'bg-indigo-500/15 border-indigo-500/25 text-indigo-400',
           badge: 'SYSTEM UPDATE',
-          badgeColor: 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30'
+          badgeColor: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30'
         };
     }
   };
@@ -152,31 +152,31 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-            className="relative w-full max-w-md sm:max-w-lg h-full bg-[#f8fafc] dark:bg-[#11141a] text-slate-900 dark:text-white border-l border-slate-200 dark:border-gray-800/60 shadow-2xl shadow-black/20 dark:shadow-black/70 flex flex-col z-10 overflow-hidden transition-colors duration-300"
+            className="relative w-full max-w-md sm:max-w-lg h-full bg-[#f8fafc] dark:bg-[#090A0F] text-slate-900 dark:text-white border-l border-slate-200 dark:border-white/[0.08] shadow-2xl shadow-black/20 dark:shadow-black/70 flex flex-col z-10 overflow-hidden transition-colors duration-300"
           >
             {/* Top Highlight Accent Line */}
-            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent pointer-events-none z-10" />
+            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent pointer-events-none z-10" />
 
             {/* Ambient Background Glow (Subtle in light, vivid in dark) */}
-            <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 dark:bg-emerald-500/15 rounded-full blur-[100px] pointer-events-none" />
-            <div className="absolute bottom-10 left-0 w-72 h-72 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-[90px] pointer-events-none" />
+            <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 dark:bg-indigo-500/15 rounded-full blur-[100px] pointer-events-none" />
+            <div className="absolute bottom-10 left-0 w-72 h-72 bg-violet-500/5 dark:bg-violet-500/10 rounded-full blur-[90px] pointer-events-none" />
 
             {/* Header */}
-            <div className="relative p-4 sm:p-5 border-b border-slate-200 dark:border-gray-800/60 flex items-center justify-between gap-3 shrink-0 bg-white/70 dark:bg-white/[0.02] backdrop-blur-md">
+            <div className="relative p-4 sm:p-5 border-b border-slate-200 dark:border-white/[0.08] flex items-center justify-between gap-3 shrink-0 bg-white/70 dark:bg-[#12131C]/90 backdrop-blur-md">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-md shadow-emerald-500/25 shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/30 shrink-0">
                   <Bell size={18} />
                 </div>
                 <div>
                   <h2 className="text-base font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                     NOTIFICATIONS
                     {unreadCount > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500 text-slate-950 tracking-wider shadow-sm">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-600 text-white tracking-wider shadow-sm">
                         {unreadCount} NEW
                       </span>
                     )}
                   </h2>
-                  <p className="text-[11px] text-slate-500 dark:text-gray-400 font-medium">
+                  <p className="text-[11px] text-slate-500 dark:text-[#94A3B8] font-medium">
                     Real-time updates across all TalkSphere events
                   </p>
                 </div>
@@ -189,14 +189,14 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
                     <button
                       onClick={markAllAsRead}
                       title="Mark all as read"
-                      className="p-2 rounded-xl bg-slate-100 dark:bg-gray-800/80 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200 dark:border-gray-700/50 transition-all cursor-pointer"
+                      className="p-2 rounded-xl bg-slate-100 dark:bg-[#1C1D2A] hover:bg-slate-200 dark:hover:bg-[#252738] text-slate-600 dark:text-[#94A3B8] hover:text-indigo-400 border border-slate-200 dark:border-white/[0.08] transition-all cursor-pointer"
                     >
                       <CheckCheck size={16} />
                     </button>
                     <button
                       onClick={clearAll}
                       title="Clear all"
-                      className="p-2 rounded-xl bg-slate-100 dark:bg-gray-800/80 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-400 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-gray-700/50 transition-all cursor-pointer"
+                      className="p-2 rounded-xl bg-slate-100 dark:bg-[#1C1D2A] hover:bg-slate-200 dark:hover:bg-[#252738] text-slate-600 dark:text-[#94A3B8] hover:text-rose-500 border border-slate-200 dark:border-white/[0.08] transition-all cursor-pointer"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -205,7 +205,7 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
                 <button
                   onClick={closeNotifications}
                   title="Close panel"
-                  className="p-2 rounded-xl bg-slate-100 dark:bg-gray-800/80 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-gray-700/50 transition-all cursor-pointer"
+                  className="p-2 rounded-xl bg-slate-100 dark:bg-[#1C1D2A] hover:bg-slate-200 dark:hover:bg-[#252738] text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-white/[0.08] transition-all cursor-pointer"
                 >
                   <X size={18} />
                 </button>
@@ -213,15 +213,15 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
             </div>
 
             {/* Filter Tabs */}
-            <div className="px-4 py-2.5 border-b border-slate-200 dark:border-gray-800/60 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 bg-slate-100/50 dark:bg-black/20">
+            <div className="px-4 py-2.5 border-b border-slate-200 dark:border-white/[0.08] flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 bg-slate-100/50 dark:bg-[#12131C]/60">
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                     activeCategory === cat.id
-                      ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-bold'
-                      : 'bg-white/80 dark:bg-gray-800/60 text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white border border-slate-200/80 dark:border-gray-700/50'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25 font-bold'
+                      : 'bg-white/80 dark:bg-[#1C1D2A] text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-white border border-slate-200/80 dark:border-white/[0.08]'
                   }`}
                 >
                   {cat.label}
@@ -233,7 +233,7 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
             <div className="flex-1 overflow-y-auto p-4 space-y-3 relative">
               {filteredNotifications.length === 0 ? (
                 <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center p-6 select-none">
-                  <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-gray-800/60 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-400 dark:text-gray-500 mb-3 shadow-sm">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-[#1C1D2A] border border-slate-200 dark:border-white/[0.08] flex items-center justify-center text-slate-400 dark:text-[#94A3B8] mb-3 shadow-sm">
                     <Bell size={28} className="stroke-[1.5]" />
                   </div>
                   <h3 className="text-sm font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider">
@@ -258,13 +258,13 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
                       exit={{ opacity: 0, scale: 0.96 }}
                       className={`relative p-3.5 sm:p-4 rounded-2xl border transition-all ${
                         notif.isRead
-                          ? 'bg-white/80 dark:bg-gray-850/40 dark:bg-gray-900/40 border-slate-200/80 dark:border-gray-800/60 shadow-sm hover:shadow-md'
-                          : 'bg-emerald-500/[0.06] dark:bg-gradient-to-r dark:from-emerald-500/[0.09] dark:to-teal-500/[0.04] border-emerald-500/35 dark:border-emerald-500/30 shadow-md shadow-emerald-500/5'
+                          ? 'bg-white/80 dark:bg-[#1C1D2A]/80 border-slate-200/80 dark:border-white/[0.08] shadow-sm hover:shadow-md'
+                          : 'bg-indigo-500/[0.08] dark:bg-gradient-to-r dark:from-indigo-500/[0.12] dark:to-violet-500/[0.06] border-indigo-500/40 dark:border-indigo-500/35 shadow-md shadow-indigo-500/10'
                       }`}
                     >
                       {/* Unread Glowing Dot */}
                       {!notif.isRead && (
-                        <span className="absolute top-3.5 right-3.5 w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
+                        <span className="absolute top-3.5 right-3.5 w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_#6366F1]" />
                       )}
 
                       <div className="flex items-start gap-3">
@@ -300,7 +300,7 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
                           <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-snug">
                             {notif.title}
                           </h4>
-                          <p className="text-xs text-slate-600 dark:text-gray-300 mt-1 leading-relaxed break-words">
+                          <p className="text-xs text-slate-600 dark:text-[#94A3B8] mt-1 leading-relaxed break-words">
                             {notif.message}
                           </p>
 
@@ -319,7 +319,7 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
                                       onOpenChatWithContact({ _id: targetId, id: targetId });
                                     }
                                   }}
-                                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center gap-1.5 border border-emerald-500/30 transition-all cursor-pointer shadow-sm"
+                                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15 text-indigo-400 font-bold text-xs flex items-center gap-1.5 border border-indigo-500/30 transition-all cursor-pointer shadow-sm"
                                 >
                                   <UserCheck size={14} />
                                   Connected • Open Chat
@@ -329,10 +329,10 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
                                   id={`notif-connect-btn-${notif._id}`}
                                   disabled={connectingId === notif._id}
                                   onClick={() => handleConnect(notif)}
-                                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/25 active:scale-95 transition-all cursor-pointer"
+                                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-black text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-500/25 active:scale-95 transition-all cursor-pointer"
                                 >
                                   {connectingId === notif._id ? (
-                                    <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                                   ) : (
                                     <>
                                       <span>🤝 CONNECT & CHAT ASAP</span>
@@ -372,7 +372,7 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
                                     onOpenChatWithContact({ _id: targetId, id: targetId });
                                   }
                                 }}
-                                className="px-3.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-700 dark:text-cyan-300 font-bold text-xs flex items-center gap-1.5 border border-cyan-500/30 transition-all cursor-pointer"
+                                className="px-3.5 py-1.5 rounded-xl bg-violet-500/15 hover:bg-violet-500/25 text-violet-400 font-bold text-xs flex items-center gap-1.5 border border-violet-500/30 transition-all cursor-pointer"
                               >
                                 <MessageSquare size={13} />
                                 Open Chat
@@ -394,7 +394,7 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
                             <button
                               onClick={() => markAsRead(notif._id)}
                               title="Mark read"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 dark:text-gray-500 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-all cursor-pointer"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 dark:text-gray-500 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-all cursor-pointer"
                             >
                               <CheckCheck size={13} />
                             </button>
@@ -408,9 +408,9 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
             </div>
 
             {/* Bottom Footer Info */}
-            <div className="p-3 border-t border-slate-200 dark:border-gray-800/60 bg-slate-50 dark:bg-white/[0.01] flex items-center justify-between text-[11px] text-slate-500 dark:text-gray-400 shrink-0">
+            <div className="p-3 border-t border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-[#12131C] flex items-center justify-between text-[11px] text-slate-500 dark:text-[#94A3B8] shrink-0">
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
                 Live Socket Active
               </span>
               <span>TalkSphere Notifications</span>

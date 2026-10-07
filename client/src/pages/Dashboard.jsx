@@ -144,7 +144,7 @@ const Dashboard = () => {
               <motion.div 
                 whileHover={{ scale: 1.05, rotate: 3 }}
                 whileTap={{ scale: 0.95 }}
-                className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/25 shrink-0 cursor-pointer"
+                className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-tr from-indigo-500 via-indigo-600 to-violet-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0 cursor-pointer"
               >
                 <span className="font-black text-base sm:text-xl text-white">TS</span>
               </motion.div>
@@ -170,7 +170,7 @@ const Dashboard = () => {
               >
                 <Bell size={16} />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-black text-slate-950 shadow-md shadow-emerald-500/30 animate-pulse">
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-indigo-600 text-[9px] font-black text-white shadow-md shadow-indigo-500/30 animate-pulse">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
@@ -206,7 +206,7 @@ const Dashboard = () => {
           </div>
 
           {/* Center: Tabs Navigation */}
-          <div className="w-full lg:w-auto bg-bg-card-secondary/80 backdrop-blur-md rounded-xl lg:rounded-full p-1 max-w-full overflow-hidden">
+          <div className="w-full lg:w-auto bg-bg-card-secondary/80 backdrop-blur-md rounded-xl lg:rounded-full p-1 max-w-full overflow-hidden border border-border-main">
             <div className="grid grid-cols-3 gap-1 lg:flex lg:items-center lg:gap-1.5">
               {tabs.map((tab) => (
                 <button
@@ -221,7 +221,7 @@ const Dashboard = () => {
                   {activeTab === tab.name && (
                     <motion.div
                       layoutId="activeTabPill"
-                      className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg lg:rounded-full shadow-lg shadow-emerald-500/30"
+                      className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 rounded-lg lg:rounded-full shadow-lg shadow-indigo-500/35"
                       transition={{ type: 'spring', stiffness: 450, damping: 35 }}
                     />
                   )}
@@ -252,7 +252,7 @@ const Dashboard = () => {
              >
                <Bell size={16} />
                {unreadCount > 0 && (
-                 <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-black text-slate-950 shadow-lg shadow-emerald-500/30 animate-pulse">
+                 <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-indigo-600 text-[9px] font-black text-white shadow-lg shadow-indigo-500/35 animate-pulse">
                    {unreadCount > 99 ? '99+' : unreadCount}
                  </span>
                )}

@@ -323,7 +323,7 @@ const CallModal = () => {
                 <div className="w-full h-full flex flex-col items-center justify-center relative p-6 bg-gradient-to-b from-bg-main to-bg-card">
                   <div 
                     className="w-32 h-32 rounded-full border-4 border-accent-primary/60 overflow-hidden bg-bg-card-secondary shadow-2xl mb-6 relative transition-all duration-150"
-                    style={{ boxShadow: speakingVolume > 10 ? `0 0 ${speakingVolume}px rgba(0, 240, 255, 0.8)` : 'none' }}
+                    style={{ boxShadow: speakingVolume > 10 ? `0 0 ${speakingVolume}px rgba(99, 102, 241, 0.8)` : 'none' }}
                   >
                     {displayAvatar ? (
                       <img src={displayAvatar} alt={displayName} className="w-full h-full object-cover" />
@@ -332,7 +332,7 @@ const CallModal = () => {
                     )}
                   </div>
                   <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">{displayName}</h3>
-                  <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-6">AUDIO ENCRYPTED LINK</p>
+                  <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-6">AUDIO ENCRYPTED LINK</p>
                   
                   {/* Dynamic Sound Wave Bars */}
                   <div className="flex items-center gap-1.5 h-8">

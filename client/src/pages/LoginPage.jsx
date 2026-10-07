@@ -260,12 +260,12 @@ const LoginPage = () => {
         <motion.div
           animate={{ x: [0, 30, 0], y: [0, -25, 0], opacity: [0.3, 0.55, 0.3] }}
           transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute top-1/6 left-1/6 w-72 sm:w-96 h-72 sm:h-96 bg-cyan-400/25 rounded-full blur-[100px]"
+          className="absolute top-1/6 left-1/6 w-72 sm:w-96 h-72 sm:h-96 bg-indigo-500/25 rounded-full blur-[100px]"
         />
         <motion.div
           animate={{ x: [0, -25, 0], y: [0, 25, 0], opacity: [0.25, 0.5, 0.25] }}
           transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-          className="absolute bottom-1/6 right-1/6 w-72 sm:w-96 h-72 sm:h-96 bg-emerald-500/20 rounded-full blur-[110px]"
+          className="absolute bottom-1/6 right-1/6 w-72 sm:w-96 h-72 sm:h-96 bg-violet-600/25 rounded-full blur-[110px]"
         />
       </div>
 
@@ -275,12 +275,12 @@ const LoginPage = () => {
         initial={{ opacity: 0, y: 20, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.45, ease: 'easeOut' }}
-        className={`w-full relative z-10 rounded-3xl bg-[#0a0d14]/92 backdrop-blur-2xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_50px_rgba(16,185,129,0.15)] overflow-hidden transition-all duration-300 ${
+        className={`w-full relative z-10 rounded-3xl bg-[#090A0F]/95 backdrop-blur-2xl border border-white/[0.08] shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_50px_rgba(99,102,241,0.2)] overflow-hidden transition-all duration-300 ${
           authMethod === 'qr' ? 'max-w-[760px] p-5 sm:p-8' : 'max-w-[450px] p-6 sm:p-8'
         }`}
       >
         {/* Top Shimmer Gradient Accent */}
-        <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-transparent via-emerald-400 via-teal-400 to-transparent animate-pulse" />
+        <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-transparent via-indigo-500 via-violet-400 to-transparent animate-pulse" />
 
         {/* Header Branding */}
         <div className="flex flex-col items-center mb-5 text-center">
@@ -288,11 +288,11 @@ const LoginPage = () => {
             <motion.div
               whileHover={{ scale: 1.08, rotate: 6 }}
               whileTap={{ scale: 0.95 }}
-              className="relative w-12 h-12 rounded-2xl p-[1.5px] bg-gradient-to-tr from-emerald-400 via-teal-500 to-emerald-600 shadow-lg shadow-emerald-500/25 cursor-pointer"
+              className="relative w-12 h-12 rounded-2xl p-[1.5px] bg-gradient-to-tr from-indigo-500 via-violet-500 to-indigo-600 shadow-lg shadow-indigo-500/30 cursor-pointer"
             >
-              <div className="w-full h-full bg-[#0b0e14] rounded-[14px] flex items-center justify-center relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/20 via-transparent to-teal-500/20 opacity-90" />
-                <ShieldCheck size={26} className="text-white drop-shadow-[0_0_8px_rgba(16,185,129,0.8)] relative z-10" />
+              <div className="w-full h-full bg-[#090A0F] rounded-[14px] flex items-center justify-center relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/20 via-transparent to-violet-500/20 opacity-90" />
+                <ShieldCheck size={26} className="text-white drop-shadow-[0_0_8px_rgba(99,102,241,0.8)] relative z-10" />
               </div>
             </motion.div>
 
@@ -312,17 +312,17 @@ const LoginPage = () => {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-5 p-3 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-transparent border border-emerald-500/35 flex items-center gap-3 shadow-lg shadow-emerald-500/10"
+            className="mb-5 p-3 rounded-2xl bg-gradient-to-r from-indigo-500/15 via-violet-500/10 to-transparent border border-indigo-500/35 flex items-center gap-3 shadow-lg shadow-indigo-500/15"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 font-bold shrink-0 shadow-md shadow-emerald-500/30 text-lg">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold shrink-0 shadow-md shadow-indigo-500/30 text-lg">
               ✨
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black uppercase text-emerald-400 tracking-wider">
+              <p className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">
                 Personal Invitation
               </p>
               <p className="text-xs text-white font-medium truncate mt-0.5">
-                Invited by <span className="font-bold text-emerald-300">@{pendingRef}</span>
+                Invited by <span className="font-bold text-violet-300">@{pendingRef}</span>
               </p>
               <p className="text-[11px] text-gray-400">
                 Sign in with Google or Email to instantly connect!
@@ -333,7 +333,7 @@ const LoginPage = () => {
 
         {/* ── 3 Primary Authentication Tabs (Email OTP -> Google -> Scan QR) ── */}
         <div className="mb-6">
-          <div className="grid grid-cols-3 p-1 rounded-2xl bg-[#121622] border border-white/10 shadow-inner relative">
+          <div className="grid grid-cols-3 p-1 rounded-2xl bg-[#12131C] border border-white/[0.08] shadow-inner relative">
             {/* 1st Tab: Email OTP */}
             <button
               type="button"
@@ -345,7 +345,7 @@ const LoginPage = () => {
               {authMethod === 'email' && (
                 <motion.div
                   layoutId="authTabPill"
-                  className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl shadow-md shadow-emerald-500/30"
+                  className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-xl shadow-md shadow-indigo-500/35"
                   transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                 />
               )}
@@ -366,7 +366,7 @@ const LoginPage = () => {
               {authMethod === 'google' && (
                 <motion.div
                   layoutId="authTabPill"
-                  className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl shadow-md shadow-emerald-500/30"
+                  className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-xl shadow-md shadow-indigo-500/35"
                   transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                 />
               )}
@@ -392,7 +392,7 @@ const LoginPage = () => {
               {authMethod === 'qr' && (
                 <motion.div
                   layoutId="authTabPill"
-                  className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl shadow-md shadow-emerald-500/30"
+                  className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-xl shadow-md shadow-indigo-500/35"
                   transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                 />
               )}
@@ -437,7 +437,7 @@ const LoginPage = () => {
                     { n: '3', text: 'Point your camera at this QR code to confirm & log in' },
                   ].map((step) => (
                     <div key={step.n} className="flex items-start gap-3">
-                      <span className="shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/35 flex items-center justify-center text-xs font-black text-emerald-400">
+                      <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-500/20 border border-indigo-500/35 flex items-center justify-center text-xs font-black text-indigo-400">
                         {step.n}
                       </span>
                       <p className="text-xs sm:text-[13px] text-gray-300 leading-snug pt-0.5">
@@ -454,7 +454,7 @@ const LoginPage = () => {
                       type="checkbox"
                       checked={stayLoggedIn}
                       onChange={(e) => setStayLoggedIn(e.target.checked)}
-                      className="rounded accent-emerald-500 cursor-pointer w-4 h-4"
+                      className="rounded accent-indigo-500 cursor-pointer w-4 h-4"
                     />
                     <span>Stay logged in on this browser</span>
                   </label>
@@ -463,7 +463,7 @@ const LoginPage = () => {
                     <button
                       type="button"
                       onClick={() => setShowCameraScanner(true)}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer py-1"
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer py-1"
                     >
                       <Camera size={14} />
                       <span>Or scan a QR code using this device's camera</span>
@@ -475,7 +475,7 @@ const LoginPage = () => {
 
               {/* Right Side: High-Res QR Code Display with WhatsApp-style center logo & countdown */}
               <div className="flex flex-col items-center shrink-0">
-                <div className="relative p-3 rounded-3xl bg-white border-4 border-emerald-500/30 shadow-[0_0_35px_rgba(16,185,129,0.25)] flex items-center justify-center">
+                <div className="relative p-3 rounded-3xl bg-white border-4 border-indigo-500/30 shadow-[0_0_35px_rgba(99,102,241,0.25)] flex items-center justify-center">
                   {/* Glowing TalkSphere shield overlay at the center */}
                   <div className="relative">
                     {qrPayload ? (
@@ -483,31 +483,31 @@ const LoginPage = () => {
                         value={qrPayload}
                         size={200}
                         level="M"
-                        fgColor="#0a0d14"
+                        fgColor="#090A0F"
                         bgColor="#ffffff"
                         includeMargin={false}
                         style={{ borderRadius: 8, display: 'block' }}
                       />
                     ) : (
                       <div className="w-[200px] h-[200px] flex items-center justify-center bg-gray-50 rounded-xl">
-                        <Loader2 size={36} className="text-emerald-600 animate-spin" />
+                        <Loader2 size={36} className="text-indigo-600 animate-spin" />
                       </div>
                     )}
 
                     {/* Loading Spinner Overlay */}
                     {qrLoading && (
                       <div className="absolute inset-0 bg-white/90 backdrop-blur-xs rounded-xl flex flex-col items-center justify-center gap-2">
-                        <Loader2 size={36} className="text-emerald-600 animate-spin" />
+                        <Loader2 size={36} className="text-indigo-600 animate-spin" />
                         <span className="text-[11px] font-bold text-gray-800">Generating QR...</span>
                       </div>
                     )}
 
                     {/* Scanned Waiting for Approval Overlay */}
                     {qrStatus === 'scanned' && (
-                      <div className="absolute inset-0 bg-emerald-950/90 backdrop-blur-xs rounded-xl flex flex-col items-center justify-center p-3 text-center gap-2">
-                        <Loader2 size={36} className="text-emerald-400 animate-spin" />
+                      <div className="absolute inset-0 bg-[#090A0F]/90 backdrop-blur-xs rounded-xl flex flex-col items-center justify-center p-3 text-center gap-2 border border-indigo-500/40">
+                        <Loader2 size={36} className="text-indigo-400 animate-spin" />
                         <span className="text-xs font-black text-white">QR Code Scanned!</span>
-                        <span className="text-[10px] text-emerald-200">
+                        <span className="text-[10px] text-indigo-200">
                           Please tap "Allow" on your phone to complete login
                         </span>
                       </div>
@@ -515,7 +515,7 @@ const LoginPage = () => {
 
                     {/* Approved Celebration Overlay */}
                     {qrStatus === 'approved' && (
-                      <div className="absolute inset-0 bg-emerald-600 rounded-xl flex flex-col items-center justify-center p-3 text-center gap-2 text-white">
+                      <div className="absolute inset-0 bg-indigo-600 rounded-xl flex flex-col items-center justify-center p-3 text-center gap-2 text-white">
                         <CheckCircle2 size={44} className="animate-bounce" />
                         <span className="text-sm font-black">Authenticated!</span>
                         <span className="text-[11px] opacity-90">Entering Talk Sphere...</span>
@@ -529,7 +529,7 @@ const LoginPage = () => {
                         <button
                           type="button"
                           onClick={generateNewQR}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-extrabold uppercase tracking-wider shadow-lg shadow-emerald-500/30 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-xs font-extrabold uppercase tracking-wider shadow-lg shadow-indigo-500/30 hover:scale-105 active:scale-95 transition-all cursor-pointer"
                         >
                           <RefreshCw size={13} />
                           <span>Reload QR Code</span>
@@ -543,8 +543,8 @@ const LoginPage = () => {
                 <div className="mt-3 flex items-center gap-2">
                   {qrStatus === 'pending' && (
                     <span className="text-[11px] font-medium text-gray-400 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      Refreshes in <span className="font-bold text-emerald-400">{remaining}s</span>
+                      <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+                      Refreshes in <span className="font-bold text-indigo-400">{remaining}s</span>
                     </span>
                   )}
                   {qrStatus !== 'expired' && qrStatus !== 'approved' && (
@@ -552,7 +552,7 @@ const LoginPage = () => {
                       type="button"
                       onClick={generateNewQR}
                       disabled={qrLoading}
-                      className="text-gray-400 hover:text-emerald-400 transition-colors p-1"
+                      className="text-gray-400 hover:text-indigo-400 transition-colors p-1"
                       title="Force refresh QR code"
                     >
                       <RefreshCw size={13} className={qrLoading ? 'animate-spin' : ''} />
@@ -579,10 +579,10 @@ const LoginPage = () => {
                   <div className="space-y-2 text-left">
                     <label className="flex items-center justify-between text-[11px] font-bold text-[#94a3b8] uppercase tracking-wider ml-1">
                       <span>Email Address</span>
-                      <span className="text-[10px] text-emerald-400 font-semibold normal-case">Instant OTP</span>
+                      <span className="text-[10px] text-indigo-400 font-semibold normal-case">Instant OTP</span>
                     </label>
                     <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748b] group-focus-within:text-emerald-400 transition-colors pointer-events-none">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748b] group-focus-within:text-indigo-400 transition-colors pointer-events-none">
                         <Mail size={18} />
                       </div>
                       <input
@@ -590,7 +590,7 @@ const LoginPage = () => {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="you@domain.com"
-                        className="w-full bg-[#111728]/90 border border-white/10 rounded-2xl py-3.5 pl-11 pr-4 text-white text-sm focus:border-emerald-400/80 focus:bg-[#151d33] focus:ring-4 focus:ring-emerald-500/15 outline-none transition-all placeholder:text-[#64748b] font-medium"
+                        className="w-full bg-[#12131C] border border-white/[0.08] rounded-2xl py-3.5 pl-11 pr-4 text-white text-sm focus:border-indigo-500 focus:bg-[#1C1D2A] focus:ring-4 focus:ring-indigo-500/20 outline-none transition-all placeholder:text-[#64748b] font-medium"
                         required
                         autoFocus
                       />
@@ -602,7 +602,7 @@ const LoginPage = () => {
                     whileHover={{ scale: 1.015 }}
                     whileTap={{ scale: 0.985 }}
                     disabled={loading}
-                    className="w-full relative group overflow-hidden bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all cursor-pointer disabled:opacity-60"
+                    className="w-full relative group overflow-hidden bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all cursor-pointer disabled:opacity-60"
                   >
                     <span className="relative z-10 flex items-center gap-2">
                       {loading ? (
@@ -620,10 +620,10 @@ const LoginPage = () => {
                   <div className="space-y-2 text-left">
                     <div className="flex items-center justify-between text-[11px] font-bold text-[#94a3b8] uppercase tracking-wider ml-1">
                       <span>Verification Code</span>
-                      <span className="text-[10px] text-cyan-400 font-semibold normal-case">Check inbox</span>
+                      <span className="text-[10px] text-violet-400 font-semibold normal-case">Check inbox</span>
                     </div>
                     <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748b] group-focus-within:text-cyan-400 transition-colors pointer-events-none">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748b] group-focus-within:text-violet-400 transition-colors pointer-events-none">
                         <ShieldCheck size={19} />
                       </div>
                       <input
@@ -632,7 +632,7 @@ const LoginPage = () => {
                         onChange={(e) => setOtp(e.target.value)}
                         placeholder="000000"
                         maxLength="6"
-                        className="w-full bg-[#111728]/90 border border-white/10 rounded-2xl py-3.5 pl-11 pr-4 text-white focus:border-cyan-400/80 focus:bg-[#151d33] focus:ring-4 focus:ring-cyan-500/15 outline-none transition-all text-center tracking-[0.6em] font-black text-xl placeholder:text-[#475569]"
+                        className="w-full bg-[#12131C] border border-white/[0.08] rounded-2xl py-3.5 pl-11 pr-4 text-white focus:border-violet-400 focus:bg-[#1C1D2A] focus:ring-4 focus:ring-violet-500/20 outline-none transition-all text-center tracking-[0.6em] font-black text-xl placeholder:text-[#475569]"
                         required
                         autoFocus
                       />
@@ -647,9 +647,9 @@ const LoginPage = () => {
                     whileHover={{ scale: 1.015 }}
                     whileTap={{ scale: 0.985 }}
                     disabled={loading}
-                    className="w-full bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 text-slate-950 font-black py-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all cursor-pointer disabled:opacity-60"
+                    className="w-full bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 text-white font-black py-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all cursor-pointer disabled:opacity-60"
                   >
-                    {loading ? <Loader2 className="animate-spin text-black" size={17} /> : <span>AUTHENTICATE & ENTER</span>}
+                    {loading ? <Loader2 className="animate-spin text-white" size={17} /> : <span>AUTHENTICATE & ENTER</span>}
                   </motion.button>
 
                   <button
@@ -719,8 +719,8 @@ const LoginPage = () => {
         </AnimatePresence>
 
         {/* Footer Security Note */}
-        <div className="pt-5 mt-4 border-t border-white/10 flex items-center justify-center gap-2 text-[11px] text-[#64748b]">
-          <Lock size={12} className="text-emerald-400" />
+        <div className="pt-5 mt-4 border-t border-white/[0.08] flex items-center justify-center gap-2 text-[11px] text-[#94a3b8]">
+          <Lock size={12} className="text-indigo-400" />
           <span>End-to-end encrypted • Multi-device synchronized</span>
         </div>
       </motion.div>

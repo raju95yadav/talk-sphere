@@ -89,7 +89,7 @@ const SectionLabel = ({ children }) => (
 // ─────────────────────────────────────────────────────────────
 const FieldCard = ({ children, className = '' }) => (
   <div
-    className={`w-full bg-white dark:bg-gray-900/60 border border-slate-200 dark:border-gray-800/70 rounded-2xl px-4 py-3 shadow-sm transition-all duration-200 focus-within:border-emerald-500/50 focus-within:ring-2 focus-within:ring-emerald-500/15 ${className}`}
+    className={`w-full bg-white dark:bg-[#1C1D2A] border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 shadow-sm transition-all duration-200 focus-within:border-indigo-500/50 focus-within:ring-2 focus-within:ring-indigo-500/15 ${className}`}
   >
     {children}
   </div>
@@ -113,7 +113,7 @@ const ReadOnlyCredential = ({ icon: Icon, label, value, verified = false }) => (
         </p>
       </div>
       {verified && (
-        <div className="shrink-0 flex items-center gap-1 text-emerald-400 text-[10px] font-bold">
+        <div className="shrink-0 flex items-center gap-1 text-indigo-400 text-[10px] font-bold">
           <ShieldCheck size={13} />
           <span className="hidden sm:inline">Verified</span>
         </div>
@@ -195,12 +195,12 @@ const UsernameField = ({ value, onChange, currentUsername }) => {
         <div className="shrink-0 flex items-center">
           {checking && (
             <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-gray-500 font-medium">
-              <Loader2 size={13} className="animate-spin text-emerald-500" />
+              <Loader2 size={13} className="animate-spin text-indigo-500" />
               <span className="hidden sm:inline text-[10px]">Checking</span>
             </div>
           )}
           {!checking && showStatus && available === true && (
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-semibold">
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[11px] font-semibold">
               <Check size={12} strokeWidth={2.5} />
               <span className="text-[10px]">Available</span>
             </div>
@@ -214,7 +214,7 @@ const UsernameField = ({ value, onChange, currentUsername }) => {
         </div>
       </div>
       {showStatus && !checking && (
-        <p className={`text-[10px] mt-1.5 px-1 font-medium ${available ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
+        <p className={`text-[10px] mt-1.5 px-1 font-medium ${available ? 'text-indigo-500 dark:text-indigo-400' : 'text-rose-500 dark:text-rose-400'}`}>
           {available ? '✓ Username available' : '✗ Username already taken'}
         </p>
       )}
@@ -283,8 +283,8 @@ const BioField = ({ value, onChange }) => {
                 onClick={() => setShowEmoji((v) => !v)}
                 className={`flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-lg transition-colors cursor-pointer ${
                   showEmoji
-                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                    : 'text-slate-400 hover:text-emerald-500 dark:text-gray-500 dark:hover:text-emerald-400'
+                    ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                    : 'text-slate-400 hover:text-indigo-500 dark:text-gray-500 dark:hover:text-indigo-400'
                 }`}
                 aria-label="Emoji picker"
               >
@@ -333,8 +333,8 @@ const BioField = ({ value, onChange }) => {
               onClick={() => onChange(`${p.emoji} ${p.text}`.slice(0, BIO_MAX))}
               className={`shrink-0 text-[11px] font-medium rounded-full px-3 py-1 transition-all duration-200 cursor-pointer focus-visible:outline-none shadow-sm active:scale-95 flex items-center gap-1.5 ${
                 isSelected
-                  ? 'bg-emerald-500 text-white font-semibold shadow-emerald-500/25'
-                  : 'text-slate-700 dark:text-gray-300 bg-white dark:bg-gray-800/70 border border-slate-200 dark:border-gray-700/60 hover:border-emerald-500/40 hover:text-emerald-600 dark:hover:text-emerald-400'
+                  ? 'bg-indigo-600 text-white font-semibold shadow-indigo-500/25'
+                  : 'text-slate-700 dark:text-gray-300 bg-white dark:bg-gray-800/70 border border-slate-200 dark:border-gray-700/60 hover:border-indigo-500/40 hover:text-indigo-600 dark:hover:text-indigo-400'
               }`}
             >
               <span>{p.emoji}</span>
@@ -429,7 +429,7 @@ const AvatarEditor = ({ user, onAvatarChange }) => {
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-emerald-500 border-2 border-white dark:border-[#11141a] flex items-center justify-center text-white shadow-lg hover:bg-emerald-400 transition-colors cursor-pointer focus-visible:outline-none"
+          className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-indigo-600 border-2 border-white dark:border-[#090A0F] flex items-center justify-center text-white shadow-lg hover:bg-indigo-500 transition-colors cursor-pointer focus-visible:outline-none"
         >
           <Camera size={12} />
         </button>
@@ -445,7 +445,7 @@ const AvatarEditor = ({ user, onAvatarChange }) => {
             className="w-32 h-1 bg-gray-800 rounded-full overflow-hidden"
           >
             <motion.div
-              className="h-full bg-emerald-500 rounded-full"
+              className="h-full bg-indigo-500 rounded-full"
               animate={{ width: `${progress}%` }}
               transition={{ ease: 'linear' }}
             />
@@ -460,7 +460,7 @@ const AvatarEditor = ({ user, onAvatarChange }) => {
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          className="flex items-center gap-1.5 text-[12px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 dark:border-emerald-500/25 rounded-full px-3.5 py-1.5 hover:bg-emerald-500/20 transition-all cursor-pointer focus-visible:outline-none disabled:opacity-50"
+          className="flex items-center gap-1.5 text-[12px] font-semibold text-indigo-400 bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/30 dark:border-indigo-500/25 rounded-full px-3.5 py-1.5 hover:bg-indigo-500/20 transition-all cursor-pointer focus-visible:outline-none disabled:opacity-50"
         >
           {uploading ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
           {uploading ? `Uploading ${progress}%` : 'Change Photo'}
@@ -598,17 +598,17 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
             flex flex-col
             h-full max-h-[100dvh]
             overflow-hidden
-            bg-[#f8fafc] dark:bg-[#11141a]
+            bg-[#f8fafc] dark:bg-[#12131C]
             text-slate-900 dark:text-white
             transition-colors duration-300
           "
         >
           {/* Top highlight line */}
-          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-500/35 to-transparent pointer-events-none z-10" />
+          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/35 to-transparent pointer-events-none z-10" />
 
           {/* ── Fixed header ── */}
           <div
-            className="flex items-center gap-3 px-4 pt-4 sm:pt-5 pb-3 border-b border-slate-200 dark:border-gray-800/60 shrink-0 bg-white/95 dark:bg-[#11141a]/95 backdrop-blur-md z-10"
+            className="flex items-center gap-3 px-4 pt-4 sm:pt-5 pb-3 border-b border-slate-200 dark:border-white/10 shrink-0 bg-white/95 dark:bg-[#12131C]/95 backdrop-blur-md z-10"
           >
             <motion.button
               id="profile-settings-back"
@@ -625,7 +625,7 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
               <h2 className="text-[17px] font-black tracking-tight text-slate-900 dark:text-white leading-tight">
                 Profile
               </h2>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400/75 leading-none mt-0.5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400/85 leading-none mt-0.5">
                 Edit your info
               </p>
             </div>
@@ -640,7 +640,7 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
                   id="profile-settings-save-header"
                   onClick={handleSave}
                   disabled={saving}
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500 text-white text-[11px] font-bold shadow-lg hover:bg-emerald-400 transition-all cursor-pointer focus-visible:outline-none disabled:opacity-60"
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-600 text-white text-[11px] font-bold shadow-lg hover:bg-indigo-500 transition-all cursor-pointer focus-visible:outline-none disabled:opacity-60"
                 >
                   {saving
                     ? <Loader2 size={12} className="animate-spin" />
@@ -778,7 +778,7 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
                   transition={{ duration: 0.18 }}
                   className="flex items-center justify-center text-[10.5px] mb-2 font-medium text-slate-400 dark:text-gray-500 gap-1.5"
                 >
-                  <Check size={12} className="text-emerald-500" strokeWidth={2.5} />
+                  <Check size={12} className="text-indigo-400" strokeWidth={2.5} />
                   <span>Profile details up to date</span>
                 </motion.div>
               )}
@@ -797,10 +797,10 @@ const ProfileSettingsPage = ({ isOpen, onBack }) => {
                 flex items-center justify-center gap-2.5
                 text-[13px] font-black uppercase tracking-wider
                 transition-all duration-300
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50
                 select-none
                 ${isDirty
-                  ? 'bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-500 text-white shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 cursor-pointer active:scale-[0.98]'
+                  ? 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 text-white shadow-xl shadow-indigo-500/25 hover:shadow-indigo-500/40 cursor-pointer active:scale-[0.98]'
                   : 'bg-slate-100 dark:bg-gray-800/40 text-slate-400 dark:text-gray-500 border border-slate-200/80 dark:border-gray-700/50 cursor-not-allowed opacity-85'}
               `}
             >

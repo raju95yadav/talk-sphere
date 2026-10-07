@@ -1555,13 +1555,13 @@ const ChatSection = ({ externalContact }) => {
             </button>
             <div className="relative">
               <div className="w-11 h-11 rounded-2xl bg-accent-primary/20 flex items-center justify-center border border-border-main overflow-hidden">
-                 {selectedGroup.avatar ? (
-                   <img src={selectedGroup.avatar} className="w-full h-full object-cover" alt="avatar" />
-                 ) : (
-                   <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-black text-lg">
-                     {selectedGroup.name?.slice(0, 2).toUpperCase()}
-                   </div>
-                 )}
+                {selectedGroup.avatar ? (
+                  <img src={selectedGroup.avatar} className="w-full h-full object-cover" alt="avatar" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-black text-lg">
+                    {selectedGroup.name?.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
               </div>
               <div className="absolute -bottom-1 -right-1 bg-accent-primary text-white text-[9px] px-1 rounded-full font-bold">
                 {selectedGroup.members?.length || 0}
@@ -1600,7 +1600,7 @@ const ChatSection = ({ externalContact }) => {
               onClick={() => startCall({ _id: selectedGroup._id, username: selectedGroup.name, avatar: selectedGroup.avatar, isGroup: true }, 'audio')}
               disabled={callStatus !== 'idle'}
               title="Start Encrypted Group Audio Call"
-              className="p-2.5 rounded-full dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-emerald-400 transition-all disabled:opacity-30 cursor-pointer active:scale-95"
+              className="p-2.5 rounded-full dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-indigo-400 transition-all disabled:opacity-30 cursor-pointer active:scale-95"
             >
               <Phone size={18} />
             </button>
@@ -1658,14 +1658,14 @@ const ChatSection = ({ externalContact }) => {
                       const bubbleClasses = isPhotoOrVideo
                         ? `p-[3px] rounded-[18px] shadow-md inline-block relative overflow-hidden transition-all ${
                             msg.isSent 
-                              ? 'bg-[#005c4b] dark:bg-[#005c4b] text-white rounded-br-xs border border-emerald-600/30 shadow-[0_2px_8px_rgba(0,92,75,0.25)]' 
-                              : 'bg-[#202c33] dark:bg-[#202c33] [data-theme=light]:bg-white [data-theme=light]:text-slate-800 text-white rounded-bl-xs border border-white/5 [data-theme=light]:border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
+                              ? 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-br-xs border border-indigo-500/30 shadow-[0_2px_8px_rgba(99,102,241,0.25)]' 
+                              : 'bg-[#1C1D2A] dark:bg-[#1C1D2A] [data-theme=light]:bg-white [data-theme=light]:text-slate-800 text-white rounded-bl-xs border border-white/[0.08] [data-theme=light]:border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
                           }`
                         : isDocOrAudio
                         ? `p-2 rounded-2xl shadow-md inline-block relative transition-all min-w-[220px] ${
                             msg.isSent 
-                              ? 'bg-[#005c4b] dark:bg-[#005c4b] text-white rounded-br-xs border border-emerald-600/30 shadow-[0_2px_8px_rgba(0,92,75,0.25)]' 
-                              : 'bg-[#202c33] dark:bg-[#202c33] [data-theme=light]:bg-white [data-theme=light]:text-slate-800 text-white rounded-bl-xs border border-white/5 [data-theme=light]:border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
+                              ? 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-br-xs border border-indigo-500/30 shadow-[0_2px_8px_rgba(99,102,241,0.25)]' 
+                              : 'bg-[#1C1D2A] dark:bg-[#1C1D2A] [data-theme=light]:bg-white [data-theme=light]:text-slate-800 text-white rounded-bl-xs border border-white/[0.08] [data-theme=light]:border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
                           }`
                         : `px-4 py-2.5 rounded-2xl shadow-lg inline-block relative min-w-[100px] transition-all ${
                             msg.isSent 
@@ -1677,8 +1677,8 @@ const ChatSection = ({ externalContact }) => {
                         <div className={bubbleClasses}>
                           {/* Replying to Preview inside bubble */}
                           {msg.repliedTo && (
-                            <div className="mb-1.5 p-2 rounded-xl bg-black/25 border-l-2 border-emerald-400 text-left text-xs opacity-90">
-                              <p className="font-extrabold text-[10px] uppercase text-emerald-400">Replying to message</p>
+                            <div className="mb-1.5 p-2 rounded-xl bg-black/25 border-l-2 border-indigo-400 text-left text-xs opacity-90">
+                              <p className="font-extrabold text-[10px] uppercase text-indigo-400">Replying to message</p>
                               <p className="truncate opacity-80">{msg.repliedTo.content || 'Media'}</p>
                             </div>
                           )}
@@ -2012,7 +2012,7 @@ const ChatSection = ({ externalContact }) => {
               onClick={() => startCall(selectedContact, 'audio')}
               disabled={callStatus !== 'idle'}
               title="Start Encrypted Audio Call"
-              className="p-2 sm:p-2.5 rounded-full dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-emerald-400 transition-all disabled:opacity-30 cursor-pointer active:scale-95"
+              className="p-2 sm:p-2.5 rounded-full dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-indigo-400 transition-all disabled:opacity-30 cursor-pointer active:scale-95"
             >
               <Phone size={18} />
             </button>
@@ -2102,14 +2102,14 @@ const ChatSection = ({ externalContact }) => {
                       const bubbleClasses = isPhotoOrVideo
                         ? `p-[3px] rounded-[18px] shadow-md inline-block relative overflow-hidden transition-all duration-300 max-w-full ${
                             msg.isSent 
-                              ? 'bg-[#005c4b] dark:bg-[#005c4b] text-white rounded-br-xs border border-emerald-600/30 shadow-[0_2px_8px_rgba(0,92,75,0.25)]' 
-                              : 'bg-[#202c33] dark:bg-[#202c33] [data-theme=light]:bg-white [data-theme=light]:text-slate-800 text-white rounded-bl-xs border border-white/5 [data-theme=light]:border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
+                              ? 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-br-xs border border-indigo-500/30 shadow-[0_2px_8px_rgba(99,102,241,0.25)]' 
+                              : 'bg-[#1C1D2A] dark:bg-[#1C1D2A] [data-theme=light]:bg-white [data-theme=light]:text-slate-800 text-white rounded-bl-xs border border-white/[0.08] [data-theme=light]:border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
                           }`
                         : isDocOrAudio
                         ? `p-2 rounded-2xl shadow-md inline-block relative transition-all duration-300 min-w-0 max-w-full ${
                             msg.isSent 
-                              ? 'bg-[#005c4b] dark:bg-[#005c4b] text-white rounded-br-xs border border-emerald-600/30 shadow-[0_2px_8px_rgba(0,92,75,0.25)]' 
-                              : 'bg-[#202c33] dark:bg-[#202c33] [data-theme=light]:bg-white [data-theme=light]:text-slate-800 text-white rounded-bl-xs border border-white/5 [data-theme=light]:border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
+                              ? 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-br-xs border border-indigo-500/30 shadow-[0_2px_8px_rgba(99,102,241,0.25)]' 
+                              : 'bg-[#1C1D2A] dark:bg-[#1C1D2A] [data-theme=light]:bg-white [data-theme=light]:text-slate-800 text-white rounded-bl-xs border border-white/[0.08] [data-theme=light]:border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
                           }`
                         : `px-4 py-2.5 rounded-2xl shadow-lg inline-block relative min-w-0 max-w-full transition-all duration-300 ${
                             msg.isSent 
@@ -2138,8 +2138,8 @@ const ChatSection = ({ externalContact }) => {
 
                           {/* Replied Message Context */}
                           {msg.repliedTo && (
-                            <div className={`mb-1.5 p-2 rounded-xl text-left border-l-2 bg-black/25 ${msg.isSent ? 'border-emerald-300' : 'border-accent-primary'}`}>
-                              <p className="text-[10px] font-black uppercase opacity-75 mb-0.5 text-emerald-400">
+                            <div className={`mb-1.5 p-2 rounded-xl text-left border-l-2 bg-black/25 ${msg.isSent ? 'border-indigo-400' : 'border-accent-primary'}`}>
+                              <p className="text-[10px] font-black uppercase opacity-75 mb-0.5 text-indigo-400">
                                 {msg.repliedTo.sender === currentUserId ? 'You' : (selectedContact.username || selectedContact.name)}
                               </p>
                               <p className="text-[11px] line-clamp-1 opacity-80">
@@ -2164,7 +2164,7 @@ const ChatSection = ({ externalContact }) => {
                               <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
                                 msg.callDetails?.status === 'missed' || msg.callDetails?.status === 'declined'
                                   ? 'bg-red-500/20 text-red-500'
-                                  : 'bg-emerald-500/20 text-emerald-500'
+                                  : 'bg-indigo-500/20 text-indigo-400'
                               }`}>
                                 {msg.callDetails?.callType === 'video' ? <Video size={17} /> : <Phone size={17} />}
                               </div>
@@ -2799,9 +2799,9 @@ const ChatSection = ({ externalContact }) => {
                       </div>
                       <div className="overflow-hidden flex-1 min-w-0">
                         <div className="flex justify-between items-baseline mb-0.5">
-                          <h4 className="font-bold text-sm tracking-tight truncate flex items-center gap-1.5 text-slate-900 dark:text-white group-hover:text-emerald-500 transition-colors">
+                          <h4 className="font-bold text-sm tracking-tight truncate flex items-center gap-1.5 text-slate-900 dark:text-white group-hover:text-indigo-400 transition-colors">
                             {g.name}
-                            <span className="text-[8px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full border border-emerald-500/20">
+                            <span className="text-[8px] font-black bg-indigo-500/15 text-indigo-400 px-1.5 py-0.5 rounded-full border border-indigo-500/20">
                               {g.members?.length} M
                             </span>
                           </h4>
@@ -2813,12 +2813,12 @@ const ChatSection = ({ externalContact }) => {
                         </div>
                         <div className="flex items-center gap-1">
                           {typingName ? (
-                            <p className="text-[11px] font-bold text-emerald-500 flex items-center gap-1.5 animate-pulse">
+                            <p className="text-[11px] font-bold text-indigo-400 flex items-center gap-1.5 animate-pulse">
                               <span>{typingName} is typing</span>
                               <span className="inline-flex items-center gap-0.5">
-                                <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                                <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                                <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                                <span className="w-1 h-1 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                <span className="w-1 h-1 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                <span className="w-1 h-1 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '300ms' }}></span>
                               </span>
                             </p>
                           ) : (
@@ -2882,10 +2882,10 @@ const ChatSection = ({ externalContact }) => {
                     <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-[3px] border-bg-card ${conv.user.isOnline ? 'bg-green-500' : 'bg-gray-500'} shadow-lg`}></div>
                   </div>
                   <div className="overflow-hidden flex-1 min-w-0">
-                    <h4 className="font-bold text-sm tracking-tight truncate text-slate-900 dark:text-white group-hover:text-emerald-500 transition-colors">{conv.user.username || conv.user.name}</h4>
+                    <h4 className="font-bold text-sm tracking-tight truncate text-slate-900 dark:text-white group-hover:text-indigo-400 transition-colors">{conv.user.username || conv.user.name}</h4>
                     <div className="flex items-center gap-1 mt-0.5">
                       {conv.lastMessage.sender === currentUserId && (
-                        <div className="flex items-center flex-shrink-0 gap-0.5 text-emerald-500">
+                        <div className="flex items-center flex-shrink-0 gap-0.5 text-indigo-400">
                           {conv.lastMessage.status === 'read' ? (
                             <CheckCheck size={12} className="text-sky-400 drop-shadow-[0_0_4px_rgba(56,189,248,0.5)]" />
                           ) : conv.lastMessage.status === 'delivered' ? (
@@ -2897,10 +2897,10 @@ const ChatSection = ({ externalContact }) => {
                         </div>
                       )}
                       {typingStatuses[conv.user._id] ? (
-                        <span className="text-emerald-500 font-bold text-[11px] flex items-center gap-1">
+                        <span className="text-indigo-400 font-bold text-[11px] flex items-center gap-1">
                           <span>typing</span>
                           <span className="inline-flex gap-0.5">
-                            <span className="w-1 h-1 rounded-full bg-emerald-500 animate-ping"></span>
+                            <span className="w-1 h-1 rounded-full bg-indigo-500 animate-ping"></span>
                           </span>
                         </span>
                       ) : (

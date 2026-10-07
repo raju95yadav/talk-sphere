@@ -143,8 +143,8 @@ const CopyButton = ({ text, className = '' }) => {
       onClick={handleCopy}
       className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all cursor-pointer focus-visible:outline-none ${
         copied
-          ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400'
-          : 'bg-emerald-500 text-white hover:bg-emerald-400 shadow-lg shadow-emerald-500/25'
+          ? 'bg-indigo-500/20 border border-indigo-500/40 text-indigo-400'
+          : 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/25'
       } ${className}`}
     >
       <AnimatePresence mode="wait">
@@ -226,8 +226,8 @@ const LinkTab = ({ inviteUrl, shareText, canShare, onNativeShare }) => (
       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-gray-500 px-1">
         Your Personal Invite Link
       </p>
-      <div className="flex items-center gap-2 bg-white dark:bg-gray-900/70 border border-slate-200 dark:border-gray-700/60 rounded-2xl px-4 py-3 shadow-sm">
-        <Link2 size={14} className="text-emerald-500 dark:text-emerald-400 shrink-0" />
+      <div className="flex items-center gap-2 bg-white dark:bg-[#1C1D2A] border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 shadow-sm">
+        <Link2 size={14} className="text-indigo-400 shrink-0" />
         <p className="flex-1 text-[12px] text-slate-800 dark:text-gray-300 font-mono truncate min-w-0 select-all">
           {inviteUrl}
         </p>
@@ -242,9 +242,9 @@ const LinkTab = ({ inviteUrl, shareText, canShare, onNativeShare }) => (
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.97 }}
         onClick={onNativeShare}
-        className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl border border-slate-200 dark:border-gray-700/60 bg-white dark:bg-gray-800/60 text-[13px] font-bold text-slate-800 dark:text-white hover:bg-slate-50 dark:hover:bg-gray-700/60 transition-all cursor-pointer focus-visible:outline-none shadow-sm"
+        className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1C1D2A] text-[13px] font-bold text-slate-800 dark:text-white hover:bg-slate-50 dark:hover:bg-[#1C1D2A]/80 transition-all cursor-pointer focus-visible:outline-none shadow-sm"
       >
-        <Share2 size={15} className="text-emerald-500 dark:text-emerald-400" />
+        <Share2 size={15} className="text-indigo-400" />
         Share via…
       </motion.button>
     )}
@@ -266,9 +266,9 @@ const LinkTab = ({ inviteUrl, shareText, canShare, onNativeShare }) => (
       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-gray-500 px-1">
         Message Preview
       </p>
-      <div className="relative bg-white dark:bg-gray-900/60 border border-slate-200 dark:border-gray-800/70 rounded-2xl p-4 overflow-hidden shadow-sm">
+      <div className="relative bg-white dark:bg-[#1C1D2A] border border-slate-200 dark:border-white/10 rounded-2xl p-4 overflow-hidden shadow-sm">
         {/* Subtle gradient shimmer */}
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent pointer-events-none" />
         <p className="text-[12px] text-slate-600 dark:text-gray-400 leading-relaxed relative">
           {shareText}
         </p>
@@ -306,11 +306,11 @@ const QRTab = ({ inviteUrl, displayName }) => {
         {/* Glow halo */}
         <div
           className="absolute inset-0 rounded-3xl blur-xl opacity-30 scale-110 pointer-events-none"
-          style={{ background: 'radial-gradient(circle, #10b981 0%, transparent 70%)' }}
+          style={{ background: 'radial-gradient(circle, #6366f1 0%, transparent 70%)' }}
         />
 
         <div
-          className="relative rounded-3xl p-4 border border-slate-200 dark:border-gray-700/60 shadow-2xl bg-white dark:bg-[#141720]"
+          className="relative rounded-3xl p-4 border border-slate-200 dark:border-white/10 shadow-2xl bg-white dark:bg-[#1C1D2A]"
         >
           {/* Corner decorations */}
           {[
@@ -319,7 +319,7 @@ const QRTab = ({ inviteUrl, displayName }) => {
             'bottom-2 left-2 border-b-2 border-l-2 rounded-bl-xl',
             'bottom-2 right-2 border-b-2 border-r-2 rounded-br-xl',
           ].map((cls, i) => (
-            <div key={i} className={`absolute w-5 h-5 border-emerald-500/60 ${cls}`} />
+            <div key={i} className={`absolute w-5 h-5 border-indigo-400/60 ${cls}`} />
           ))}
 
           <div className="w-[200px] h-[200px] rounded-2xl overflow-hidden bg-white flex items-center justify-center">
@@ -342,15 +342,15 @@ const QRTab = ({ inviteUrl, displayName }) => {
       </div>
 
       {/* URL + copy */}
-      <div className="w-full flex items-center gap-2 bg-slate-100 dark:bg-gray-900/70 border border-slate-200 dark:border-gray-700/60 rounded-2xl px-3 py-2.5">
+      <div className="w-full flex items-center gap-2 bg-slate-100 dark:bg-[#1C1D2A] border border-slate-200 dark:border-white/10 rounded-2xl px-3 py-2.5">
         <p className="flex-1 text-[11px] text-slate-700 dark:text-gray-300 font-mono truncate min-w-0">
           {inviteUrl}
         </p>
         <button
           onClick={handleCopy}
-          className="shrink-0 w-7 h-7 rounded-lg bg-white dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer"
+          className="shrink-0 w-7 h-7 rounded-lg bg-white dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-600 dark:text-gray-400 hover:text-indigo-400 transition-colors cursor-pointer"
         >
-          {copied ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+          {copied ? <Check size={13} className="text-indigo-400" /> : <Copy size={13} />}
         </button>
       </div>
 
@@ -410,14 +410,14 @@ const InviteFriendPage = ({ isOpen, onBack }) => {
           animate="visible"
           exit="exit"
           aria-label="Invite a friend"
-          className="absolute inset-0 z-50 flex flex-col overflow-hidden bg-[#f8fafc] dark:bg-[#11141a] text-slate-900 dark:text-white transition-colors duration-300"
+          className="absolute inset-0 z-50 flex flex-col overflow-hidden bg-[#f8fafc] dark:bg-[#12131C] text-slate-900 dark:text-white transition-colors duration-300"
         >
           {/* Top highlight line */}
-          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-500/35 to-transparent pointer-events-none z-10" />
+          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/35 to-transparent pointer-events-none z-10" />
 
           {/* ── Header ── */}
           <div
-            className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-slate-200 dark:border-gray-800/60 shrink-0 bg-white/90 dark:bg-[#11141a]/90 backdrop-blur-md"
+            className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-slate-200 dark:border-white/10 shrink-0 bg-white/90 dark:bg-[#12131C]/90 backdrop-blur-md"
           >
             <motion.button
               id="invite-friend-back"
@@ -434,14 +434,14 @@ const InviteFriendPage = ({ isOpen, onBack }) => {
               <h2 className="text-[17px] font-black tracking-tight text-slate-900 dark:text-white leading-tight">
                 Invite a Friend
               </h2>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400/75 leading-none mt-0.5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400/85 leading-none mt-0.5">
                 Grow your circle
               </p>
             </div>
 
             {/* Gift sparkle badge */}
-            <div className="shrink-0 w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-              <Gift size={16} className="text-emerald-500 dark:text-emerald-400" />
+            <div className="shrink-0 w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+              <Gift size={16} className="text-indigo-400" />
             </div>
           </div>
 
@@ -457,25 +457,25 @@ const InviteFriendPage = ({ isOpen, onBack }) => {
               variants={child}
               className="relative rounded-2xl overflow-hidden p-5"
               style={{
-                background: 'linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(5,150,105,0.08) 50%, rgba(4,120,87,0.04) 100%)',
-                border: '1px solid rgba(16,185,129,0.2)',
+                background: 'linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(139,92,246,0.08) 50%, rgba(99,102,241,0.04) 100%)',
+                border: '1px solid rgba(99,102,241,0.2)',
               }}
             >
               {/* Subtle sparkles */}
               <div className="absolute top-3 right-3 opacity-40">
-                <Sparkles size={20} className="text-emerald-400" />
+                <Sparkles size={20} className="text-violet-400" />
               </div>
               <div className="absolute bottom-2 right-10 opacity-20">
-                <Sparkles size={12} className="text-emerald-300" />
+                <Sparkles size={12} className="text-violet-300" />
               </div>
 
               <div className="flex items-center gap-4">
                 {/* Icon stack */}
                 <div className="relative shrink-0">
-                  <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shadow-xl shadow-emerald-500/10">
-                    <MessageCircle size={26} className="text-emerald-500 dark:text-emerald-400" />
+                  <div className="w-14 h-14 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shadow-xl shadow-indigo-500/10">
+                    <MessageCircle size={26} className="text-indigo-400" />
                   </div>
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#11141a] flex items-center justify-center">
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-indigo-600 border-2 border-white dark:border-[#12131C] flex items-center justify-center">
                     <span className="text-[8px] font-black text-white">+1</span>
                   </div>
                 </div>
@@ -505,7 +505,7 @@ const InviteFriendPage = ({ isOpen, onBack }) => {
                       className={`
                         flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-[12px] font-bold transition-all duration-200 cursor-pointer focus-visible:outline-none
                         ${active
-                          ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
+                          ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
                           : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200'}
                       `}
                     >

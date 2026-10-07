@@ -30,7 +30,7 @@ import toast from 'react-hot-toast';
 const renderStatusTicks = (status, onRetry, msg) => {
   switch (status) {
     case 'uploading':
-      return <Loader2 size={10} className="animate-spin text-emerald-300 shrink-0" />;
+      return <Loader2 size={10} className="animate-spin text-indigo-300 shrink-0" />;
     case 'sending':
       return <Clock size={10} className="text-white/70 animate-spin shrink-0" style={{ animationDuration: '3s' }} />;
     case 'sent':
@@ -299,7 +299,7 @@ const WhatsAppMediaBubble = ({
  
           {/* Top-left Photo Indicator Badge */}
           <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/60 border border-white/10 text-[10px] font-bold text-white shadow-sm pointer-events-none">
-            <ImageIcon size={12} className="text-emerald-400" />
+            <ImageIcon size={12} className="text-indigo-400" />
             <span>Photo</span>
           </div>
 
@@ -307,18 +307,18 @@ const WhatsAppMediaBubble = ({
           <motion.div
             whileHover={{ scale: 1.07 }}
             whileTap={{ scale: 0.93 }}
-            className="relative z-10 flex flex-col items-center justify-center w-16 h-16 rounded-full bg-black/75 border border-white/20 shadow-2xl backdrop-blur-md group-hover:bg-black/90 group-hover:border-emerald-500/50 transition-all cursor-pointer"
+            className="relative z-10 flex flex-col items-center justify-center w-16 h-16 rounded-full bg-black/75 border border-white/20 shadow-2xl backdrop-blur-md group-hover:bg-black/90 group-hover:border-indigo-500/50 transition-all cursor-pointer"
           >
             {downloading ? (
               <div className="flex flex-col items-center">
-                <Loader2 size={24} className="text-emerald-400 animate-spin" />
-                <span className="text-[9px] font-bold text-emerald-400 font-mono mt-0.5">
+                <Loader2 size={24} className="text-indigo-400 animate-spin" />
+                <span className="text-[9px] font-bold text-indigo-400 font-mono mt-0.5">
                   {downloadProgress}%
                 </span>
               </div>
             ) : (
               <>
-                <Download size={20} className="text-white drop-shadow group-hover:text-emerald-400 transition-colors" />
+                <Download size={20} className="text-white drop-shadow group-hover:text-indigo-400 transition-colors" />
                 <span className="text-[10px] font-bold text-white/90 font-mono mt-0.5 leading-none">
                   {msg.fileSize || 'Photo'}
                 </span>
@@ -341,7 +341,7 @@ const WhatsAppMediaBubble = ({
         {msg.status === 'uploading' && (
           <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] rounded-[15px] flex items-center justify-center z-20">
             <div className="relative flex flex-col items-center justify-center w-14 h-14 rounded-full bg-black/75 border border-white/25 shadow-xl">
-              <Loader2 size={24} className="text-emerald-400 animate-spin" />
+              <Loader2 size={24} className="text-indigo-400 animate-spin" />
               {typeof msg.progress === 'number' && msg.progress > 0 && (
                 <span className="text-[9px] font-bold text-white font-mono mt-0.5 leading-none">
                   {msg.progress}%
@@ -413,25 +413,25 @@ const WhatsAppMediaBubble = ({
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/80" />
           {/* Top-left Video Indicator Badge */}
           <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/60 border border-white/10 text-[10px] font-bold text-white shadow-sm pointer-events-none">
-            <FileVideo size={12} className="text-emerald-400" />
+            <FileVideo size={12} className="text-indigo-400" />
             <span>Video</span>
           </div>
 
           <motion.div
             whileHover={{ scale: 1.06 }}
             whileTap={{ scale: 0.94 }}
-            className="relative z-10 flex flex-col items-center justify-center w-14 h-14 rounded-full bg-black/75 border border-white/20 shadow-2xl backdrop-blur-md group-hover:bg-black/90 group-hover:border-emerald-500/50 transition-all cursor-pointer"
+            className="relative z-10 flex flex-col items-center justify-center w-14 h-14 rounded-full bg-black/75 border border-white/20 shadow-2xl backdrop-blur-md group-hover:bg-black/90 group-hover:border-indigo-500/50 transition-all cursor-pointer"
           >
             {downloading ? (
               <div className="flex flex-col items-center">
-                <Loader2 size={22} className="text-emerald-400 animate-spin" />
-                <span className="text-[9px] font-bold text-emerald-400 font-mono mt-0.5">
+                <Loader2 size={22} className="text-indigo-400 animate-spin" />
+                <span className="text-[9px] font-bold text-indigo-400 font-mono mt-0.5">
                   {downloadProgress}%
                 </span>
               </div>
             ) : (
               <>
-                <Download size={18} className="text-white drop-shadow group-hover:text-emerald-400 transition-colors" />
+                <Download size={18} className="text-white drop-shadow group-hover:text-indigo-400 transition-colors" />
                 <span className="text-[9.5px] font-bold text-white/90 font-mono mt-0.5 leading-none">
                   {msg.fileSize || 'Video'}
                 </span>
@@ -473,14 +473,14 @@ const WhatsAppMediaBubble = ({
           onClick={handleManualDownload}
           className="flex items-center gap-2 sm:gap-3 p-2.5 rounded-xl bg-black/20 hover:bg-black/30 cursor-pointer transition-all group w-full min-w-0 max-w-[260px] sm:max-w-[300px]"
         >
-          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex-shrink-0 group-hover:scale-105 transition-transform">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex-shrink-0 group-hover:scale-105 transition-transform">
             {downloading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
           </div>
           <div className="flex-1 min-w-0 text-left">
             <p className="text-[12px] font-bold text-white truncate">
               {msg.fileName || 'Voice Note'}
             </p>
-            <p className="text-[10px] font-mono text-emerald-400 font-semibold mt-0.5 truncate">
+            <p className="text-[10px] font-mono text-indigo-400 font-semibold mt-0.5 truncate">
               {downloading ? `Downloading ${downloadProgress}%` : `Tap to download (${msg.fileSize || '220 KB'})`}
             </p>
           </div>
@@ -531,27 +531,27 @@ const WhatsAppMediaBubble = ({
 
           {/* File Details */}
           <div className="flex-1 min-w-0 text-left">
-            <p className="text-[13px] font-semibold text-white/95 truncate leading-snug group-hover/doc:text-emerald-300 transition-colors">
+            <p className="text-[13px] font-semibold text-white/95 truncate leading-snug group-hover/doc:text-indigo-300 transition-colors">
               {msg.fileName || 'Document'}
             </p>
             <p className="text-[10.5px] text-white/60 font-mono mt-0.5 flex items-center gap-1.5">
               <span>{msg.fileSize || 'Document'}</span>
               <span>•</span>
               <span className="uppercase">{ext}</span>
-              {!downloaded && <span className="text-emerald-400 font-bold">• Tap to download</span>}
+              {!downloaded && <span className="text-indigo-400 font-bold">• Tap to download</span>}
             </p>
           </div>
 
           {/* Action Button */}
           <div className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center justify-center text-white flex-shrink-0 transition-all">
             {downloading ? (
-              <Loader2 size={14} className="animate-spin text-emerald-400" />
+              <Loader2 size={14} className="animate-spin text-indigo-400" />
             ) : !downloaded ? (
-              <Download size={14} className="text-white group-hover/doc:text-emerald-400" />
+              <Download size={14} className="text-white group-hover/doc:text-indigo-400" />
             ) : isPdf ? (
-              <Maximize2 size={13} className="text-white group-hover/doc:text-emerald-400" />
+              <Maximize2 size={13} className="text-white group-hover/doc:text-indigo-400" />
             ) : (
-              <Download size={14} className="text-white group-hover/doc:text-emerald-400" />
+              <Download size={14} className="text-white group-hover/doc:text-indigo-400" />
             )}
           </div>
         </div>

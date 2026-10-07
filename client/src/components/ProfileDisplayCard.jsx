@@ -115,7 +115,7 @@ const StatusBubble = ({ statusId, onSelect, isChanging }) => {
         disabled={isChanging}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold tracking-wide shadow-md backdrop-blur-sm cursor-pointer transition-all select-none bg-white dark:bg-[#1a1d24] border-slate-300/80 dark:border-gray-700/60 text-slate-800 dark:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#11141a] ${s.ring}`}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-semibold tracking-wide shadow-md backdrop-blur-sm cursor-pointer transition-all select-none bg-white dark:bg-[#1C1D2A] border-slate-300/80 dark:border-white/10 text-slate-800 dark:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#090A0F] ${s.ring}`}
       >
         {isChanging ? (
           <span className="w-2 h-2 border border-current border-t-transparent rounded-full animate-spin" />
@@ -139,7 +139,7 @@ const StatusBubble = ({ statusId, onSelect, isChanging }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.96 }}
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute top-full mt-2 w-44 rounded-2xl border border-slate-200 dark:border-gray-700/60 shadow-2xl shadow-black/10 dark:shadow-black/60 overflow-hidden z-50 bg-white/95 dark:bg-[#1a1d24]/95 backdrop-blur-md"
+            className="absolute top-full mt-2 w-44 rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl shadow-black/10 dark:shadow-black/60 overflow-hidden z-50 bg-white/95 dark:bg-[#1C1D2A]/95 backdrop-blur-md"
           >
             {STATUS_OPTIONS.map((opt) => (
               <motion.li
@@ -158,7 +158,7 @@ const StatusBubble = ({ statusId, onSelect, isChanging }) => {
                   {opt.label}
                 </span>
                 {opt.id === statusId && (
-                  <Check size={12} className="text-emerald-500 dark:text-emerald-400 shrink-0" />
+                  <Check size={12} className="text-indigo-400 shrink-0" />
                 )}
               </motion.li>
             ))}
@@ -330,16 +330,16 @@ const ProfileDisplayCard = ({ className = '', size = 'lg' }) => {
             ${sz.outer}
             rounded-full p-[3px]
             ring-4 ring-slate-200 dark:ring-gray-800/80
-            hover:ring-emerald-500/40
+            hover:ring-indigo-500/50
             transition-all duration-300
             shadow-xl shadow-black/10 dark:shadow-black/50
           `}
           style={{
             background: `conic-gradient(
               ${currentStatus.dot}55 0%,
-              ${isDarkMode ? '#1e2130' : '#e2e8f0'} 40%,
+              ${isDarkMode ? '#1C1D2A' : '#e2e8f0'} 40%,
               ${currentStatus.dot}33 80%,
-              ${isDarkMode ? '#1e2130' : '#e2e8f0'} 100%
+              ${isDarkMode ? '#1C1D2A' : '#e2e8f0'} 100%
             )`,
           }}
         >
@@ -388,7 +388,7 @@ const ProfileDisplayCard = ({ className = '', size = 'lg' }) => {
 
         {/* Status dot badge on ring bottom-right */}
         <div
-          className="absolute bottom-1 right-1 rounded-full p-[2px] shadow-lg bg-white dark:bg-[#11141a] border border-slate-200 dark:border-transparent"
+          className="absolute bottom-1 right-1 rounded-full p-[2px] shadow-lg bg-white dark:bg-[#12131C] border border-slate-200 dark:border-transparent"
         >
           <StatusDot statusId={presenceStatus} size={12} />
         </div>

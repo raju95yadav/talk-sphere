@@ -101,14 +101,14 @@ const DeviceApprovalModal = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 24 }}
           transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full max-w-sm rounded-3xl border border-gray-800 bg-[#0e121a] text-white shadow-2xl overflow-hidden p-6"
+          className="relative w-full max-w-sm rounded-3xl border border-white/10 bg-[#12131C] text-white shadow-2xl overflow-hidden p-6"
         >
           {/* Top highlight bar */}
-          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500" />
+          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500" />
 
           {decision === 'approved' ? (
             <div className="py-6 flex flex-col items-center justify-center text-center gap-3">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 animate-bounce">
+              <div className="w-16 h-16 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 animate-bounce">
                 <CheckCircle2 size={36} />
               </div>
               <h3 className="text-lg font-black text-white">Device Linked!</h3>
@@ -127,7 +127,7 @@ const DeviceApprovalModal = ({
           ) : (
             <div className="flex flex-col items-center text-center space-y-4">
               {/* Header Icon */}
-              <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-lg shadow-emerald-500/10">
+              <div className="w-14 h-14 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-lg shadow-indigo-500/10">
                 <ShieldCheck size={30} />
               </div>
 
@@ -141,8 +141,8 @@ const DeviceApprovalModal = ({
               </div>
 
               {/* Target Device Card */}
-              <div className="w-full bg-[#151a24] border border-gray-800 rounded-2xl p-4 flex items-center gap-3.5 text-left">
-                <div className="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+              <div className="w-full bg-[#1C1D2A] border border-white/10 rounded-2xl p-4 flex items-center gap-3.5 text-left">
+                <div className="w-11 h-11 rounded-xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center text-indigo-400 shrink-0">
                   <DeviceIcon os={os} size={22} />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -185,7 +185,7 @@ const DeviceApprovalModal = ({
                   type="button"
                   disabled={loading}
                   onClick={() => handleDecision(true)}
-                  className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/25 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-indigo-500/25 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {loading ? (
                     <Loader2 size={15} className="animate-spin" />

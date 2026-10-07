@@ -15,7 +15,7 @@ const AI_MODELS = [
   { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', desc: 'Ultra-Fast Realtime', icon: Zap, color: 'text-amber-400' },
   { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro', desc: 'Deep Reasoning Core', icon: Cpu, color: 'text-purple-400' },
   { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', desc: 'Balanced Engine', icon: Sparkles, color: 'text-blue-400' },
-  { id: 'groq-llama3', name: 'Groq Llama 3.3', desc: 'Low Latency LPU', icon: Zap, color: 'text-emerald-400' }
+  { id: 'groq-llama3', name: 'Groq Llama 3.3', desc: 'Low Latency LPU', icon: Zap, color: 'text-violet-400' }
 ];
 
 const PRESET_PROMPTS = [
@@ -415,7 +415,7 @@ const AIChatSection = () => {
       >
         <div className="p-4 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-500">
+            <div className="w-7 h-7 rounded-lg bg-violet-500/15 border border-violet-500/25 flex items-center justify-center text-violet-400">
               <Sparkles size={15} />
             </div>
             <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-white">Chat History</h3>
@@ -431,7 +431,7 @@ const AIChatSection = () => {
         <div className="p-3">
           <button 
             onClick={startNewChat}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-500/25 active:scale-95 cursor-pointer"
           >
             <Plus size={15} /> New Conversation
           </button>
@@ -451,13 +451,13 @@ const AIChatSection = () => {
                 }}
                 className={`p-3 rounded-xl cursor-pointer group transition-all border ${
                     isActive 
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold shadow-sm' 
+                      ? 'bg-violet-500/15 border-violet-500/35 text-violet-400 font-bold shadow-sm' 
                       : 'bg-slate-50/70 dark:bg-white/[0.03] border-slate-200/60 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-950 dark:hover:text-white'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 truncate">
-                    <MessageSquare size={14} className={isActive ? 'text-emerald-500 shrink-0' : 'text-slate-400 dark:text-slate-500 shrink-0'} />
+                    <MessageSquare size={14} className={isActive ? 'text-violet-400 shrink-0' : 'text-slate-400 dark:text-slate-500 shrink-0'} />
                     <span className="text-xs truncate">{s.title}</span>
                   </div>
                   <button 
@@ -477,7 +477,7 @@ const AIChatSection = () => {
         <div className="p-3 border-t border-slate-200 dark:border-white/10">
           <button
             onClick={exportChatSession}
-            className="w-full flex items-center justify-center gap-2 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs font-semibold bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 hover:border-emerald-500/40 transition-all cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs font-semibold bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 hover:border-violet-500/40 transition-all cursor-pointer"
           >
             <Download size={13} /> Export Session (.md)
           </button>
@@ -487,19 +487,19 @@ const AIChatSection = () => {
       {/* Main Workspace Column */}
       <div className="flex-1 flex flex-col bg-transparent relative z-10 min-w-0 h-full overflow-hidden">
         {/* Header Bar - Fully Responsive */}
-        <div className="p-2.5 sm:p-4 border-b border-slate-200 dark:border-white/10 flex items-center justify-between bg-white/80 dark:bg-[#0e121b]/80 backdrop-blur-xl gap-2 min-w-0">
+        <div className="p-2.5 sm:p-4 border-b border-slate-200 dark:border-white/10 flex items-center justify-between bg-white/80 dark:bg-[#12131C]/90 backdrop-blur-xl gap-2 min-w-0">
           {/* Left Title & Status */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-slate-700 dark:text-slate-300 hover:text-emerald-500 hover:border-emerald-500/40 shadow-sm transition-all shrink-0 cursor-pointer active:scale-95"
+              className="p-2 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-slate-700 dark:text-slate-300 hover:text-violet-400 hover:border-violet-500/40 shadow-sm transition-all shrink-0 cursor-pointer active:scale-95"
               title="Chat History"
             >
               <History size={17} />
             </button>
             
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0">
-              <Sparkles size={17} className="text-emerald-500 animate-pulse" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center shrink-0">
+              <Sparkles size={17} className="text-violet-400 animate-pulse" />
             </div>
 
             <div className="min-w-0 flex-1">
@@ -507,8 +507,8 @@ const AIChatSection = () => {
                 {activeSession?.title || 'New Chat'}
               </h4>
               <div className="flex items-center gap-1.5 mt-0.5 whitespace-nowrap overflow-hidden">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse"></span>
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0 animate-pulse"></span>
+                <span className="text-[10px] text-violet-400 font-semibold truncate">
                   Real-time Neural Engine
                 </span>
                 {serverPingMs && (
@@ -533,22 +533,22 @@ const AIChatSection = () => {
                   }
                 }}
                 aria-label="Select AI Model"
-                className="w-full bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 hover:border-emerald-500/40 rounded-xl px-2.5 py-1.5 text-[11px] sm:text-xs font-semibold outline-none cursor-pointer appearance-none pr-7 truncate shadow-sm transition-all focus:border-emerald-500"
+                className="w-full bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 hover:border-violet-500/40 rounded-xl px-2.5 py-1.5 text-[11px] sm:text-xs font-semibold outline-none cursor-pointer appearance-none pr-7 truncate shadow-sm transition-all focus:border-violet-500"
               >
                 {AI_MODELS.map(m => (
-                  <option key={m.id} value={m.id} className="bg-white dark:bg-[#141822] text-slate-900 dark:text-white text-xs">
+                  <option key={m.id} value={m.id} className="bg-white dark:bg-[#12131C] text-slate-900 dark:text-white text-xs">
                     {m.name}
                   </option>
                 ))}
               </select>
-              <Cpu size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none" />
+              <Cpu size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-violet-400 pointer-events-none" />
             </div>
 
             {activeSession?.messages?.length > 0 && (
               <button
                 onClick={regenerateResponse}
                 disabled={isLoading}
-                className="p-1.5 sm:p-2 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-slate-700 dark:text-slate-300 hover:text-emerald-500 hover:border-emerald-500/40 shadow-sm transition-all cursor-pointer disabled:opacity-40 shrink-0 active:scale-95"
+                className="p-1.5 sm:p-2 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-slate-700 dark:text-slate-300 hover:text-violet-400 hover:border-violet-500/40 shadow-sm transition-all cursor-pointer disabled:opacity-40 shrink-0 active:scale-95"
                 title="Regenerate Last Response"
               >
                 <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
@@ -582,8 +582,8 @@ const AIChatSection = () => {
         <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-6 space-y-5 min-w-0">
           {(!activeSession || activeSession.messages.length === 0) ? (
             <div className="flex flex-col items-center justify-center min-h-full py-8 px-2 sm:px-4 max-w-2xl mx-auto my-auto text-center">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-gradient-to-tr from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center mb-4 shadow-xl shadow-emerald-500/10">
-                <Sparkles size={26} className="text-emerald-500" />
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 border border-violet-500/30 flex items-center justify-center mb-4 shadow-xl shadow-indigo-500/15">
+                <Sparkles size={26} className="text-violet-400" />
               </div>
               
               <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
@@ -604,13 +604,13 @@ const AIChatSection = () => {
                         setMessage(p.prompt + ' ');
                         document.getElementById('ai-message-input')?.focus();
                       }}
-                      className="p-4 bg-white dark:bg-[#121620] hover:bg-slate-50 dark:hover:bg-[#171d2b] border border-slate-200 dark:border-white/10 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/10 rounded-2xl text-left transition-all duration-300 group cursor-pointer flex items-start gap-3.5 shadow-sm"
+                      className="p-4 bg-white dark:bg-[#1C1D2A] hover:bg-slate-50 dark:hover:bg-[#232536] border border-slate-200 dark:border-white/[0.08] hover:border-violet-500/50 hover:shadow-lg hover:shadow-indigo-500/10 rounded-2xl text-left transition-all duration-300 group cursor-pointer flex items-start gap-3.5 shadow-sm"
                     >
-                      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:border-emerald-500/50 group-hover:scale-105 shrink-0 transition-all">
-                        <Icon size={18} className="text-emerald-500 transition-colors" />
+                      <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center group-hover:border-violet-500/50 group-hover:scale-105 shrink-0 transition-all">
+                        <Icon size={18} className="text-violet-400 transition-colors" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors mb-0.5">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-violet-400 transition-colors mb-0.5">
                           {p.label}
                         </div>
                         <div className="text-[11px] font-medium text-slate-600 dark:text-slate-400 leading-snug line-clamp-2">
@@ -636,9 +636,9 @@ const AIChatSection = () => {
                   >
                     {/* Bot Avatar Icon */}
                     {!isUser && (
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-[1px] shrink-0 shadow-md shadow-emerald-500/20 mt-1">
-                        <div className="w-full h-full bg-[#0b0e14] rounded-[11px] flex items-center justify-center">
-                          <Bot size={15} className="text-emerald-400" />
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 via-violet-500 to-indigo-600 p-[1px] shrink-0 shadow-md shadow-indigo-500/25 mt-1">
+                        <div className="w-full h-full bg-[#090A0F] rounded-[11px] flex items-center justify-center">
+                          <Bot size={15} className="text-violet-400" />
                         </div>
                       </div>
                     )}
@@ -646,44 +646,44 @@ const AIChatSection = () => {
                     <div className={`max-w-[94%] sm:max-w-[85%] flex flex-col min-w-0 ${isUser ? 'items-end' : 'items-start'}`}>
                       <div className={`p-4 sm:p-5 rounded-2xl shadow-md text-xs sm:text-sm font-normal leading-relaxed min-w-0 overflow-hidden break-words [word-break:break-word] ${
                         isUser 
-                          ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-tr-xs shadow-emerald-500/20' 
-                          : 'bg-white dark:bg-[#121620] text-slate-900 dark:text-slate-100 rounded-tl-xs border border-slate-200 dark:border-white/10 shadow-black/5 dark:shadow-black/30'
+                          ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-tr-xs shadow-indigo-500/20' 
+                          : 'bg-white dark:bg-[#1C1D2A] text-slate-900 dark:text-slate-100 rounded-tl-xs border border-slate-200 dark:border-white/[0.08] shadow-black/5 dark:shadow-black/30'
                       }`}>
                         <div className="markdown-container max-w-none break-words [word-break:break-word] overflow-hidden text-xs sm:text-sm">
                           <ReactMarkdown 
                             components={{
                               a: ({ node, ...props }) => (
-                                <a {...props} target="_blank" rel="noopener noreferrer" className="text-emerald-500 dark:text-emerald-400 hover:underline font-semibold break-all" />
+                                <a {...props} target="_blank" rel="noopener noreferrer" className="text-violet-400 hover:underline font-semibold break-all" />
                               ),
                               code: ({ node, inline, className, children, ...props }) => {
                                 const match = /language-(\w+)/.exec(className || '');
                                 const codeString = String(children).replace(/\n$/, '');
                                 if (!inline) {
                                   return (
-                                    <div className="my-3 rounded-2xl border border-slate-700/60 dark:border-white/10 bg-[#0d131f] dark:bg-[#070b13] overflow-hidden shadow-xl text-left">
-                                      <div className="flex items-center justify-between px-3.5 py-2 bg-[#141b2a] dark:bg-[#0c121e] border-b border-slate-700/50 dark:border-white/10 text-[11px] font-mono font-bold text-slate-300">
+                                    <div className="my-3 rounded-2xl border border-slate-700/60 dark:border-white/[0.08] bg-[#0c0d16] dark:bg-[#090A0F] overflow-hidden shadow-xl text-left">
+                                      <div className="flex items-center justify-between px-3.5 py-2 bg-[#12131C] dark:bg-[#12131C] border-b border-slate-700/50 dark:border-white/[0.08] text-[11px] font-mono font-bold text-slate-300">
                                         <div className="flex items-center gap-1.5">
                                           <span className="w-2 h-2 rounded-full bg-red-400/80 inline-block" />
                                           <span className="w-2 h-2 rounded-full bg-amber-400/80 inline-block" />
-                                          <span className="w-2 h-2 rounded-full bg-emerald-400/80 inline-block" />
-                                          <span className="ml-1 uppercase text-emerald-400 text-[10px] tracking-wider">{match ? match[1] : 'CODE'}</span>
+                                          <span className="w-2 h-2 rounded-full bg-violet-400/80 inline-block" />
+                                          <span className="ml-1 uppercase text-violet-400 text-[10px] tracking-wider">{match ? match[1] : 'CODE'}</span>
                                         </div>
                                         <button
                                           onClick={() => copyToClipboard(codeString, `code-${i}`)}
-                                          className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/10 hover:bg-emerald-500 hover:text-white text-slate-200 text-[10px] font-sans font-bold transition-all cursor-pointer active:scale-95"
+                                          className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/10 hover:bg-indigo-600 hover:text-white text-slate-200 text-[10px] font-sans font-bold transition-all cursor-pointer active:scale-95"
                                         >
-                                          {copiedIndex === `code-${i}` ? <Check size={11} className="text-emerald-300" /> : <Copy size={11} />}
+                                          {copiedIndex === `code-${i}` ? <Check size={11} className="text-violet-300" /> : <Copy size={11} />}
                                           <span>{copiedIndex === `code-${i}` ? 'COPIED' : 'COPY'}</span>
                                         </button>
                                       </div>
-                                      <pre className="p-3.5 text-[11px] sm:text-[12px] font-mono overflow-x-auto custom-scrollbar text-emerald-300 leading-relaxed font-medium m-0 border-0 bg-transparent">
+                                      <pre className="p-3.5 text-[11px] sm:text-[12px] font-mono overflow-x-auto custom-scrollbar text-violet-200 leading-relaxed font-medium m-0 border-0 bg-transparent">
                                         <code>{codeString}</code>
                                       </pre>
                                     </div>
                                   );
                                 }
                                 return (
-                                  <code className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono text-[11px] font-semibold" {...props}>
+                                  <code className="px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 dark:text-violet-300 border border-violet-500/20 font-mono text-[11px] font-semibold" {...props}>
                                     {children}
                                   </code>
                                 );
@@ -700,16 +700,16 @@ const AIChatSection = () => {
                             <div className="flex items-center gap-3">
                               <button
                                 onClick={() => copyToClipboard(msg.content, i)}
-                                className="flex items-center gap-1 hover:text-emerald-500 transition-colors cursor-pointer"
+                                className="flex items-center gap-1 hover:text-violet-400 transition-colors cursor-pointer"
                                 title="Copy Answer"
                               >
-                                {copiedIndex === i ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                                {copiedIndex === i ? <Check size={12} className="text-violet-400" /> : <Copy size={12} />}
                                 <span>{copiedIndex === i ? 'Copied' : 'Copy'}</span>
                               </button>
 
                               <button
                                 onClick={() => speakText(msg.content, i)}
-                                className="flex items-center gap-1 hover:text-emerald-500 transition-colors cursor-pointer"
+                                className="flex items-center gap-1 hover:text-violet-400 transition-colors cursor-pointer"
                                 title="Read Aloud"
                               >
                                 {speakingIndex === i ? <VolumeX size={12} className="text-red-500" /> : <Volume2 size={12} />}
@@ -745,16 +745,16 @@ const AIChatSection = () => {
 
           {isLoading && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0">
-                <Bot size={15} className="text-emerald-500" />
+              <div className="w-8 h-8 rounded-xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center shrink-0">
+                <Bot size={15} className="text-violet-400" />
               </div>
-              <div className="bg-white dark:bg-[#121620] border border-slate-200 dark:border-white/10 p-3 sm:p-4 rounded-2xl rounded-tl-xs flex items-center gap-3 shadow-sm">
+              <div className="bg-white dark:bg-[#1C1D2A] border border-slate-200 dark:border-white/[0.08] p-3 sm:p-4 rounded-2xl rounded-tl-xs flex items-center gap-3 shadow-sm">
                  <div className="flex gap-1.5">
-                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"></div>
-                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                   <div className="w-2 h-2 bg-violet-500 rounded-full animate-bounce"></div>
+                   <div className="w-2 h-2 bg-violet-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                   <div className="w-2 h-2 bg-violet-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                  </div>
-                 <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                 <span className="text-xs font-bold text-violet-400">
                    Generating response...
                  </span>
               </div>
@@ -764,8 +764,8 @@ const AIChatSection = () => {
         </div>
 
         {/* Input Form Bar */}
-        <form onSubmit={handleSendMessage} className="p-2.5 sm:p-4 bg-white/90 dark:bg-[#0e121b]/90 border-t border-slate-200 dark:border-white/10 backdrop-blur-xl shrink-0">
-          <div className="flex gap-2 items-center bg-slate-50 dark:bg-[#121620] border border-slate-200 dark:border-white/10 rounded-2xl p-1 sm:p-1.5 shadow-lg focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all duration-300">
+        <form onSubmit={handleSendMessage} className="p-2.5 sm:p-4 bg-white/90 dark:bg-[#12131C]/90 border-t border-slate-200 dark:border-white/[0.08] backdrop-blur-xl shrink-0">
+          <div className="flex gap-2 items-center bg-slate-50 dark:bg-[#1C1D2A] border border-slate-200 dark:border-white/[0.08] rounded-2xl p-1 sm:p-1.5 shadow-lg focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-500/20 transition-all duration-300">
             <input 
               id="ai-message-input"
               name="ai-message"
@@ -791,7 +791,7 @@ const AIChatSection = () => {
               <button 
                 type="submit" 
                 disabled={!message.trim()}
-                className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 rounded-xl text-white shadow-md shadow-emerald-500/25 flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:opacity-30 shrink-0 cursor-pointer"
+                className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl text-white shadow-md shadow-indigo-500/25 flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:opacity-30 shrink-0 cursor-pointer"
                 title="Send message"
               >
                 <Send size={16} />

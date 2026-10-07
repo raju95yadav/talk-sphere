@@ -76,13 +76,13 @@ const SettingsRow = ({ item, onClick }) => {
       whileHover={{ x: 3 }}
       whileTap={{ scale: 0.98 }}
       onClick={() => onClick?.(item.id)}
-      className="w-full flex items-center gap-3.5 px-3 py-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/8 transition-all group cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+      className="w-full flex items-center gap-3.5 px-3 py-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/8 transition-all group cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40"
     >
       {/* Icon container */}
       <div
         className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
           item.accent
-            ? 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-500 dark:text-emerald-400 group-hover:bg-emerald-500/25 group-hover:text-emerald-600 dark:group-hover:text-emerald-300'
+            ? 'bg-indigo-500/15 border border-indigo-500/25 text-indigo-500 dark:text-indigo-400 group-hover:bg-indigo-500/25 group-hover:text-indigo-600 dark:group-hover:text-indigo-300'
             : 'bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 text-slate-600 dark:text-gray-400 group-hover:text-slate-900 dark:group-hover:text-gray-200 group-hover:border-slate-300 dark:group-hover:border-gray-600/60 group-hover:bg-slate-200/70 dark:group-hover:bg-gray-700/60'
         }`}
       >
@@ -94,7 +94,7 @@ const SettingsRow = ({ item, onClick }) => {
         <p
           className={`text-[13px] font-semibold leading-tight truncate transition-colors ${
             item.accent
-              ? 'text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-300'
+              ? 'text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-300'
               : 'text-slate-800 dark:text-gray-200 group-hover:text-slate-950 dark:group-hover:text-white'
           }`}
         >
@@ -209,15 +209,15 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
             relative flex flex-col
             w-full sm:w-96 max-w-full sm:max-w-md
             h-full h-[100dvh] max-h-[100dvh]
-            bg-[#f8fafc] dark:bg-[#11141a]
+            bg-[#f8fafc] dark:bg-[#12131C]
             text-slate-900 dark:text-white
-            border-r border-slate-200 dark:border-gray-800/60
+            border-r border-slate-200 dark:border-white/10
             shadow-2xl shadow-black/20 dark:shadow-black/70
             overflow-hidden transition-colors duration-300
           "
         >
           {/* Top highlight line */}
-          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent pointer-events-none z-10" />
+          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent pointer-events-none z-10" />
 
           {/* Scrollable content */}
           <div className="flex flex-col flex-1 overflow-y-auto px-4 pt-5 pb-8 space-y-1">
@@ -237,7 +237,7 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
                   whileTap={{ scale: 0.88 }}
                   onClick={onClose}
                   aria-label="Go back"
-                  className="w-8 h-8 shrink-0 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-gray-700/80 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+                  className="w-8 h-8 shrink-0 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-gray-700/80 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50"
                 >
                   <ArrowLeft size={15} />
                 </motion.button>
@@ -251,7 +251,7 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
                 >
                   {displayName}
                 </h2>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400/75 leading-none mt-0.5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400/85 leading-none mt-0.5">
                   Settings
                 </p>
               </div>
@@ -267,7 +267,7 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
                 }}
                 aria-label="Toggle theme"
                 title={isDarkMode ? 'Switch to Light mode' : 'Switch to Dark mode'}
-                className="w-8 h-8 shrink-0 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-600 dark:text-gray-400 hover:text-amber-500 dark:hover:text-yellow-400 hover:bg-slate-200 dark:hover:bg-gray-700/80 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+                className="w-8 h-8 shrink-0 rounded-xl bg-slate-100 dark:bg-gray-800/80 border border-slate-200 dark:border-gray-700/50 flex items-center justify-center text-slate-600 dark:text-gray-400 hover:text-amber-500 dark:hover:text-yellow-400 hover:bg-slate-200 dark:hover:bg-gray-700/80 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50"
               >
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.div
@@ -287,7 +287,7 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
               </motion.button>
 
               {/* Avatar chip */}
-              <div className="shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-600/25 to-emerald-800/15 border border-emerald-500/25 flex items-center justify-center overflow-hidden">
+              <div className="shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600/25 to-violet-800/15 border border-indigo-500/25 flex items-center justify-center overflow-hidden">
                 {user?.avatar ? (
                   <img
                     src={user.avatar}
@@ -295,7 +295,7 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <User size={16} className="text-emerald-500 dark:text-emerald-400" />
+                  <User size={16} className="text-indigo-500 dark:text-indigo-400" />
                 )}
               </div>
             </motion.div>
@@ -328,7 +328,7 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
                   py-2.5 pl-9 pr-9
                   outline-none
                   transition-all duration-200
-                  focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/40
+                  focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/40
                   hover:bg-slate-200/70 dark:hover:bg-gray-800
                 "
               />
@@ -456,7 +456,7 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
           </div>
 
           {/* Bottom fade-out gradient */}
-          <div className="pointer-events-none absolute bottom-0 inset-x-0 h-12 bg-gradient-to-t from-[#f8fafc] dark:from-[#11141a] to-transparent" />
+          <div className="pointer-events-none absolute bottom-0 inset-x-0 h-12 bg-gradient-to-t from-[#f8fafc] dark:from-[#12131C] to-transparent" />
 
           {/* ── Profile sub-page ── */}
           <ProfileSettingsPage
@@ -506,7 +506,7 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.92, opacity: 0, y: 16 }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="w-full max-w-[340px] rounded-3xl border border-slate-200 dark:border-gray-700/60 p-6 flex flex-col items-center text-center shadow-2xl overflow-hidden bg-white dark:bg-[#141720]"
+            className="w-full max-w-[340px] rounded-3xl border border-slate-200 dark:border-white/10 p-6 flex flex-col items-center text-center shadow-2xl overflow-hidden bg-white dark:bg-[#1C1D2A]"
           >
             {/* Warning icon */}
             <div className="w-12 h-12 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-500 dark:text-red-400 mb-4 shadow-inner">

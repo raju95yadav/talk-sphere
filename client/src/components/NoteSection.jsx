@@ -269,7 +269,7 @@ const NoteSection = () => {
               ) : (
                 <>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-extrabold text-xs uppercase tracking-wider truncate mr-3 text-slate-900 dark:text-white group-hover:text-emerald-500 transition-colors">{note.title}</span>
+                    <span className="font-extrabold text-xs uppercase tracking-wider truncate mr-3 text-slate-900 dark:text-white group-hover:text-indigo-400 transition-colors">{note.title}</span>
                     <div className="flex gap-1 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-all shrink-0">
                       <button onClick={() => handleStartShare(note)} className="p-1.5 dark:hover:bg-white/10 hover:bg-black/5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer" title="Share Note"><Share2 size={14} /></button>
                       <button onClick={() => handleStartEdit(note)} className="p-1.5 dark:hover:bg-white/10 hover:bg-black/5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer" title="Edit Note"><Edit3 size={14} /></button>
@@ -278,7 +278,7 @@ const NoteSection = () => {
                   </div>
                   {note.content && <p className="text-[11px] text-slate-700 dark:text-slate-300 font-medium line-clamp-2 leading-relaxed">{note.content}</p>}
                   <div className="mt-2.5 flex items-center gap-1.5 text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
-                    <Calendar size={11} className="text-emerald-500" />
+                    <Calendar size={11} className="text-indigo-400" />
                     <span>{new Date(note.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
                   </div>
                 </>

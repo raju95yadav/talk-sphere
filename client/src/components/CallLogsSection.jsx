@@ -225,7 +225,7 @@ const CallLogsSection = () => {
                       {isMissed ? (
                         <PhoneMissed size={13} className="text-red-500 shrink-0" />
                       ) : isSender ? (
-                        <PhoneOutgoing size={13} className="text-emerald-400 shrink-0" />
+                        <PhoneOutgoing size={13} className="text-indigo-400 shrink-0" />
                       ) : (
                         <PhoneIncoming size={13} className="text-blue-400 shrink-0" />
                       )}
@@ -249,7 +249,7 @@ const CallLogsSection = () => {
                     <button
                       onClick={() => startCall(peer, 'audio')}
                       disabled={callStatus !== 'idle'}
-                      className="p-2 sm:p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-30 cursor-pointer active:scale-90"
+                      className="p-2 sm:p-2.5 rounded-xl bg-indigo-500/15 text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all disabled:opacity-30 cursor-pointer active:scale-90"
                       title="Audio Call"
                     >
                       <Phone size={14} />

@@ -33,7 +33,7 @@ export const IncomingMessageToast = ({
 
   if (type === 'image') {
     displayContent = 'Photo';
-    iconComponent = <Image size={13} className="text-emerald-400 shrink-0" />;
+    iconComponent = <Image size={13} className="text-indigo-400 shrink-0" />;
   } else if (type === 'video') {
     displayContent = 'Video';
     iconComponent = <Video size={13} className="text-purple-400 shrink-0" />;
@@ -66,20 +66,20 @@ export const IncomingMessageToast = ({
       className={`
         pointer-events-auto
         w-full max-w-[360px] sm:max-w-[400px]
-        bg-slate-900/95 dark:bg-[#11141a]/95
+        bg-slate-900/95 dark:bg-[#12131C]/95
         backdrop-blur-xl
-        border border-emerald-500/40 dark:border-emerald-500/30
+        border border-indigo-500/40 dark:border-indigo-500/30
         rounded-2xl p-3.5
-        shadow-2xl shadow-emerald-500/15 dark:shadow-black/70
+        shadow-2xl shadow-indigo-500/15 dark:shadow-black/70
         flex items-center gap-3
         cursor-pointer group
         transition-all duration-300
-        hover:border-emerald-500/70 hover:shadow-emerald-500/25 hover:scale-[1.01]
+        hover:border-indigo-500/70 hover:shadow-indigo-500/25 hover:scale-[1.01]
         select-none
       `}
     >
       {/* Left glowing neon accent line */}
-      <div className="w-1 self-stretch rounded-full bg-gradient-to-b from-emerald-400 via-teal-400 to-emerald-600 shadow-sm shadow-emerald-500/60 shrink-0" />
+      <div className="w-1 self-stretch rounded-full bg-gradient-to-b from-indigo-400 via-violet-400 to-indigo-600 shadow-sm shadow-indigo-500/60 shrink-0" />
 
       {/* Sender Avatar with active ring and online badge */}
       <div className="relative shrink-0">
@@ -87,15 +87,15 @@ export const IncomingMessageToast = ({
           <img
             src={senderAvatar}
             alt={senderName}
-            className="w-10 h-10 rounded-xl object-cover ring-2 ring-emerald-500/30 group-hover:ring-emerald-500/60 transition-all shadow-md"
+            className="w-10 h-10 rounded-xl object-cover ring-2 ring-indigo-500/30 group-hover:ring-indigo-500/60 transition-all shadow-md"
           />
         ) : (
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white text-xs font-black ring-2 ring-emerald-500/30 shadow-md">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white text-xs font-black ring-2 ring-indigo-500/30 shadow-md">
             {initials}
           </div>
         )}
-        {/* Pulsing emerald badge */}
-        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-slate-900 dark:ring-[#11141a] flex items-center justify-center">
+        {/* Pulsing indigo badge */}
+        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-indigo-500 ring-2 ring-slate-900 dark:ring-[#12131C] flex items-center justify-center">
           <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
         </span>
       </div>
@@ -104,7 +104,7 @@ export const IncomingMessageToast = ({
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-1 mb-0.5">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-[13px] font-bold text-white group-hover:text-emerald-300 transition-colors truncate">
+            <span className="text-[13px] font-bold text-white group-hover:text-indigo-300 transition-colors truncate">
               {senderName}
             </span>
             {isGroup && groupName && (
@@ -129,7 +129,7 @@ export const IncomingMessageToast = ({
         <button
           type="button"
           onClick={handleOpen}
-          className="px-2.5 py-1 rounded-xl bg-emerald-500/15 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 font-bold text-[11px] transition-all flex items-center gap-1 shadow-sm active:scale-95 cursor-pointer"
+          className="px-2.5 py-1 rounded-xl bg-indigo-500/15 hover:bg-indigo-500 text-indigo-400 hover:text-white font-bold text-[11px] transition-all flex items-center gap-1 shadow-sm active:scale-95 cursor-pointer"
         >
           <span>Reply</span>
           <ArrowRight size={11} />
