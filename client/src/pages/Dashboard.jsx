@@ -81,13 +81,13 @@ const Dashboard = () => {
   };
 
   const tabs = [
-    { name: 'MANAGEMENT HOME', shortName: 'HOME', icon: LayoutDashboard },
-    { name: 'CALL LOGS', shortName: 'CALLS', icon: Phone },
-    { name: 'AI ASSISTANT', shortName: 'AI ASSIST', icon: Sparkles },
+    { name: 'MANAGEMENT HOME', label: 'MANAGEMENT', shortName: 'HOME', icon: LayoutDashboard },
+    { name: 'CALL LOGS', label: 'CALL LOGS', shortName: 'CALLS', icon: Phone },
+    { name: 'AI ASSISTANT', label: 'AI ASSISTANT', shortName: 'AI ASSIST', icon: Sparkles },
   ];
 
   return (
-    <div className="relative min-h-screen bg-bg-main text-text-main p-3 sm:p-5 md:p-8 lg:p-12 transition-colors duration-300 overflow-x-hidden">
+    <div className="relative min-h-screen bg-bg-main text-text-main p-2.5 sm:p-4 md:p-6 lg:p-8 transition-colors duration-300 overflow-x-hidden">
       {/* Cybernetic Background Image Layer with Animated Crossfade */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <AnimatePresence mode="wait">
@@ -135,42 +135,44 @@ const Dashboard = () => {
           onChange={handleFileChange}
         />
         {/* Top Navigation */}
-        <div className="sticky top-0 z-50 max-w-7xl mx-auto mb-4 sm:mb-8 pt-1 sm:pt-3 px-1 sm:px-3">
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-2.5 sm:gap-3 glass-card p-2 sm:p-3 rounded-2xl lg:rounded-full shadow-2xl backdrop-blur-2xl border border-border-main max-w-full overflow-hidden">
+        <div className="sticky top-0 z-50 max-w-7xl mx-auto mb-4 sm:mb-8 pt-1 sm:pt-2 px-0 sm:px-2">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-2.5 sm:gap-3 glass-card p-2 sm:p-2.5 lg:p-3 rounded-2xl lg:rounded-full shadow-2xl backdrop-blur-2xl border border-border-main max-w-full">
           
-          {/* Left: Brand Logo */}
-          <div className="flex items-center justify-between w-full lg:w-auto px-2 sm:px-4 py-0.5 shrink-0">
-            <div className="flex items-center gap-2.5 sm:gap-3">
+          {/* Left: Brand Logo & Mobile Action Controls */}
+          <div className="flex items-center justify-between w-full lg:w-auto px-1 sm:px-3 py-0.5 shrink-0 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
               <motion.div 
                 whileHover={{ scale: 1.05, rotate: 3 }}
                 whileTap={{ scale: 0.95 }}
-                className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-tr from-indigo-500 via-indigo-600 to-violet-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0 cursor-pointer"
+                className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-tr from-indigo-500 via-indigo-600 to-violet-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0 cursor-pointer"
               >
-                <span className="font-black text-base sm:text-xl text-white">TS</span>
+                <span className="font-black text-sm sm:text-base text-white">TS</span>
               </motion.div>
-              <h1 className="text-base sm:text-xl font-black tracking-tighter text-text-main whitespace-nowrap">TALK SPHERE</h1>
+              <h1 className="text-sm xs:text-base sm:text-lg font-black tracking-tight text-text-main whitespace-nowrap truncate">
+                TALK SPHERE
+              </h1>
             </div>
 
-            {/* Mobile / Tablet Actions (Theme & Avatar) visible on top row for small screens */}
-            <div className="flex items-center gap-2 lg:hidden">
+            {/* Mobile / Tablet Actions (Theme, Bell, Settings, Avatar) */}
+            <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 shrink-0 lg:hidden">
               <button 
                 onClick={toggleTheme}
-                className="p-2 sm:p-2.5 rounded-xl bg-bg-card-secondary text-text-muted hover:text-accent-primary transition-all border border-border-main active:scale-95 cursor-pointer"
+                className="w-8 h-8 sm:w-8.5 sm:h-8.5 flex items-center justify-center rounded-xl bg-bg-card-secondary text-text-muted hover:text-accent-primary transition-all border border-border-main active:scale-95 cursor-pointer shrink-0"
                 title="Toggle Theme"
               >
-                {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+                {isDarkMode ? <Sun size={15} /> : <Moon size={15} />}
               </button>
 
               {/* Notification bell – mobile */}
               <button
                 id="notif-open-btn-mobile"
                 onClick={openNotifications}
-                className="relative p-2 sm:p-2.5 rounded-xl bg-bg-card-secondary text-text-muted hover:text-accent-primary transition-all border border-border-main active:scale-95 cursor-pointer"
+                className="relative w-8 h-8 sm:w-8.5 sm:h-8.5 flex items-center justify-center rounded-xl bg-bg-card-secondary text-text-muted hover:text-accent-primary transition-all border border-border-main active:scale-95 cursor-pointer shrink-0"
                 title="Notifications"
               >
-                <Bell size={16} />
+                <Bell size={15} />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-indigo-600 text-[9px] font-black text-white shadow-md shadow-indigo-500/30 animate-pulse">
+                  <span className="absolute -top-1 -right-1 flex h-3.5 min-w-3.5 px-0.5 items-center justify-center rounded-full bg-indigo-600 text-[8px] font-black text-white shadow-md shadow-indigo-500/30 animate-pulse">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
@@ -180,21 +182,21 @@ const Dashboard = () => {
               <button
                 id="settings-open-btn-mobile"
                 onClick={() => setShowSettings(true)}
-                className="p-2 sm:p-2.5 rounded-xl bg-bg-card-secondary text-text-muted hover:text-accent-primary transition-all border border-border-main active:scale-95 cursor-pointer"
+                className="w-8 h-8 sm:w-8.5 sm:h-8.5 flex items-center justify-center rounded-xl bg-bg-card-secondary text-text-muted hover:text-accent-primary transition-all border border-border-main active:scale-95 cursor-pointer shrink-0"
                 title="Settings"
               >
-                <Settings size={16} />
+                <Settings size={15} />
               </button>
 
               <div 
                 onClick={handleAvatarClick}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-bg-card-secondary border border-border-main flex items-center justify-center cursor-pointer overflow-hidden relative group shrink-0 active:scale-95 transition-transform"
+                className="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-full bg-bg-card-secondary border border-border-main flex items-center justify-center cursor-pointer overflow-hidden relative group shrink-0 active:scale-95 transition-transform"
                 title="Change Avatar"
               >
                 {user?.avatar ? (
                   <img src={user.avatar} className="w-full h-full object-cover" alt="avatar" />
                 ) : (
-                  <UserIcon size={16} className="text-accent-primary" />
+                  <UserIcon size={15} className="text-accent-primary" />
                 )}
                 {isUploading && (
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -206,13 +208,13 @@ const Dashboard = () => {
           </div>
 
           {/* Center: Tabs Navigation */}
-          <div className="w-full lg:w-auto bg-bg-card-secondary/80 backdrop-blur-md rounded-xl lg:rounded-full p-1 max-w-full overflow-hidden border border-border-main">
+          <div className="w-full lg:w-auto bg-bg-card-secondary/80 backdrop-blur-md rounded-xl lg:rounded-full p-1 max-w-full border border-border-main shrink-0">
             <div className="grid grid-cols-3 gap-1 lg:flex lg:items-center lg:gap-1.5">
               {tabs.map((tab) => (
                 <button
                   key={tab.name}
                   onClick={() => setActiveTab(tab.name)}
-                  className={`relative flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-1.5 sm:py-2.5 px-2 sm:px-4 lg:px-5 rounded-lg lg:rounded-full text-[8.5px] xs:text-[9.5px] sm:text-[10px] font-bold transition-all uppercase tracking-wider text-center cursor-pointer ${
+                  className={`relative flex flex-row items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-2 sm:px-3 lg:px-3.5 xl:px-4 2xl:px-5 rounded-lg lg:rounded-full text-[9px] xs:text-[10px] sm:text-[10px] font-bold transition-all uppercase tracking-wider text-center cursor-pointer shrink-0 ${
                     activeTab === tab.name 
                       ? 'text-white' 
                       : 'text-text-muted hover:text-text-main dark:hover:bg-white/5 hover:bg-black/5'
@@ -226,33 +228,37 @@ const Dashboard = () => {
                     />
                   )}
                   <tab.icon size={14} className="shrink-0 sm:size-[15px] relative z-10" />
-                  <span className="sm:hidden text-[8px] sm:text-[10px] leading-none relative z-10">{tab.shortName}</span>
-                  <span className="hidden sm:inline whitespace-nowrap relative z-10">{tab.name}</span>
+                  {/* Phone view: short name */}
+                  <span className="sm:hidden text-[9px] xs:text-[10px] leading-none relative z-10 whitespace-nowrap">{tab.shortName}</span>
+                  {/* Tablet & Laptop/Desktop: responsive clean label */}
+                  <span className="hidden sm:inline 2xl:hidden whitespace-nowrap relative z-10">{tab.label}</span>
+                  {/* Extra large screens: full title */}
+                  <span className="hidden 2xl:inline whitespace-nowrap relative z-10">{tab.name}</span>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Right: Desktop User Session & Controls (visible on lg screens) */}
-          <div className="hidden lg:flex items-center gap-3 shrink-0 px-4 border-l border-border-main">
+          <div className="hidden lg:flex items-center gap-2 xl:gap-2.5 shrink-0 px-2 xl:px-3 border-l border-border-main">
              <button 
                onClick={toggleTheme}
-               className="p-2.5 rounded-xl bg-bg-card-secondary text-text-muted hover:text-accent-primary transition-all border border-border-main active:scale-95 cursor-pointer"
+               className="w-8.5 h-8.5 xl:w-9 xl:h-9 flex items-center justify-center rounded-xl bg-bg-card-secondary text-text-muted hover:text-accent-primary transition-all border border-border-main active:scale-95 cursor-pointer shrink-0"
                title="Toggle Theme"
              >
-               {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+               {isDarkMode ? <Sun size={15} /> : <Moon size={15} />}
              </button>
 
              {/* Notification bell – desktop */}
              <button
                id="notif-open-btn-desktop"
                onClick={openNotifications}
-               className="relative p-2.5 rounded-xl bg-bg-card-secondary text-text-muted hover:text-accent-primary transition-all border border-border-main active:scale-95 cursor-pointer"
+               className="relative w-8.5 h-8.5 xl:w-9 xl:h-9 flex items-center justify-center rounded-xl bg-bg-card-secondary text-text-muted hover:text-accent-primary transition-all border border-border-main active:scale-95 cursor-pointer shrink-0"
                title="Notifications"
              >
-               <Bell size={16} />
+               <Bell size={15} />
                {unreadCount > 0 && (
-                 <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-indigo-600 text-[9px] font-black text-white shadow-lg shadow-indigo-500/35 animate-pulse">
+                 <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-indigo-600 text-[9px] font-black text-white shadow-lg shadow-indigo-500/35 animate-pulse">
                    {unreadCount > 99 ? '99+' : unreadCount}
                  </span>
                )}
@@ -262,30 +268,30 @@ const Dashboard = () => {
              <button
                id="settings-open-btn-desktop"
                onClick={() => setShowSettings(true)}
-               className="p-2.5 rounded-xl bg-bg-card-secondary text-text-muted hover:text-accent-primary transition-all border border-border-main active:scale-95 cursor-pointer"
+               className="w-8.5 h-8.5 xl:w-9 xl:h-9 flex items-center justify-center rounded-xl bg-bg-card-secondary text-text-muted hover:text-accent-primary transition-all border border-border-main active:scale-95 cursor-pointer shrink-0"
                title="Settings"
              >
-               <Settings size={16} />
+               <Settings size={15} />
              </button>
 
              <div 
                onClick={() => setShowSettings(true)}
-               className="text-right pl-1 cursor-pointer group/user select-none"
+               className="hidden xl:block text-right pl-1 cursor-pointer group/user select-none"
                title="Settings & Profile"
              >
-               <p className="text-xs font-bold truncate max-w-[130px] text-text-main group-hover/user:text-accent-primary transition-colors">{user?.name || user?.email}</p>
+               <p className="text-xs font-bold truncate max-w-[120px] text-text-main group-hover/user:text-accent-primary transition-colors">{user?.name || user?.email}</p>
                <p className="text-[9px] text-text-muted uppercase font-semibold tracking-wider group-hover/user:text-accent-primary/80 transition-colors">Active Session</p>
              </div>
              
              <div 
                onClick={handleAvatarClick}
-               className="w-9 h-9 rounded-full bg-bg-card-secondary border border-border-main flex items-center justify-center cursor-pointer overflow-hidden relative group shrink-0 active:scale-95 transition-transform"
+               className="w-8.5 h-8.5 xl:w-9 xl:h-9 rounded-full bg-bg-card-secondary border border-border-main flex items-center justify-center cursor-pointer overflow-hidden relative group shrink-0 active:scale-95 transition-transform"
                title="Change Avatar"
              >
                {user?.avatar ? (
                  <img src={user.avatar} className="w-full h-full object-cover" alt="avatar" />
                ) : (
-                 <UserIcon size={18} className="text-accent-primary" />
+                 <UserIcon size={16} className="text-accent-primary" />
                )}
                {isUploading && (
                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
