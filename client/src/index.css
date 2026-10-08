@@ -23,10 +23,10 @@
   
   /* Option 1: Linear & Raycast Aesthetic (Obsidian & Electric Violet) */
   --bg-main: #090A0F;        /* Deep Void: Canvas / Base */
-  --bg-surface-1: #12131C;   /* Obsidian Slate: Surface 1 */
-  --bg-card: #1C1D2A;        /* Elevated Card: Surface 2 */
-  --bg-card-secondary: #12131C; /* Obsidian Slate */
-  --text-main: #F8FAFC;      /* Pure Off-White: Text Primary */
+  --bg-surface-1: #11131E;   /* Obsidian Slate: Surface 1 */
+  --bg-card: #161826;        /* Elevated Card: Surface 2 */
+  --bg-card-secondary: #12131F; /* Obsidian Slate */
+  --text-main: #FFFFFF;      /* Pure Off-White: Text Primary */
   --text-muted: #94A3B8;     /* Slate Gray: Text Muted */
   --border-main: rgba(255, 255, 255, 0.08); /* Subtle Stroke: Borders */
 }
@@ -42,6 +42,11 @@
 }
 
 @layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
   body {
     font-family: var(--font-family);
     @apply bg-bg-main text-text-main min-h-screen transition-colors duration-300;
@@ -50,8 +55,8 @@
 
 @layer components {
   .glass-card {
-    @apply bg-bg-card/90 backdrop-blur-2xl border border-border-main rounded-3xl shadow-xl shadow-black/40;
-    -webkit-backdrop-filter: blur(24px);
+    @apply bg-bg-card/95 backdrop-blur-xl border border-border-main rounded-3xl shadow-xl shadow-black/40;
+    -webkit-backdrop-filter: blur(16px);
   }
   
   .btn-primary {
@@ -66,6 +71,7 @@
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -73,48 +79,47 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-white/10 rounded-full hover:bg-indigo-500 transition-colors;
+  @apply bg-white/15 rounded-full hover:bg-indigo-500 transition-colors;
 }
 
 [data-theme='light'] ::-webkit-scrollbar-thumb {
-  @apply bg-black/10;
+  @apply bg-black/15;
 }
 
 /* AI Markdown Styles - High Contrast & Clean Monospace */
 .markdown-container {
   overflow-wrap: break-word;
   word-break: break-word;
-  line-height: 1.65;
+  line-height: 1.7;
 }
 
 .markdown-container p {
-  @apply mb-3 last:mb-0 leading-relaxed text-sm;
-  color: inherit;
+  @apply mb-3 last:mb-0 leading-relaxed text-sm text-slate-800 dark:text-slate-200 font-normal;
 }
 
 .markdown-container h1, .markdown-container h2, .markdown-container h3, .markdown-container h4 {
-  @apply font-black text-text-main mt-4 mb-2 tracking-tight;
+  @apply font-bold mt-4 mb-2 tracking-tight;
 }
-.markdown-container h1 { @apply text-lg; }
-.markdown-container h2 { @apply text-base text-violet-400 dark:text-violet-300; }
-.markdown-container h3 { @apply text-sm; }
+.markdown-container h1 { @apply text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white; }
+.markdown-container h2 { @apply text-base sm:text-lg font-bold text-violet-600 dark:text-violet-300; }
+.markdown-container h3 { @apply text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100; }
 
 .markdown-container pre {
-  @apply bg-[#0c0d16] text-violet-200 dark:bg-[#07080e] dark:text-violet-200 p-4 rounded-2xl overflow-x-auto max-w-full my-3 font-mono text-[12px] sm:text-[13px] border border-white/[0.08] shadow-lg;
+  @apply bg-[#0c0d16] text-violet-200 dark:bg-[#07080e] dark:text-violet-200 p-4 rounded-2xl overflow-x-auto max-w-full my-3 font-mono text-xs sm:text-[13px] border border-slate-700/50 dark:border-white/[0.08] shadow-lg;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .markdown-container code {
-  @apply font-mono text-[12px];
+  @apply font-mono text-xs sm:text-[13px];
 }
 
 .markdown-container :not(pre) > code {
-  @apply bg-indigo-500/10 text-indigo-400 dark:text-indigo-300 border border-indigo-500/20 px-1.5 py-0.5 rounded font-semibold text-[11px] sm:text-xs;
+  @apply bg-violet-500/10 text-violet-600 dark:text-violet-300 border border-violet-500/20 px-1.5 py-0.5 rounded font-semibold text-xs;
 }
 
 .markdown-container ul, .markdown-container ol {
-  @apply ml-5 mb-3 space-y-1 text-sm;
+  @apply ml-5 mb-3 space-y-1 text-xs sm:text-sm text-slate-800 dark:text-slate-200;
 }
 
 .markdown-container ul {
@@ -130,11 +135,36 @@
 }
 
 .markdown-container strong {
-  @apply font-bold text-text-main;
+  @apply font-bold text-slate-950 dark:text-white;
 }
 
 .markdown-container blockquote {
-  @apply border-l-4 border-indigo-500 pl-3 italic my-2 text-text-muted;
+  @apply border-l-4 border-indigo-500 pl-3 italic my-2 text-slate-600 dark:text-slate-300;
+}
+
+/* Markdown Table Styles for GFM */
+.markdown-container table {
+  @apply w-full text-left border-collapse my-3.5;
+}
+
+.markdown-container thead {
+  @apply bg-slate-100 dark:bg-violet-950/40 border-b border-slate-200 dark:border-white/10;
+}
+
+.markdown-container th {
+  @apply px-4 py-3 text-[11px] sm:text-xs font-bold text-violet-700 dark:text-violet-300 uppercase tracking-wider border-r border-slate-200/60 dark:border-white/5 last:border-r-0 whitespace-nowrap;
+}
+
+.markdown-container tbody {
+  @apply divide-y divide-slate-200/60 dark:divide-white/5;
+}
+
+.markdown-container tr {
+  @apply transition-colors hover:bg-slate-100/50 dark:hover:bg-white/[0.04] even:bg-slate-50/40 dark:even:bg-white/[0.02];
+}
+
+.markdown-container td {
+  @apply px-4 py-3 text-xs sm:text-[13px] text-slate-700 dark:text-slate-200 leading-relaxed align-top border-r border-slate-200/60 dark:border-white/5 last:border-r-0;
 }
 
 /* Call Ripple & Sound Wave Animations */

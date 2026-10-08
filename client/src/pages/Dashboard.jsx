@@ -339,7 +339,7 @@ const Dashboard = () => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.97, y: -15 }}
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="h-[calc(100vh-140px)] min-h-[500px] sm:h-[650px] lg:h-[780px] xl:h-[820px] max-w-4xl mx-auto flex flex-col w-full"
+              className="h-[calc(100vh-140px)] min-h-[500px] sm:h-[650px] lg:h-[780px] xl:h-[820px] max-w-5xl xl:max-w-6xl mx-auto flex flex-col w-full"
             >
               <AIChatSection />
             </motion.div>
