@@ -12,10 +12,18 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import apiClient from '../api/apiClient';
 
+const getApiBase = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return 'https://talk-sphere-server.onrender.com';
+  }
+  return 'http://localhost:5000';
+};
+
 const AI_MODELS = [
-  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', desc: 'Ultra-Fast Realtime', icon: Zap, color: 'text-amber-400' },
-  { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro', desc: 'Deep Reasoning Core', icon: Cpu, color: 'text-purple-400' },
-  { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', desc: 'Balanced Engine', icon: Sparkles, color: 'text-blue-400' },
+  { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', desc: 'Ultra-Fast & Stable', icon: Zap, color: 'text-amber-400' },
+  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', desc: 'Realtime Neural', icon: Sparkles, color: 'text-purple-400' },
+  { id: 'gemini-flash-latest', name: 'Gemini Flash Latest', desc: 'High Reliability', icon: Cpu, color: 'text-blue-400' },
   { id: 'groq-llama3', name: 'Groq Llama 3.3', desc: 'Low Latency LPU', icon: Zap, color: 'text-violet-400' }
 ];
 
@@ -31,7 +39,7 @@ const AIChatSection = () => {
   const socket = useSocket();
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('gemini-3.6-flash');
+  const [selectedModel, setSelectedModel] = useState('gemini-3.5-flash');
   
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
@@ -79,7 +87,7 @@ const AIChatSection = () => {
   const checkServerPing = async () => {
     const startTime = Date.now();
     try {
-      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/ai/ping`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -177,7 +185,7 @@ const AIChatSection = () => {
 
     coldTimerRef.current = setTimeout(() => {
       setIsColdStarting(true);
-    }, 2500);
+    }, 6000);
 
     const aiPlaceholderMsg = { role: 'assistant', content: '', createdAt: new Date().toISOString() };
     setSessions(prev => prev.map(s => {
@@ -193,7 +201,7 @@ const AIChatSection = () => {
     abortControllerRef.current = new AbortController();
 
     try {
-      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const apiBase = getApiBase();
       const response = await fetch(`${apiBase}/api/ai/stream`, {
         method: 'POST',
         headers: {

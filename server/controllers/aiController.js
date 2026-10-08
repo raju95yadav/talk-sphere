@@ -6,17 +6,23 @@ const AISession = require('../models/AISession');
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-// Helper to normalize Gemini model names
-const getGeminiModelName = (selectedModel) => {
-  switch (selectedModel) {
-    case 'gemini-3.1-pro-preview':
-      return 'gemini-3.1-pro-preview';
-    case 'gemini-3.5-flash':
-      return 'gemini-3.5-flash';
-    case 'gemini-3.6-flash':
-    default:
-      return 'gemini-3.6-flash';
+// Helper to get fallback candidate models in prioritized order
+const getModelCandidates = (selectedModel) => {
+  let primary = 'gemini-3.5-flash';
+  if (selectedModel === 'gemini-3.6-flash') {
+    primary = 'gemini-3.6-flash';
+  } else if (selectedModel === 'gemini-flash-latest') {
+    primary = 'gemini-flash-latest';
+  } else if (selectedModel === 'gemini-3.5-flash') {
+    primary = 'gemini-3.5-flash';
+  } else {
+    // Legacy or preview models (e.g. gemini-3.1-pro-preview which fails on free tier)
+    primary = 'gemini-3.5-flash';
   }
+
+  // Fallback pool in order of speed and stability
+  const allPool = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-flash-latest'];
+  return [primary, ...allPool.filter(m => m !== primary)];
 };
 
 /**
@@ -32,9 +38,9 @@ exports.pingAI = async (req, res) => {
     apiKeyConfigured,
     groqConfigured,
     availableModels: [
-      { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', provider: 'Google', default: true },
-      { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro', provider: 'Google' },
-      { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', provider: 'Google' },
+      { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', provider: 'Google', default: true },
+      { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', provider: 'Google' },
+      { id: 'gemini-flash-latest', name: 'Gemini Flash Latest', provider: 'Google' },
       { id: 'groq-llama3', name: 'Groq Llama 3.3', provider: 'Groq', requiresKey: true, active: groqConfigured }
     ]
   });
@@ -206,75 +212,131 @@ exports.streamAIChat = async (req, res) => {
       return res.end();
     } catch (groqErr) {
       logger.error('GROQ_AI_ERROR', groqErr.message || groqErr);
-      res.write(`data: ${JSON.stringify({ chunk: `⚠️ *Groq Fallback Notice:* ${groqErr.message}. Falling back to Gemini 3.6 Flash...\n\n` })}\n\n`);
+      res.write(`data: ${JSON.stringify({ chunk: `⚠️ *Groq Fallback Notice:* ${groqErr.message}. Falling back to Gemini...\n\n` })}\n\n`);
       // Fallthrough to Gemini
     }
   }
 
-  // Gemini AI Stream Implementation
-  try {
-    logger.info('AI_CONTROLLER', `Streaming Gemini transmission for User: ${userId} (${selectedModel})`);
+  // Gemini AI Stream Implementation with Multi-Model Fallback & Auto-Retry
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
+    res.write(`data: ${JSON.stringify({ error: 'Gemini API key is not configured on the server. Please update GEMINI_API_KEY in .env.' })}\n\n`);
+    res.write('data: [DONE]\n\n');
+    return res.end();
+  }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-      res.write(`data: ${JSON.stringify({ error: 'Gemini API key is not configured on the server. Please update GEMINI_API_KEY in .env.' })}\n\n`);
-      res.write('data: [DONE]\n\n');
-      return res.end();
-    }
+  const modelCandidates = getModelCandidates(selectedModel);
+  const chatHistory = (history || []).map(msg => ({
+    role: msg.role === 'user' ? 'user' : 'model',
+    parts: [{ text: msg.content }]
+  }));
 
-    const geminiModelName = getGeminiModelName(selectedModel);
-    
-    const model = genAI.getGenerativeModel({
-      model: geminiModelName,
-      systemInstruction: "You are the Talk-Sphere Neural Assistant, a highly intelligent, factual, and modern AI assistant integrated into the Talk-Sphere ecosystem. Provide clean, well-formatted responses in Markdown with syntax-highlighted code blocks where appropriate."
-    });
+  let hasSentAnyChunk = false;
+  let streamSuccess = false;
+  let lastError = null;
 
-    const chatHistory = (history || []).map(msg => ({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content }]
-    }));
+  for (let i = 0; i < modelCandidates.length; i++) {
+    const candidateModel = modelCandidates[i];
+    logger.info('AI_CONTROLLER', `Streaming Gemini transmission with candidate: ${candidateModel} for User: ${userId}`);
 
-    const chat = model.startChat({
-      history: chatHistory,
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 2000,
-      },
-    });
+    // Try up to 2 attempts for transient 503 / stream errors
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: candidateModel,
+          systemInstruction: "You are the Talk-Sphere Neural Assistant, a highly intelligent, factual, and modern AI assistant integrated into the Talk-Sphere ecosystem. Provide clean, well-formatted responses in Markdown with syntax-highlighted code blocks and clean Markdown tables where appropriate."
+        });
 
-    const resultStream = await chat.sendMessageStream(message);
+        const chat = model.startChat({
+          history: chatHistory,
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 2500,
+          },
+        });
 
-    for await (const chunk of resultStream.stream) {
-      const chunkText = chunk.text();
-      if (chunkText) {
-        res.write(`data: ${JSON.stringify({ chunk: chunkText })}\n\n`);
+        const resultStream = await chat.sendMessageStream(message);
+
+        for await (const chunk of resultStream.stream) {
+          const chunkText = chunk.text();
+          if (chunkText) {
+            hasSentAnyChunk = true;
+            res.write(`data: ${JSON.stringify({ chunk: chunkText })}\n\n`);
+          }
+        }
+
+        streamSuccess = true;
+        break; // Successfully completed streaming
+      } catch (err) {
+        lastError = err;
+        logger.warn('AI_STREAM_ATTEMPT_WARNING', `Candidate ${candidateModel} (attempt ${attempt}) error: ${err.message}`);
+
+        // If chunks were already emitted to client, break out to prevent garbled text
+        if (hasSentAnyChunk) {
+          break;
+        }
+
+        const isTransient = err.message?.includes('503') || 
+                            err.message?.includes('overloaded') || 
+                            err.message?.includes('Service Unavailable') ||
+                            err.message?.includes('Failed to parse stream');
+
+        if (isTransient && attempt === 1) {
+          await new Promise(r => setTimeout(r, 700));
+          continue;
+        }
+
+        // If streaming failed on this model without sending anything, attempt non-streaming generateContent
+        try {
+          logger.info('AI_CONTROLLER', `Trying non-streaming fallback on ${candidateModel}...`);
+          const model = genAI.getGenerativeModel({
+            model: candidateModel,
+            systemInstruction: "You are the Talk-Sphere Neural Assistant, a highly intelligent, factual, and modern AI assistant integrated into the Talk-Sphere ecosystem. Provide clean, well-formatted responses in Markdown with syntax-highlighted code blocks and clean Markdown tables where appropriate."
+          });
+          const chat = model.startChat({
+            history: chatHistory,
+            generationConfig: { temperature: 0.3, maxOutputTokens: 2500 }
+          });
+          const nonStreamRes = await chat.sendMessage(message);
+          const fullText = nonStreamRes.response.text();
+          if (fullText) {
+            hasSentAnyChunk = true;
+            res.write(`data: ${JSON.stringify({ chunk: fullText })}\n\n`);
+            streamSuccess = true;
+            break;
+          }
+        } catch (nsErr) {
+          logger.warn('AI_NON_STREAM_FALLBACK_FAILED', `Non-stream on ${candidateModel} also failed: ${nsErr.message}`);
+        }
+
+        break; // Move to next model candidate
       }
     }
 
-    res.write('data: [DONE]\n\n');
-    res.end();
-  } catch (error) {
-    logger.error('GEMINI_AI_STREAM_ERROR', error.message || error);
-
-    let fallbackText = '';
-    const isApiKeyError =
-      error.message?.includes('API key') ||
-      error.message?.includes('API_KEY') ||
-      error.message?.includes('403') ||
-      error.message?.includes('Forbidden');
-
-    if (isApiKeyError) {
-      fallbackText = `⚠️ **System Message:** The server's configured Gemini API key is invalid, expired, or flagged. Please check \`GEMINI_API_KEY\` in your server \`.env\`.`;
-    } else if (error.message?.includes('503') || error.message?.includes('Service Unavailable') || error.message?.includes('overloaded')) {
-      fallbackText = `⚠️ **System Message:** Google's Gemini AI service is currently experiencing high demand (503). Please try sending your transmission again in a few moments.`;
-    } else {
-      fallbackText = `⚠️ **System Message:** An error occurred during AI token generation: \`${error.message || 'Unknown Error'}\`.`;
+    if (streamSuccess || hasSentAnyChunk) {
+      break;
     }
-
-    res.write(`data: ${JSON.stringify({ error: fallbackText })}\n\n`);
-    res.write('data: [DONE]\n\n');
-    res.end();
   }
+
+  if (streamSuccess || hasSentAnyChunk) {
+    res.write('data: [DONE]\n\n');
+    return res.end();
+  }
+
+  // All candidates failed
+  logger.error('GEMINI_ALL_CANDIDATES_FAILED', lastError?.message || lastError);
+  let fallbackText = '';
+  if (lastError?.message?.includes('API key') || lastError?.message?.includes('403')) {
+    fallbackText = `⚠️ **System Message:** The server's configured Gemini API key is invalid or expired. Please check \`GEMINI_API_KEY\` in your server \`.env\`.`;
+  } else if (lastError?.message?.includes('503') || lastError?.message?.includes('overloaded')) {
+    fallbackText = `⚠️ **System Message:** Google's Gemini AI service is currently experiencing exceptionally high demand. Please try sending your transmission again in a moment.`;
+  } else {
+    fallbackText = `⚠️ **System Message:** An error occurred during AI generation: \`${lastError?.message || 'Server timeout'}\`. Please retry.`;
+  }
+
+  res.write(`data: ${JSON.stringify({ error: fallbackText })}\n\n`);
+  res.write('data: [DONE]\n\n');
+  res.end();
 };
 
 /**
@@ -301,39 +363,54 @@ exports.chatWithAI = async (req, res) => {
       return res.status(500).json({ message: 'Gemini API key is not configured on the server.' });
     }
 
-    const geminiModelName = getGeminiModelName(requestedModel);
-    const model = genAI.getGenerativeModel({
-      model: geminiModelName,
-      systemInstruction: "You are the Talk-Sphere Neural Assistant, a highly intelligent and factual AI integrated into the Talk-Sphere ecosystem."
-    });
-
+    const modelCandidates = getModelCandidates(requestedModel);
     const chatHistory = (history || []).map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
       parts: [{ text: msg.content }]
     }));
 
-    const chat = model.startChat({
-      history: chatHistory,
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 2000,
-      },
-    });
+    let fullText = null;
+    let lastError = null;
 
-    const result = await chat.sendMessage(message);
-    const response = await result.response;
-    const text = response.text();
+    for (const candidateModel of modelCandidates) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: candidateModel,
+          systemInstruction: "You are the Talk-Sphere Neural Assistant, a highly intelligent and factual AI integrated into the Talk-Sphere ecosystem."
+        });
+
+        const chat = model.startChat({
+          history: chatHistory,
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 2500,
+          },
+        });
+
+        const result = await chat.sendMessage(message);
+        const response = await result.response;
+        fullText = response.text();
+        if (fullText) break;
+      } catch (err) {
+        lastError = err;
+        logger.warn('AI_CHAT_CANDIDATE_FAILED', `${candidateModel} failed: ${err.message}`);
+      }
+    }
+
+    if (!fullText) {
+      throw lastError || new Error('All model candidates failed');
+    }
 
     if (io && sessionId) {
       io.to(userId).emit('ai_response_received', {
         sessionId,
         userMessage: { role: 'user', content: message, createdAt: new Date() },
-        aiMessage: { role: 'assistant', content: text, createdAt: new Date() }
+        aiMessage: { role: 'assistant', content: fullText, createdAt: new Date() }
       });
     }
 
     res.json({
-      content: text,
+      content: fullText,
       role: 'assistant'
     });
   } catch (error) {
