@@ -28,8 +28,15 @@ const messageSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['text', 'image', 'video', 'file', 'audio', 'call'],
+    enum: ['text', 'image', 'video', 'file', 'audio', 'call', 'gif'],
     default: 'text'
+  },
+  gifPayload: {
+    url: { type: String, default: null },
+    previewUrl: { type: String, default: null },
+    title: { type: String, default: null },
+    width: { type: Number, default: null },
+    height: { type: Number, default: null }
   },
   callDetails: {
     callType: { type: String, enum: ['audio', 'video'], default: 'audio' },

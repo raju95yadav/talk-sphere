@@ -12,6 +12,7 @@ import { useTheme } from '../context/ThemeContext';
 import WhatsAppMediaBubble from './WhatsAppMediaBubble';
 import { loadStoragePrefs } from '../utils/storagePrefs';
 import { showIncomingMessageToast } from './IncomingMessageToast';
+import MediaPickerPopover from './MediaPickerPopover';
 
 
 const emojis = ['❤️', '👍', '😂', '😮', '😢', '🔥', '👏', '🎉'];
@@ -149,6 +150,9 @@ const ChatSection = ({ externalContact }) => {
   const [view, setView] = useState('transmissions'); 
   const [editingMessage, setEditingMessage] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(null);
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
+  const [mediaPickerTab, setMediaPickerTab] = useState('emoji');
+  const [reactionTargetMsgId, setReactionTargetMsgId] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [replyingTo, setReplyingTo] = useState(null);
@@ -1061,6 +1065,88 @@ const ChatSection = ({ externalContact }) => {
     setReplyingTo(null);
   };
 
+  const handleEmojiSelect = (emojiChar) => {
+    if (reactionTargetMsgId) {
+      handleReact(reactionTargetMsgId, emojiChar);
+      setReactionTargetMsgId(null);
+      setShowMediaPicker(false);
+      return;
+    }
+    setMessage(prev => prev + emojiChar);
+  };
+
+  const handleSendGif = (gifItem) => {
+    if (!socket) return;
+    const gifUrl = gifItem.url;
+    const gifTitle = gifItem.title || 'GIF';
+    const gifPayload = {
+      url: gifUrl,
+      previewUrl: gifItem.previewUrl || gifUrl,
+      title: gifTitle,
+      width: gifItem.width || 320,
+      height: gifItem.height || 240
+    };
+
+    if (selectedGroup) {
+      const tempId = 'group-gif-' + Date.now();
+      const msgData = {
+        groupId: selectedGroup._id,
+        content: gifTitle,
+        type: 'gif',
+        gifPayload,
+        repliedTo: replyingTo?._id || null,
+        tempId
+      };
+      socket.emit('send_group_message', msgData);
+      setChatHistory(prev => [...prev, {
+        _id: tempId,
+        groupId: selectedGroup._id,
+        content: gifTitle,
+        type: 'gif',
+        gifPayload,
+        sender: {
+          _id: currentUserId,
+          username: user?.username || user?.name || 'User',
+          name: user?.name || 'User',
+          avatar: user?.avatar
+        },
+        isSent: true,
+        createdAt: new Date(),
+        reactions: [],
+        repliedTo: replyingTo,
+        status: 'sending'
+      }]);
+      setReplyingTo(null);
+      setShowMediaPicker(false);
+      return;
+    }
+
+    if (selectedContact) {
+      const tempId = 'gif-' + Date.now();
+      const msgData = {
+        senderId: currentUserId,
+        receiverId: selectedContact._id,
+        content: gifTitle,
+        type: 'gif',
+        gifPayload,
+        repliedTo: replyingTo?._id || null,
+        tempId
+      };
+      socket.emit('send_message', msgData);
+      setChatHistory(prev => [...prev, {
+        ...msgData,
+        isSent: true,
+        createdAt: new Date(),
+        _id: tempId,
+        reactions: [],
+        repliedTo: replyingTo,
+        status: 'sending'
+      }]);
+      setReplyingTo(null);
+      setShowMediaPicker(false);
+    }
+  };
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1652,7 +1738,7 @@ const ChatSection = ({ externalContact }) => {
                     )}
 
                     {(() => {
-                      const isPhotoOrVideo = ['image', 'video'].includes(msg.type);
+                      const isPhotoOrVideo = ['image', 'video', 'gif'].includes(msg.type);
                       const isDocOrAudio = ['file', 'document', 'audio'].includes(msg.type);
 
                       const bubbleClasses = isPhotoOrVideo
@@ -1692,7 +1778,22 @@ const ChatSection = ({ externalContact }) => {
                           )}
 
                           {/* Message Content Type Branching */}
-                          {['image', 'video', 'audio', 'file', 'document'].includes(msg.type) ? (
+                          {msg.type === 'gif' ? (
+                            <div 
+                              onClick={() => setSelectedImage(msg.gifPayload?.url || msg.content)}
+                              className="relative rounded-2xl overflow-hidden cursor-pointer group/gif shadow-lg bg-black/20"
+                            >
+                              <img 
+                                src={msg.gifPayload?.url || msg.content} 
+                                alt={msg.gifPayload?.title || 'GIF'} 
+                                loading="lazy" 
+                                className="max-w-full sm:max-w-[320px] max-h-[300px] w-auto h-auto rounded-2xl object-cover hover:scale-[1.02] transition-transform duration-300" 
+                              />
+                              <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shadow">
+                                <span>GIF</span>
+                              </div>
+                            </div>
+                          ) : ['image', 'video', 'audio', 'file', 'document'].includes(msg.type) ? (
                             <WhatsAppMediaBubble
                               msg={msg}
                               currentUserId={currentUserId}
@@ -1759,10 +1860,23 @@ const ChatSection = ({ externalContact }) => {
 
                     {/* Emoji Picker Overlay */}
                     {showEmojiPicker === msg._id && (
-                      <div className="absolute bottom-full mb-2 left-0 z-30 bg-bg-card border border-border-main p-2 rounded-2xl flex gap-2 shadow-2xl animate-in fade-in slide-in-from-bottom-2">
+                      <div className="absolute bottom-full mb-2 left-0 z-30 bg-bg-card border border-border-main p-2 rounded-2xl flex items-center gap-2 shadow-2xl animate-in fade-in slide-in-from-bottom-2">
                          {emojis.map(e => (
                            <button key={e} onClick={() => handleReact(msg._id, e)} className="text-lg hover:scale-125 transition-transform">{e}</button>
                          ))}
+                         <button 
+                           type="button"
+                           onClick={() => {
+                             setReactionTargetMsgId(msg._id);
+                             setMediaPickerTab('emoji');
+                             setShowMediaPicker(true);
+                             setShowEmojiPicker(null);
+                           }} 
+                           title="More Emojis..."
+                           className="w-7 h-7 rounded-xl bg-accent-primary/10 hover:bg-accent-primary text-accent-primary hover:text-white flex items-center justify-center text-xs font-bold transition-all"
+                         >
+                           +
+                         </button>
                          <button onClick={() => setShowEmojiPicker(null)} className="p-1 dark:hover:bg-white/10 hover:bg-black/5 rounded-full text-text-muted"><X size={12}/></button>
                       </div>
                     )}
@@ -1805,8 +1919,20 @@ const ChatSection = ({ externalContact }) => {
           </div>
         ) : (
           <form onSubmit={handleSendMessage} className="p-2 sm:p-3 pb-[calc(10px+env(safe-area-inset-bottom))] md:p-5 bg-bg-card/80 backdrop-blur-xl border-t border-border-main flex gap-2 md:gap-3 items-center relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] w-full max-w-full box-border">
+            {/* WhatsApp-Style Media Picker Popover */}
+            <MediaPickerPopover
+              isOpen={showMediaPicker}
+              onClose={() => {
+                setShowMediaPicker(false);
+                setReactionTargetMsgId(null);
+              }}
+              onSelectEmoji={handleEmojiSelect}
+              onSelectGif={handleSendGif}
+              defaultTab={mediaPickerTab}
+            />
+
             <input type="file" id="group-chat-file" className="hidden" onChange={handleFileUpload} />
-            <button type="button" onClick={() => document.getElementById('group-chat-file').click()} disabled={isUploading} className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-bg-card-secondary text-text-muted hover:text-text-main dark:hover:bg-white/10 hover:bg-black/5 flex items-center justify-center transition-all flex-shrink-0 relative overflow-hidden">
+            <button type="button" onClick={() => document.getElementById('group-chat-file').click()} disabled={isUploading} title="Attach Document / Media" className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-bg-card-secondary text-text-muted hover:text-text-main dark:hover:bg-white/10 hover:bg-black/5 flex items-center justify-center transition-all flex-shrink-0 relative overflow-hidden">
               {isUploading ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-accent-primary/20">
                   <span className="text-[8px] font-black text-white">{uploadProgress}%</span>
@@ -1814,6 +1940,43 @@ const ChatSection = ({ externalContact }) => {
                 </div>
               ) : <Paperclip size={18} />}
             </button>
+
+            {/* Emoji Popover Button */}
+            <button 
+              type="button" 
+              onClick={() => {
+                setReactionTargetMsgId(null);
+                setMediaPickerTab('emoji');
+                setShowMediaPicker(prev => (showMediaPicker && mediaPickerTab === 'emoji' ? false : true));
+              }}
+              title="Insert Emoji"
+              className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
+                showMediaPicker && mediaPickerTab === 'emoji'
+                  ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/25'
+                  : 'bg-bg-card-secondary text-text-muted hover:text-text-main dark:hover:bg-white/10 hover:bg-black/5'
+              }`}
+            >
+              <Smile size={19} />
+            </button>
+
+            {/* GIF Popover Button */}
+            <button 
+              type="button" 
+              onClick={() => {
+                setReactionTargetMsgId(null);
+                setMediaPickerTab('gif');
+                setShowMediaPicker(prev => (showMediaPicker && mediaPickerTab === 'gif' ? false : true));
+              }}
+              title="Send Animated GIF"
+              className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
+                showMediaPicker && mediaPickerTab === 'gif'
+                  ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/25'
+                  : 'bg-bg-card-secondary text-text-muted hover:text-text-main dark:hover:bg-white/10 hover:bg-black/5'
+              }`}
+            >
+              <span className="text-[10px] font-black tracking-tight border border-current px-1 py-0.5 rounded leading-none">GIF</span>
+            </button>
+
             <div className="flex-1 relative group">
               <input 
                 type="text" 
@@ -2096,7 +2259,7 @@ const ChatSection = ({ externalContact }) => {
                     className={`max-w-[88%] sm:max-w-[80%] md:max-w-[65%] min-w-0 break-words relative group ${msg.isSent ? 'text-right' : 'text-left'}`}
                   >
                     {(() => {
-                      const isPhotoOrVideo = ['image', 'video'].includes(msg.type);
+                      const isPhotoOrVideo = ['image', 'video', 'gif'].includes(msg.type);
                       const isDocOrAudio = ['file', 'document', 'audio'].includes(msg.type);
 
                       const bubbleClasses = isPhotoOrVideo
@@ -2148,7 +2311,22 @@ const ChatSection = ({ externalContact }) => {
                             </div>
                           )}
 
-                          {['image', 'video', 'audio', 'file', 'document'].includes(msg.type) ? (
+                          {msg.type === 'gif' ? (
+                            <div 
+                              onClick={() => setSelectedImage(msg.gifPayload?.url || msg.content)}
+                              className="relative rounded-2xl overflow-hidden cursor-pointer group/gif shadow-lg bg-black/20 max-w-full"
+                            >
+                              <img 
+                                src={msg.gifPayload?.url || msg.content} 
+                                alt={msg.gifPayload?.title || 'GIF'} 
+                                loading="lazy" 
+                                className="max-w-full sm:max-w-[320px] max-h-[300px] w-auto h-auto rounded-2xl object-cover hover:scale-[1.02] transition-transform duration-300" 
+                              />
+                              <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shadow">
+                                <span>GIF</span>
+                              </div>
+                            </div>
+                          ) : ['image', 'video', 'audio', 'file', 'document'].includes(msg.type) ? (
                             <WhatsAppMediaBubble
                               msg={msg}
                               currentUserId={currentUserId}
@@ -2430,8 +2608,20 @@ const ChatSection = ({ externalContact }) => {
           </div>
         ) : (
           <form onSubmit={handleSendMessage} className="p-2 sm:p-3 pb-[calc(10px+env(safe-area-inset-bottom))] md:p-5 bg-bg-card/80 backdrop-blur-xl border-t border-border-main flex gap-2 md:gap-3 items-center relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] w-full max-w-full box-border">
+            {/* WhatsApp-Style Media Picker Popover */}
+            <MediaPickerPopover
+              isOpen={showMediaPicker}
+              onClose={() => {
+                setShowMediaPicker(false);
+                setReactionTargetMsgId(null);
+              }}
+              onSelectEmoji={handleEmojiSelect}
+              onSelectGif={handleSendGif}
+              defaultTab={mediaPickerTab}
+            />
+
             <input type="file" id="chat-file" className="hidden" onChange={handleFileUpload} />
-            <button type="button" onClick={() => document.getElementById('chat-file').click()} disabled={isUploading} className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-bg-card-secondary text-text-muted hover:text-text-main dark:hover:bg-white/10 hover:bg-black/5 flex items-center justify-center transition-all flex-shrink-0 relative overflow-hidden">
+            <button type="button" onClick={() => document.getElementById('chat-file').click()} disabled={isUploading} title="Attach Document / Media" className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-bg-card-secondary text-text-muted hover:text-text-main dark:hover:bg-white/10 hover:bg-black/5 flex items-center justify-center transition-all flex-shrink-0 relative overflow-hidden">
               {isUploading ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-accent-primary/20">
                   <span className="text-[8px] font-black text-white">{uploadProgress}%</span>
@@ -2439,6 +2629,43 @@ const ChatSection = ({ externalContact }) => {
                 </div>
               ) : <Paperclip size={18} />}
             </button>
+
+            {/* Emoji Popover Button */}
+            <button 
+              type="button" 
+              onClick={() => {
+                setReactionTargetMsgId(null);
+                setMediaPickerTab('emoji');
+                setShowMediaPicker(prev => (showMediaPicker && mediaPickerTab === 'emoji' ? false : true));
+              }}
+              title="Insert Emoji"
+              className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
+                showMediaPicker && mediaPickerTab === 'emoji'
+                  ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/25'
+                  : 'bg-bg-card-secondary text-text-muted hover:text-text-main dark:hover:bg-white/10 hover:bg-black/5'
+              }`}
+            >
+              <Smile size={19} />
+            </button>
+
+            {/* GIF Popover Button */}
+            <button 
+              type="button" 
+              onClick={() => {
+                setReactionTargetMsgId(null);
+                setMediaPickerTab('gif');
+                setShowMediaPicker(prev => (showMediaPicker && mediaPickerTab === 'gif' ? false : true));
+              }}
+              title="Send Animated GIF"
+              className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
+                showMediaPicker && mediaPickerTab === 'gif'
+                  ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/25'
+                  : 'bg-bg-card-secondary text-text-muted hover:text-text-main dark:hover:bg-white/10 hover:bg-black/5'
+              }`}
+            >
+              <span className="text-[10px] font-black tracking-tight border border-current px-1 py-0.5 rounded leading-none">GIF</span>
+            </button>
+
             <div className="flex-1 relative group min-w-0">
               <input 
                 type="text" 

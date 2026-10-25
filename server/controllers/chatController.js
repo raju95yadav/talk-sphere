@@ -250,6 +250,7 @@ exports.getConversations = async (req, res) => {
             lastMessage.type === 'image' ? '📷 Image' : 
             lastMessage.type === 'video' ? '🎥 Video' : 
             lastMessage.type === 'audio' ? '🎤 Voice Note' :
+            lastMessage.type === 'gif' ? '👾 GIF' :
             lastMessage.type === 'file' || lastMessage.type === 'document' ? '📁 Document' : 
             lastMessage.content,
           createdAt: lastMessage.createdAt,

@@ -190,7 +190,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send_message', async (data) => {
-    const { senderId, receiverId, content, type, repliedTo, fileName, fileSize, isForwarded, tempId } = data;
+    const { senderId, receiverId, content, type, repliedTo, fileName, fileSize, isForwarded, tempId, gifPayload } = data;
     const finalSenderId = senderId || socket.userId;
     
     if (!finalSenderId) return console.error('No sender ID provided for message');
@@ -206,8 +206,9 @@ io.on('connection', (socket) => {
       const newMessage = new Message({
         sender: finalSenderId,
         receiver: receiverId,
-        content,
+        content: content || (type === 'gif' ? (gifPayload?.url || 'GIF') : ''),
         type: type || 'text',
+        gifPayload: gifPayload || null,
         repliedTo: repliedTo || null,
         fileName,
         fileSize,
@@ -227,8 +228,9 @@ io.on('connection', (socket) => {
         senderName: sender?.username || sender?.name || 'User',
         senderAvatar: sender?.avatar,
         receiver: receiverId,
-        content,
+        content: newMessage.content,
         type: newMessage.type,
+        gifPayload: newMessage.gifPayload,
         repliedTo: populatedMessage.repliedTo,
         fileName: newMessage.fileName,
         fileSize: newMessage.fileSize,
@@ -404,7 +406,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send_group_message', async (data) => {
-    const { groupId, content, type, repliedTo, fileName, fileSize, isForwarded, tempId } = data;
+    const { groupId, content, type, repliedTo, fileName, fileSize, isForwarded, tempId, gifPayload } = data;
     const finalSenderId = socket.userId;
     if (!finalSenderId || !groupId) return console.error('Missing sender or groupId');
 
@@ -420,8 +422,9 @@ io.on('connection', (socket) => {
         sender: finalSenderId,
         group: groupId,
         isGroup: true,
-        content,
+        content: content || (type === 'gif' ? (gifPayload?.url || 'GIF') : ''),
         type: type || 'text',
+        gifPayload: gifPayload || null,
         repliedTo: repliedTo || null,
         fileName,
         fileSize,
@@ -443,8 +446,9 @@ io.on('connection', (socket) => {
           avatar: sender?.avatar
         },
         groupId,
-        content,
+        content: newMessage.content,
         type: newMessage.type,
+        gifPayload: newMessage.gifPayload,
         repliedTo: populatedMessage.repliedTo,
         fileName: newMessage.fileName,
         fileSize: newMessage.fileSize,

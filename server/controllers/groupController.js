@@ -85,7 +85,7 @@ exports.getUserGroups = async (req, res) => {
           unreadCount,
           lastMessage: lastMsg ? {
             _id: lastMsg._id,
-            content: lastMsg.type === 'text' ? lastMsg.content : `📷 ${lastMsg.type.toUpperCase()}`,
+            content: lastMsg.type === 'text' ? lastMsg.content : lastMsg.type === 'gif' ? '👾 GIF' : `📷 ${lastMsg.type.toUpperCase()}`,
             type: lastMsg.type,
             sender: lastMsg.sender,
             createdAt: lastMsg.createdAt
