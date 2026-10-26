@@ -2129,7 +2129,7 @@ const ChatSection = ({ externalContact }) => {
           <div className="absolute inset-0 bg-gradient-to-t from-bg-main/90 via-bg-main/50 to-bg-main/80" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_15%,_var(--bg-main)_88%)]" />
         </div>
-        <div className="p-3 sm:p-4 pt-[calc(14px+env(safe-area-inset-top))] border-b border-border-main flex items-center justify-between bg-bg-card/80 backdrop-blur-md relative z-50 w-full max-w-full overflow-hidden">
+        <div className="p-3 sm:p-4 pt-[calc(14px+env(safe-area-inset-top))] border-b border-border-main flex items-center justify-between bg-bg-card/80 backdrop-blur-md relative z-50 w-full max-w-full">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <button onClick={() => {
               setSelectedContact(null); 
@@ -2195,15 +2195,56 @@ const ChatSection = ({ externalContact }) => {
             </button>
 
             <div className="relative">
-              <button onClick={() => setShowOptions(!showOptions)} className={`p-2 sm:p-2.5 rounded-full transition-all ${showOptions ? 'bg-accent-primary text-white' : 'dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-text-main'}`}>
+              <button 
+                onClick={() => setShowOptions(!showOptions)} 
+                className={`p-2 sm:p-2.5 rounded-full transition-all cursor-pointer ${showOptions ? 'bg-accent-primary text-white' : 'dark:hover:bg-white/10 hover:bg-black/5 text-text-muted hover:text-text-main'}`}
+                title="Transmission Options"
+              >
                 <MoreHorizontal size={18} />
               </button>
               {showOptions && (
-                <div className="absolute top-full right-0 mt-2 w-48 bg-bg-card border border-border-main rounded-2xl shadow-2xl overflow-hidden z-20 py-2 animate-in fade-in zoom-in-95">
-                   <button onClick={handleClearChat} className="w-full px-5 py-3 text-left text-xs font-black uppercase text-red-500 hover:bg-red-500/10 flex items-center gap-3 transition-colors">
-                     <Trash2 size={14} /> Clear Transmission
-                   </button>
-                </div>
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowOptions(false)} />
+                  <div className="absolute top-full right-0 mt-2 w-56 bg-bg-card border border-border-main rounded-2xl shadow-2xl overflow-hidden z-50 py-2 animate-in fade-in zoom-in-95 backdrop-blur-xl">
+                    <button 
+                      onClick={() => {
+                        setShowOptions(false);
+                        setIsSearchingMessages(prev => !prev);
+                      }} 
+                      className="w-full px-4 py-2.5 text-left text-xs font-bold text-text-main hover:bg-accent-primary/10 flex items-center gap-3 transition-colors cursor-pointer"
+                    >
+                      <Search size={14} className="text-text-muted" /> Search Messages
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setShowOptions(false);
+                        handleClearChat();
+                      }} 
+                      className="w-full px-4 py-2.5 text-left text-xs font-bold text-amber-500 hover:bg-amber-500/10 flex items-center gap-3 transition-colors cursor-pointer border-t border-border-main/40"
+                    >
+                      <Trash2 size={14} /> Clear Messages
+                    </button>
+                    <button 
+                      onClick={async () => {
+                        setShowOptions(false);
+                        if (window.confirm(`Delete transmission with ${selectedContact.name || selectedContact.username}?`)) {
+                          try {
+                            await apiClient.delete(`/api/chat/clear/${selectedContact._id}`);
+                            setChatHistory([]);
+                            fetchConversations();
+                            setSelectedContact(null);
+                            toast.success('Transmission deleted');
+                          } catch (err) {
+                            toast.error('Failed to delete transmission');
+                          }
+                        }
+                      }} 
+                      className="w-full px-4 py-2.5 text-left text-xs font-bold uppercase text-red-500 hover:bg-red-500/10 flex items-center gap-3 transition-colors cursor-pointer border-t border-border-main/40"
+                    >
+                      <Trash2 size={14} /> Delete & Close Chat
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -3136,14 +3177,38 @@ const ChatSection = ({ externalContact }) => {
                     </div>
                   </div>
                 </div>
-                <div className="text-right flex flex-col items-end gap-1.5 relative min-w-[70px]">
-                   <p className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase group-hover:opacity-0 transition-opacity">{new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                <div className="text-right flex flex-col items-end gap-1.5 relative min-w-[70px] flex-shrink-0">
+                   <div className="flex items-center gap-1.5">
+                     <p className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase sm:group-hover:opacity-0 transition-opacity">{new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                     {/* Mobile Delete Button - Visible on phone screens */}
+                     <button 
+                       type="button"
+                       onClick={async (e) => {
+                         e.stopPropagation();
+                         if (window.confirm(`Delete transmission with ${conv.user.name || conv.user.username}?`)) {
+                           try {
+                             await apiClient.delete(`/api/chat/clear/${conv.user._id}`);
+                             toast.success('Transmission deleted');
+                             fetchConversations();
+                           } catch (err) {
+                             toast.error('Failed to delete');
+                           }
+                         }
+                       }}
+                       className="sm:hidden p-1.5 bg-red-500/10 text-red-500 active:bg-red-500 active:text-white rounded-lg transition-all cursor-pointer"
+                       title="Delete Transmission"
+                     >
+                       <Trash2 size={12} />
+                     </button>
+                   </div>
                    {conv.unreadCount > 0 && (
-                     <div className="bg-accent-primary text-white text-[10px] font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center shadow-lg shadow-accent-primary/20 animate-in zoom-in-75 group-hover:opacity-0 transition-opacity">
+                     <div className="bg-accent-primary text-white text-[10px] font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center shadow-lg shadow-accent-primary/20 animate-in zoom-in-75 sm:group-hover:opacity-0 transition-opacity">
                        {conv.unreadCount}
                      </div>
                    )}
+                   {/* Desktop Hover Delete Button */}
                    <button 
+                     type="button"
                      onClick={async (e) => {
                        e.stopPropagation();
                        if (window.confirm(`Delete transmission with ${conv.user.name || conv.user.username}?`)) {
@@ -3156,7 +3221,7 @@ const ChatSection = ({ externalContact }) => {
                          }
                        }
                      }}
-                     className="absolute top-1/2 right-0 -translate-y-1/2 p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all opacity-0 group-hover:opacity-100 z-10"
+                     className="hidden sm:block absolute top-1/2 right-0 -translate-y-1/2 p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all opacity-0 group-hover:opacity-100 z-10 cursor-pointer"
                      title="Delete Transmission"
                    >
                      <Trash2 size={12} />
