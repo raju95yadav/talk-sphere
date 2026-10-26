@@ -72,11 +72,12 @@ const CallModal = () => {
   if (callStatus === 'idle') return null;
 
   const displayUser = isCaller ? targetUser : (incomingCallData ? {
-    username: incomingCallData.callerName,
+    name: incomingCallData.callerName,
+    username: incomingCallData.callerUsername || incomingCallData.callerName,
     avatar: incomingCallData.callerAvatar
   } : targetUser);
 
-  const displayName = displayUser?.username || displayUser?.name || 'User';
+  const displayName = displayUser?.name || displayUser?.username || 'User';
   const displayAvatar = displayUser?.avatar;
 
   // Draggable Floating PiP View when Minimized

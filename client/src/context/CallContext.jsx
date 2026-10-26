@@ -515,7 +515,7 @@ export const CallProvider = ({ children }) => {
         userToCall: targetId,
         signalData: offer,
         from: currentUserId,
-        callerName: user?.username || user?.name || 'User',
+        callerName: user?.name || user?.username || 'User',
         callerAvatar: user?.avatar,
         callType: type
       });
@@ -629,7 +629,7 @@ export const CallProvider = ({ children }) => {
               userToCall: peerId,
               signalData: offer,
               from: currentUserId,
-              callerName: user?.username || user?.name || 'User',
+              callerName: user?.name || user?.username || 'User',
               callerAvatar: user?.avatar,
               callType: 'video'
             });

@@ -225,7 +225,8 @@ io.on('connection', (socket) => {
         _id: newMessage._id,
         tempId: tempId || null, // Echo back tempId to match client optimistic state
         sender: finalSenderId,
-        senderName: sender?.username || sender?.name || 'User',
+        senderName: sender?.name || sender?.username || 'User',
+        senderUsername: sender?.username || '',
         senderAvatar: sender?.avatar,
         receiver: receiverId,
         content: newMessage.content,
@@ -575,7 +576,8 @@ io.on('connection', (socket) => {
       const messageData = {
         _id: newMessage._id,
         sender: senderId,
-        senderName: populatedLog?.sender?.username || populatedLog?.sender?.name || 'User',
+        senderName: populatedLog?.sender?.name || populatedLog?.sender?.username || 'User',
+        senderUsername: populatedLog?.sender?.username || '',
         senderAvatar: populatedLog?.sender?.avatar,
         receiver: receiverId,
         content,

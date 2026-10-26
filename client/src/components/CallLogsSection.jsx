@@ -194,7 +194,7 @@ const CallLogsSection = () => {
           filteredLogs.map((log) => {
             const isSender = log.sender?._id === currentUserId;
             const peer = isSender ? log.receiver : log.sender;
-            const peerName = peer?.username || peer?.name || peer?.email || 'User';
+            const peerName = peer?.name || peer?.username || peer?.email || 'User';
             const peerAvatar = peer?.avatar;
 
             const isMissed = log.callDetails?.status === 'missed' || log.callDetails?.status === 'declined';

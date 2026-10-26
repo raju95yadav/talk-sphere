@@ -398,7 +398,7 @@ const ChatSection = ({ externalContact }) => {
     const typingIds = Object.keys(groupTypingMap).filter(id => groupTypingMap[id] && id !== currentUserId?.toString());
     if (typingIds.length === 0) return null;
     const member = group.members?.find(m => (m.user?._id || m.user)?.toString() === typingIds[0]);
-    return member?.user?.username || member?.user?.name || 'Member';
+    return member?.user?.name || member?.user?.username || 'Member';
   };
 
   const fetchGroups = async () => {
@@ -665,10 +665,10 @@ const ChatSection = ({ externalContact }) => {
       });
 
       socket.on('new_friend_request', ({ sender }) => {
-        toast.success(`${sender.username || sender.name} added you to contacts!`);
+        toast.success(`${sender.name || sender.username} added you to contacts!`);
         if (Notification.permission === 'granted') {
           new Notification('New Contact Connected', {
-            body: `${sender.username || sender.name} added you to contacts.`,
+            body: `${sender.name || sender.username} added you to contacts.`,
             icon: sender.avatar || '/favicon.ico'
           });
         }
@@ -689,7 +689,7 @@ const ChatSection = ({ externalContact }) => {
           });
           apiClient.put(`/api/groups/${targetGId}/read`).catch(() => {});
         } else {
-          const senderName = data.sender?.username || data.sender?.name || data.senderName || 'Member';
+          const senderName = data.sender?.name || data.sender?.username || data.senderName || 'Member';
           const senderAvatar = data.sender?.avatar || data.senderAvatar;
           const groupObj = groups.find(g => (g._id || g.id)?.toString() === targetGId);
 
@@ -1444,7 +1444,7 @@ const ChatSection = ({ externalContact }) => {
         fileSize: forwardingMessage.fileSize,
         isForwarded: true
       });
-      toast.success(`Message forwarded to ${target.username || target.name}`);
+      toast.success(`Message forwarded to ${target.name || target.username}`);
     }
     setForwardingMessage(null);
   };
@@ -1732,7 +1732,7 @@ const ChatSection = ({ externalContact }) => {
                     {!msg.isSent && (
                       <div className="flex items-center gap-2 mb-1 pl-1">
                         <span className="text-[10px] font-black text-accent-primary tracking-wide">
-                          {msg.sender?.username || msg.sender?.name || 'Member'}
+                          {msg.sender?.name || msg.sender?.username || 'Member'}
                         </span>
                       </div>
                     )}
@@ -2068,7 +2068,7 @@ const ChatSection = ({ externalContact }) => {
                             {memberUser?.avatar ? <img src={memberUser.avatar} className="w-full h-full object-cover" /> : <User size={18} className="text-accent-primary" />}
                           </div>
                           <div>
-                            <p className="text-sm font-bold">{memberUser?.username || memberUser?.name} {isMe && '(You)'}</p>
+                            <p className="text-sm font-bold">{memberUser?.name || memberUser?.username} {isMe && '(You)'}</p>
                             <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
                               m.role === 'Admin' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' :
                               m.role === 'Moderator' ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' :
@@ -2091,7 +2091,7 @@ const ChatSection = ({ externalContact }) => {
                               <option value="Admin">Admin</option>
                             </select>
                             <button 
-                              onClick={() => handleRemoveMember(memberUser._id, memberUser.username || memberUser.name)}
+                              onClick={() => handleRemoveMember(memberUser._id, memberUser.name || memberUser.username)}
                               className="p-1.5 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
                               title="Remove Member"
                             >
@@ -2152,7 +2152,7 @@ const ChatSection = ({ externalContact }) => {
               <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border-2 border-bg-card ${selectedContact.isOnline ? 'bg-green-500' : 'bg-gray-500'}`}></div>
             </div>
             <div className="min-w-0 flex-1">
-              <h4 className="font-bold text-sm sm:text-base text-text-main tracking-tight leading-tight truncate">{selectedContact.username || selectedContact.name}</h4>
+              <h4 className="font-bold text-sm sm:text-base text-text-main tracking-tight leading-tight truncate">{selectedContact.name || selectedContact.username}</h4>
               <p className="text-[10px] sm:text-xs text-text-muted mt-0.5 font-bold uppercase tracking-wider truncate">
                 {isTyping ? (
                   <span className="inline-flex items-center gap-1.5 text-accent-primary font-extrabold normal-case text-xs tracking-normal">
@@ -2303,7 +2303,7 @@ const ChatSection = ({ externalContact }) => {
                           {msg.repliedTo && (
                             <div className={`mb-1.5 p-2 rounded-xl text-left border-l-2 bg-black/25 ${msg.isSent ? 'border-indigo-400' : 'border-accent-primary'}`}>
                               <p className="text-[10px] font-black uppercase opacity-75 mb-0.5 text-indigo-400">
-                                {msg.repliedTo.sender === currentUserId ? 'You' : (selectedContact.username || selectedContact.name)}
+                                {msg.repliedTo.sender === currentUserId ? 'You' : (selectedContact.name || selectedContact.username)}
                               </p>
                               <p className="text-[11px] line-clamp-1 opacity-80">
                                 {msg.repliedTo.type === 'image' ? '📷 Image' : msg.repliedTo.type === 'video' ? '🎥 Video' : msg.repliedTo.type === 'file' ? '📁 File' : msg.repliedTo.content}
@@ -2486,7 +2486,7 @@ const ChatSection = ({ externalContact }) => {
                   )}
                 </div>
                 <div className="bg-bg-card-secondary text-text-main px-4 py-2.5 rounded-2xl rounded-bl-sm border border-border-main shadow-md flex items-center gap-2">
-                  <span className="text-xs font-semibold text-text-muted">{selectedContact.username || selectedContact.name} is typing</span>
+                  <span className="text-xs font-semibold text-text-muted">{selectedContact.name || selectedContact.username} is typing</span>
                   <div className="flex items-center gap-1 ml-0.5">
                     <motion.span
                       animate={{ y: [0, -4, 0] }}
@@ -2549,7 +2549,7 @@ const ChatSection = ({ externalContact }) => {
                               <User size={20} className="text-accent-primary" />
                             )}
                           </div>
-                          <span className="font-bold text-sm flex-1">{conv.user.username || conv.user.name}</span>
+                          <span className="font-bold text-sm flex-1">{conv.user.name || conv.user.username}</span>
                           <div className="w-8 h-8 rounded-full bg-accent-primary/10 flex items-center justify-center text-accent-primary opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100">
                             <Send size={14} className="ml-0.5" />
                           </div>
@@ -2569,7 +2569,7 @@ const ChatSection = ({ externalContact }) => {
             <div className="flex items-center gap-2 sm:gap-3 border-l-4 border-accent-primary pl-2 sm:pl-3 min-w-0 flex-1">
               <Reply size={16} className="text-accent-primary flex-shrink-0" />
               <div className="overflow-hidden min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase text-accent-primary truncate">Replying to {replyingTo.sender === currentUserId ? 'yourself' : (selectedContact.username || selectedContact.name)}</p>
+                <p className="text-[10px] font-black uppercase text-accent-primary truncate">Replying to {replyingTo.sender === currentUserId ? 'yourself' : (selectedContact.name || selectedContact.username)}</p>
                 <p className="text-xs text-text-muted truncate">
                   {replyingTo.type === 'image' ? '📷 Image' : replyingTo.type === 'video' ? '🎥 Video' : replyingTo.type === 'file' ? '📁 File' : replyingTo.content}
                 </p>
@@ -3050,7 +3050,7 @@ const ChatSection = ({ externalContact }) => {
                             </p>
                           ) : (
                             <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium truncate max-w-[220px]">
-                              {g.lastMessage ? `${g.lastMessage.sender?.username || 'Member'}: ${g.lastMessage.content}` : g.description || 'Group transmission'}
+                              {g.lastMessage ? `${g.lastMessage.sender?.name || g.lastMessage.sender?.username || 'Member'}: ${g.lastMessage.content}` : g.description || 'Group transmission'}
                             </p>
                           )}
                         </div>
@@ -3109,7 +3109,7 @@ const ChatSection = ({ externalContact }) => {
                     <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-[3px] border-bg-card ${conv.user.isOnline ? 'bg-green-500' : 'bg-gray-500'} shadow-lg`}></div>
                   </div>
                   <div className="overflow-hidden flex-1 min-w-0">
-                    <h4 className="font-bold text-sm tracking-tight truncate text-slate-900 dark:text-white group-hover:text-indigo-400 transition-colors">{conv.user.username || conv.user.name}</h4>
+                    <h4 className="font-bold text-sm tracking-tight truncate text-slate-900 dark:text-white group-hover:text-indigo-400 transition-colors">{conv.user.name || conv.user.username}</h4>
                     <div className="flex items-center gap-1 mt-0.5">
                       {conv.lastMessage.sender === currentUserId && (
                         <div className="flex items-center flex-shrink-0 gap-0.5 text-indigo-400">
@@ -3146,7 +3146,7 @@ const ChatSection = ({ externalContact }) => {
                    <button 
                      onClick={async (e) => {
                        e.stopPropagation();
-                       if (window.confirm(`Delete transmission with ${conv.user.username || conv.user.name}?`)) {
+                       if (window.confirm(`Delete transmission with ${conv.user.name || conv.user.username}?`)) {
                          try {
                            await apiClient.delete(`/api/chat/clear/${conv.user._id}`);
                            toast.success('Transmission deleted');
@@ -3231,7 +3231,7 @@ const ChatSection = ({ externalContact }) => {
                             {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" /> : <User size={14} className="text-accent-primary" />}
                           </div>
                           <div>
-                            <p className="text-xs font-bold">{u.username || u.name}</p>
+                            <p className="text-xs font-bold">{u.name || u.username}</p>
                             {u.email && <p className="text-[9px] text-text-muted">{u.email}</p>}
                           </div>
                         </div>
@@ -3297,7 +3297,7 @@ const ChatSection = ({ externalContact }) => {
                           {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" /> : <User size={16} className="text-accent-primary" />}
                         </div>
                         <div>
-                          <p className="text-xs font-bold">{u.username || u.name}</p>
+                          <p className="text-xs font-bold">{u.name || u.username}</p>
                           {u.email && <p className="text-[9px] text-text-muted">{u.email}</p>}
                         </div>
                       </div>
