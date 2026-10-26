@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, MoreHorizontal, Send, User, ArrowLeft, Search, Plus, Edit3, Trash2, Download, Loader2, Globe, Smile, X, Trash, Paperclip, FileText, Reply, Play, Check, CheckCheck, Clock, Mic, Pause, Forward, RefreshCw, Phone, Video, Users, Shield, ShieldCheck, Crown, LogOut, Settings, UserPlus, ChevronDown } from 'lucide-react';
+import { MessageSquare, MoreHorizontal, Send, User, ArrowLeft, Search, Plus, Minus, Edit3, Trash2, Download, Loader2, Globe, Smile, X, Trash, Paperclip, FileText, Reply, Play, Check, CheckCheck, Clock, Mic, Pause, Forward, RefreshCw, Phone, Video, Users, Shield, ShieldCheck, Crown, LogOut, Settings, UserPlus, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import useSocket from '../hooks/useSocket';
 import { useSocketStatus } from '../context/SocketContext';
@@ -2780,25 +2780,60 @@ const ChatSection = ({ externalContact }) => {
                 <button 
                   onClick={() => setZoomLevel(prev => Math.min(prev + 0.5, 3))}
                   className="p-3 bg-white/10 hover:bg-accent-primary rounded-full text-white transition-all shadow-xl"
+                  title="Zoom In"
+                  aria-label="Zoom in"
                 >
                   <Plus size={20} />
                 </button>
                 <button 
                   onClick={() => setZoomLevel(prev => Math.max(prev - 0.5, 1))}
                   className="p-3 bg-white/10 hover:bg-accent-primary rounded-full text-white transition-all shadow-xl"
+                  title="Zoom Out"
+                  aria-label="Zoom out"
                 >
-                  <X size={20} className="rotate-45" /> {/* Using X as minus icon */}
+                  <Minus size={20} />
                 </button>
-                <a 
-                  href={selectedImage} 
-                  download 
+                <button 
+                  onClick={async () => {
+                    try {
+                      toast.loading('Saving to device...', { id: 'save-img' });
+                      const response = await fetch(selectedImage);
+                      const blob = await response.blob();
+                      const blobUrl = window.URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = blobUrl;
+                      link.download = `talksphere-photo-${Date.now()}.jpg`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      window.URL.revokeObjectURL(blobUrl);
+                      toast.success('Photo saved to device!', { id: 'save-img' });
+                    } catch (err) {
+                      const link = document.createElement('a');
+                      link.href = selectedImage;
+                      link.target = '_blank';
+                      link.rel = 'noreferrer';
+                      link.download = `talksphere-photo-${Date.now()}.jpg`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      toast.dismiss('save-img');
+                    }
+                  }}
                   className="p-3 bg-white/10 hover:bg-accent-primary rounded-full text-white transition-all shadow-xl flex items-center justify-center"
+                  title="Save to device"
+                  aria-label="Save to device"
                 >
                   <Download size={20} />
-                </a>
+                </button>
                 <button 
-                  onClick={() => setSelectedImage(null)}
+                  onClick={() => {
+                    setSelectedImage(null);
+                    setZoomLevel(1);
+                  }}
                   className="p-3 bg-red-500 hover:bg-red-600 rounded-full text-white transition-all shadow-xl"
+                  title="Close preview"
+                  aria-label="Close preview"
                 >
                   <X size={20} />
                 </button>
