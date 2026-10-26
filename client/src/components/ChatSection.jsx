@@ -323,7 +323,7 @@ const ChatSection = ({ externalContact }) => {
     }
   };
 
-  const fetchHistory = async (receiverId) => {
+  const fetchHistory = async (receiverId, retryCount = 0) => {
     try {
       const res = await apiClient.get(`/api/chat/history/${receiverId}`);
       const history = res.data.map(m => ({
@@ -341,7 +341,9 @@ const ChatSection = ({ externalContact }) => {
         socket?.emit('mark_read', { messageIds: unreadIds, senderId: receiverId, receiverId: currentUserId });
       }
     } catch (err) {
-      console.error('Failed to fetch history');
+      if (retryCount < 2 && selectedContactRef.current?._id === receiverId) {
+        setTimeout(() => fetchHistory(receiverId, retryCount + 1), 2000);
+      }
     }
   };
 
@@ -861,7 +863,7 @@ const ChatSection = ({ externalContact }) => {
     const handleCallEndedEvent = () => {
       fetchConversations();
       if (selectedContactRef.current) {
-        apiClient.get(`/api/chat/messages/${selectedContactRef.current._id}`).then(res => {
+        apiClient.get(`/api/chat/history/${selectedContactRef.current._id}`).then(res => {
           if (res.data) setChatHistory(res.data);
         }).catch(() => {});
       }

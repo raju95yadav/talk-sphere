@@ -5,7 +5,8 @@ let accessToken = null;
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://talk-sphere-server.onrender.com',
-  withCredentials: true
+  withCredentials: true,
+  timeout: 45000
 });
 
 apiClient.setAccessToken = (token) => {
@@ -53,6 +54,22 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // Auto-retry transient GET network timeouts (e.g. Render server cold start waking up)
+    const isNetworkOrTimeout = 
+      error.code === 'ECONNABORTED' || 
+      error.message?.toLowerCase().includes('timeout') || 
+      !error.response;
+
+    if (isNetworkOrTimeout && originalRequest && originalRequest.method?.toLowerCase() === 'get') {
+      const retryCount = originalRequest._networkRetryCount || 0;
+      if (retryCount < 2) {
+        originalRequest._networkRetryCount = retryCount + 1;
+        await new Promise((resolve) => setTimeout(resolve, 1800 * (retryCount + 1)));
+        return apiClient(originalRequest);
+      }
+    }
+
     const moduleTag = error.response?.data?.module || 'API_SERVER';
     const status = error.response?.status || 'NETWORK';
     const message = error.response?.data?.message || error.message || 'API Request Failed';
