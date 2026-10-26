@@ -16,7 +16,9 @@ import {
   Sun,
   Moon,
   Bell,
+  Trash2,
 } from 'lucide-react';
+import apiClient from '../api/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useTheme } from '../context/ThemeContext';
@@ -134,6 +136,30 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
   const [activePage, setActivePage] = useState(null); // null | 'profile'
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  const handleConfirmDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      if (socket) {
+        socket.disconnect();
+      }
+      await apiClient.delete('/api/users/account');
+      toast.success('Your account and all associated data have been permanently deleted');
+      setShowDeleteAccountModal(false);
+      if (onClose) onClose();
+      localStorage.clear();
+      sessionStorage.clear();
+      if (logout) {
+        await logout();
+      }
+      window.location.href = '/login';
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete account');
+      setIsDeletingAccount(false);
+    }
+  };
 
   const handleConfirmLogout = async () => {
     setIsLoggingOut(true);
@@ -430,12 +456,13 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
               />
             )}
 
-            {/* ── LOGOUT (hidden while searching) ── */}
+            {/* ── LOGOUT & DELETE ACCOUNT (hidden while searching) ── */}
             {!isSearching && (
               <motion.div
                 variants={childVariants}
                 initial="hidden"
                 animate="visible"
+                className="space-y-1.5 pt-1"
               >
                 <motion.button
                   id="settings-logout-btn"
@@ -450,6 +477,26 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
                   <span className="text-[13px] font-semibold text-red-500 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
                     Log out
                   </span>
+                </motion.button>
+
+                <motion.button
+                  id="settings-delete-account-btn"
+                  whileHover={{ x: 3 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setShowDeleteAccountModal(true)}
+                  className="w-full flex items-center gap-3.5 px-3 py-3 rounded-2xl hover:bg-rose-500/10 transition-colors group cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40"
+                >
+                  <div className="shrink-0 w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400 group-hover:bg-rose-500/20 group-hover:text-rose-600 dark:group-hover:text-rose-300 transition-colors">
+                    <Trash2 size={16} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[13px] font-semibold text-rose-600 dark:text-rose-400 group-hover:text-rose-700 dark:group-hover:text-rose-300 transition-colors block">
+                      Delete Account
+                    </span>
+                    <span className="text-[10px] text-slate-500 dark:text-gray-400 block truncate">
+                      Permanently wipe all account data
+                    </span>
+                  </div>
                 </motion.button>
               </motion.div>
             )}
@@ -553,6 +600,77 @@ const SettingsPanel = ({ isOpen = true, onClose, onNavigate }) => {
         </motion.div>
       )}
     </AnimatePresence>
+      {/* ── Delete Account Confirmation Modal ── */}
+      <AnimatePresence>
+        {showDeleteAccountModal && (
+          <motion.div
+            key="delete-account-confirmation-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !isDeletingAccount) {
+                setShowDeleteAccountModal(false);
+              }
+            }}
+            className="fixed inset-0 z-[300] backdrop-blur-md bg-black/70 flex items-center justify-center p-4 select-none"
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 16 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              className="w-full max-w-[360px] rounded-3xl border border-red-500/30 dark:border-red-500/30 p-6 flex flex-col items-center text-center shadow-2xl overflow-hidden bg-white dark:bg-[#1C1D2A] relative"
+            >
+              {/* Top red danger bar */}
+              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-red-600 via-rose-500 to-red-600" />
+
+              {/* Trash icon with pulse */}
+              <div className="w-14 h-14 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-500 dark:text-red-400 mb-4 shadow-inner">
+                <Trash2 size={26} className="animate-pulse" />
+              </div>
+
+              {/* Title & Description */}
+              <h3 className="text-[18px] font-black tracking-tight text-slate-900 dark:text-white mb-2 leading-snug">
+                Delete Account Permanently?
+              </h3>
+              <p className="text-[12.5px] text-slate-600 dark:text-gray-300 leading-relaxed mb-6 px-1">
+                This action <span className="font-bold text-red-500">cannot be undone</span>. All your messages, transmissions, media, notes, device sessions, and personal details will be <span className="font-bold">completely wiped from the database</span>. Nothing will be retained.
+              </p>
+
+              {/* Action Buttons */}
+              <div className="w-full flex items-center gap-3">
+                <button
+                  id="delete-account-modal-cancel-btn"
+                  type="button"
+                  disabled={isDeletingAccount}
+                  onClick={() => setShowDeleteAccountModal(false)}
+                  className="flex-1 py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-slate-800 dark:text-white font-semibold text-[13px] transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  id="delete-account-modal-confirm-btn"
+                  type="button"
+                  disabled={isDeletingAccount}
+                  onClick={handleConfirmDeleteAccount}
+                  className="flex-1 py-3 px-4 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 text-white shadow-lg shadow-red-600/30 font-bold text-[13px] transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isDeletingAccount ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin" />
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    'Confirm Delete'
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };

@@ -1,6 +1,12 @@
 const User = require('../models/User');
 const Message = require('../models/Message');
 const Note = require('../models/Note');
+const Group = require('../models/Group');
+const Notification = require('../models/Notification');
+const DeviceSession = require('../models/DeviceSession');
+const QRSession = require('../models/QRSession');
+const RefreshToken = require('../models/RefreshToken');
+const AISession = require('../models/AISession');
 const ApiError = require('../utils/ApiError');
 const logger = require('../utils/logger');
 
@@ -308,5 +314,112 @@ exports.updateStoragePrefs = async (req, res) => {
   } catch (error) {
     console.error('updateStoragePrefs error:', error);
     res.status(500).json({ message: 'Error updating storage preferences' });
+  }
+};
+
+exports.deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // 1. Delete RefreshTokens for user
+    await RefreshToken.deleteMany({ user: userId });
+
+    // 2. Delete DeviceSessions for user
+    await DeviceSession.deleteMany({ user: userId });
+
+    // 3. Delete QRSessions involving user
+    await QRSession.deleteMany({
+      $or: [{ userId }, { scannedByUserId: userId }]
+    });
+
+    // 4. Delete AISessions for user
+    await AISession.deleteMany({ user: userId });
+
+    // 5. Delete Notes created by user
+    await Note.deleteMany({ user: userId });
+
+    // 6. Delete Notifications where user is recipient or sender
+    await Notification.deleteMany({
+      $or: [{ recipient: userId }, { sender: userId }]
+    });
+
+    // 7. Delete Direct Messages where user is sender or receiver
+    await Message.deleteMany({
+      $or: [
+        { sender: userId, isGroup: false },
+        { receiver: userId, isGroup: false }
+      ]
+    });
+
+    // 8. Delete group messages sent by this user
+    await Message.deleteMany({
+      sender: userId,
+      isGroup: true
+    });
+
+    // Clean up reactions, readBy, deletedForMe in remaining messages
+    await Message.updateMany(
+      { 'reactions.user': userId },
+      { $pull: { reactions: { user: userId } } }
+    );
+    await Message.updateMany(
+      { readBy: userId },
+      { $pull: { readBy: userId } }
+    );
+    await Message.updateMany(
+      { deletedForMe: userId },
+      { $pull: { deletedForMe: userId } }
+    );
+
+    // 9. Handle Groups:
+    // Remove user from all groups' members list
+    await Group.updateMany(
+      { 'members.user': userId },
+      { $pull: { members: { user: userId } } }
+    );
+
+    // Handle groups where this user is creator:
+    const createdGroups = await Group.find({ creator: userId });
+    for (const group of createdGroups) {
+      if (!group.members || group.members.length === 0) {
+        await Message.deleteMany({ group: group._id });
+        await Group.findByIdAndDelete(group._id);
+      } else {
+        const nextAdmin = group.members.find(m => m.role === 'Admin') || group.members[0];
+        nextAdmin.role = 'Admin';
+        group.creator = nextAdmin.user;
+        await group.save();
+      }
+    }
+
+    // 10. Remove user from all other users' contacts and hiddenUsers lists
+    await User.updateMany(
+      { contacts: userId },
+      { $pull: { contacts: userId } }
+    );
+    await User.updateMany(
+      { hiddenUsers: userId },
+      { $pull: { hiddenUsers: userId } }
+    );
+
+    // 11. Delete the user document itself
+    await User.findByIdAndDelete(userId);
+
+    // 12. Notify active socket connections
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user_status_change', { userId: userId.toString(), isOnline: false });
+      io.emit('user_deleted', { userId: userId.toString() });
+      io.to(userId.toString()).emit('account_deleted');
+    }
+
+    // 13. Clear auth cookies
+    res.clearCookie('refreshToken');
+    res.clearCookie('token');
+
+    res.json({ message: 'Account and all associated data permanently deleted from database' });
+  } catch (error) {
+    console.error('Delete Account Error:', error);
+    res.status(500).json({ message: 'Failed to delete account. Please try again.' });
   }
 };
