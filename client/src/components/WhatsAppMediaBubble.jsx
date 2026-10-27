@@ -279,47 +279,42 @@ const WhatsAppMediaBubble = ({
   // ─────────────────────────────────────────────────────────────
   if (mediaType === 'image') {
     if (!downloaded) {
-      // Receiver blurred photo card with centered WhatsApp download button
+      // Receiver blurred photo card with centered WhatsApp download button - fixed photo dimensions
       return (
         <div
-          className="relative overflow-hidden rounded-[15px] w-full max-w-[260px] sm:max-w-[320px] aspect-square bg-slate-950 flex items-center justify-center cursor-pointer group select-none shadow-md"
+          className="relative overflow-hidden rounded-[15px] w-[260px] sm:w-[300px] h-[240px] sm:h-[280px] max-w-full bg-gradient-to-br from-[#11131a] via-[#181a26] to-[#0c0d14] flex flex-col items-center justify-center cursor-pointer group select-none shadow-md"
           onClick={handleManualDownload}
         >
-          {msg.content && !msg.content.startsWith('blob:') && !hasError ? (
-            <img
-              src={msg.content}
-              className="absolute inset-0 w-full h-full object-cover filter blur-xl scale-110 opacity-50 brightness-75 pointer-events-none select-none"
-              alt=""
-              onError={() => setHasError(true)}
-            />
-          ) : (
-            <div className="absolute inset-0 bg-slate-900" />
-          )}
-          <div className="absolute inset-0 bg-black/45 backdrop-blur-[5px]" />
- 
+          {/* Subtle background photo watermark so it feels like a media card without showing the actual image */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.06] pointer-events-none">
+            <ImageIcon size={140} className="text-white" />
+          </div>
+          <div className="absolute inset-0 bg-black/25 backdrop-blur-[2px]" />
+
           {/* Top-left Photo Indicator Badge */}
-          <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/60 border border-white/10 text-[10px] font-bold text-white shadow-sm pointer-events-none">
-            <ImageIcon size={12} className="text-indigo-400" />
+          <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 border border-white/10 text-[11px] font-bold text-white shadow-sm pointer-events-none">
+            <ImageIcon size={13} className="text-indigo-400" />
             <span>Photo</span>
+            {msg.fileSize && <span className="text-white/60 font-mono text-[10px]">• {msg.fileSize}</span>}
           </div>
 
           {/* Centered WhatsApp download button */}
           <motion.div
             whileHover={{ scale: 1.07 }}
             whileTap={{ scale: 0.93 }}
-            className="relative z-10 flex flex-col items-center justify-center w-16 h-16 rounded-full bg-black/75 border border-white/20 shadow-2xl backdrop-blur-md group-hover:bg-black/90 group-hover:border-indigo-500/50 transition-all cursor-pointer"
+            className="relative z-10 flex flex-col items-center justify-center w-18 h-18 rounded-full bg-black/75 border border-white/20 shadow-2xl backdrop-blur-md group-hover:bg-black/90 group-hover:border-indigo-500/50 transition-all cursor-pointer"
           >
             {downloading ? (
               <div className="flex flex-col items-center">
-                <Loader2 size={24} className="text-indigo-400 animate-spin" />
-                <span className="text-[9px] font-bold text-indigo-400 font-mono mt-0.5">
+                <Loader2 size={26} className="text-indigo-400 animate-spin" />
+                <span className="text-[10px] font-bold text-indigo-400 font-mono mt-0.5">
                   {downloadProgress}%
                 </span>
               </div>
             ) : (
               <>
-                <Download size={20} className="text-white drop-shadow group-hover:text-indigo-400 transition-colors" />
-                <span className="text-[10px] font-bold text-white/90 font-mono mt-0.5 leading-none">
+                <Download size={22} className="text-white drop-shadow group-hover:text-indigo-400 transition-colors" />
+                <span className="text-[10.5px] font-bold text-white/90 font-mono mt-0.5 leading-none">
                   {msg.fileSize || 'Photo'}
                 </span>
               </>
@@ -327,8 +322,9 @@ const WhatsAppMediaBubble = ({
           </motion.div>
 
           {/* Floating WhatsApp Bottom-Right Timestamp */}
-          <div className="absolute bottom-2 right-2 z-10 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-medium text-white/90 shadow-sm pointer-events-none select-none">
+          <div className="absolute bottom-2.5 right-2.5 z-10 flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-medium text-white/90 shadow-sm pointer-events-none select-none">
             <span>{formatMsgTime(msg.createdAt)}</span>
+            {isSender && renderStatusTicks(msg.status, onRetryMessage, msg)}
           </div>
         </div>
       );
@@ -407,40 +403,46 @@ const WhatsAppMediaBubble = ({
     if (!downloaded) {
       return (
         <div
-          className="relative overflow-hidden rounded-[15px] w-full max-w-[260px] sm:max-w-[310px] h-[180px] sm:h-[200px] bg-slate-950 flex items-center justify-center cursor-pointer group select-none shadow-md"
+          className="relative overflow-hidden rounded-[15px] w-[260px] sm:w-[300px] h-[200px] sm:h-[220px] max-w-full bg-gradient-to-br from-[#11131a] via-[#181a26] to-[#0c0d14] flex flex-col items-center justify-center cursor-pointer group select-none shadow-md"
           onClick={handleManualDownload}
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/80" />
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.06] pointer-events-none">
+            <FileVideo size={130} className="text-white" />
+          </div>
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" />
+
           {/* Top-left Video Indicator Badge */}
-          <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/60 border border-white/10 text-[10px] font-bold text-white shadow-sm pointer-events-none">
-            <FileVideo size={12} className="text-indigo-400" />
+          <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 border border-white/10 text-[11px] font-bold text-white shadow-sm pointer-events-none">
+            <FileVideo size={13} className="text-indigo-400" />
             <span>Video</span>
+            {msg.fileSize && <span className="text-white/60 font-mono text-[10px]">• {msg.fileSize}</span>}
           </div>
 
           <motion.div
             whileHover={{ scale: 1.06 }}
             whileTap={{ scale: 0.94 }}
-            className="relative z-10 flex flex-col items-center justify-center w-14 h-14 rounded-full bg-black/75 border border-white/20 shadow-2xl backdrop-blur-md group-hover:bg-black/90 group-hover:border-indigo-500/50 transition-all cursor-pointer"
+            className="relative z-10 flex flex-col items-center justify-center w-16 h-16 rounded-full bg-black/75 border border-white/20 shadow-2xl backdrop-blur-md group-hover:bg-black/90 group-hover:border-indigo-500/50 transition-all cursor-pointer"
           >
             {downloading ? (
               <div className="flex flex-col items-center">
-                <Loader2 size={22} className="text-indigo-400 animate-spin" />
-                <span className="text-[9px] font-bold text-indigo-400 font-mono mt-0.5">
+                <Loader2 size={24} className="text-indigo-400 animate-spin" />
+                <span className="text-[10px] font-bold text-indigo-400 font-mono mt-0.5">
                   {downloadProgress}%
                 </span>
               </div>
             ) : (
               <>
-                <Download size={18} className="text-white drop-shadow group-hover:text-indigo-400 transition-colors" />
-                <span className="text-[9.5px] font-bold text-white/90 font-mono mt-0.5 leading-none">
+                <Download size={20} className="text-white drop-shadow group-hover:text-indigo-400 transition-colors" />
+                <span className="text-[10px] font-bold text-white/90 font-mono mt-0.5 leading-none">
                   {msg.fileSize || 'Video'}
                 </span>
               </>
             )}
           </motion.div>
 
-          <div className="absolute bottom-2 right-2 z-10 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-medium text-white/90 shadow-sm pointer-events-none select-none">
+          <div className="absolute bottom-2.5 right-2.5 z-10 flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-medium text-white/90 shadow-sm pointer-events-none select-none">
             <span>{formatMsgTime(msg.createdAt)}</span>
+            {isSender && renderStatusTicks(msg.status, onRetryMessage, msg)}
           </div>
         </div>
       );
