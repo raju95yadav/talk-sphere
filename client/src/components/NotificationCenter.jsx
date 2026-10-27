@@ -13,7 +13,12 @@ import {
   Smartphone,
   ChevronRight,
   Clock,
-  UserCheck
+  UserCheck,
+  History,
+  Archive,
+  RotateCcw,
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 
@@ -46,26 +51,41 @@ const CATEGORIES = [
 const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
   const {
     notifications,
+    historyNotifications,
     unreadCount,
+    activeCount,
+    historyCount,
+    isLoading,
+    isLoadingHistory,
     isOpen,
+    viewMode,
+    setViewMode,
     closeNotifications,
+    fetchHistory,
     markAsRead,
     markAllAsRead,
+    clearNotification,
+    clearAllActive,
+    restoreNotification,
     deleteNotification,
-    clearAll,
+    clearHistory,
+    deleteAll,
     connectUser,
   } = useNotifications();
 
   const [activeCategory, setActiveCategory] = useState('all');
   const [connectingId, setConnectingId] = useState(null);
 
-  // Filter notifications by active tab
+  // Active items vs History items based on current tab
+  const currentItems = viewMode === 'history' ? historyNotifications : notifications;
+
+  // Filter notifications by active category tab
   const filteredNotifications = useMemo(() => {
-    if (activeCategory === 'all') return notifications;
+    if (activeCategory === 'all') return currentItems;
     const cat = CATEGORIES.find((c) => c.id === activeCategory);
-    if (!cat?.types) return notifications;
-    return notifications.filter((n) => cat.types.includes(n.type));
-  }, [notifications, activeCategory]);
+    if (!cat?.types) return currentItems;
+    return currentItems.filter((n) => cat.types.includes(n.type));
+  }, [currentItems, activeCategory]);
 
   const handleConnect = async (notification) => {
     const targetUserId =
@@ -157,7 +177,7 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
             {/* Top Highlight Accent Line */}
             <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent pointer-events-none z-10" />
 
-            {/* Ambient Background Glow (Subtle in light, vivid in dark) */}
+            {/* Ambient Background Glow */}
             <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 dark:bg-indigo-500/15 rounded-full blur-[100px] pointer-events-none" />
             <div className="absolute bottom-10 left-0 w-72 h-72 bg-violet-500/5 dark:bg-violet-500/10 rounded-full blur-[90px] pointer-events-none" />
 
@@ -165,41 +185,86 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
             <div className="relative p-4 sm:p-5 border-b border-slate-200 dark:border-white/[0.08] flex items-center justify-between gap-3 shrink-0 bg-white/70 dark:bg-[#12131C]/90 backdrop-blur-md">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/30 shrink-0">
-                  <Bell size={18} />
+                  {viewMode === 'history' ? <History size={18} /> : <Bell size={18} />}
                 </div>
                 <div>
                   <h2 className="text-base font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                    NOTIFICATIONS
-                    {unreadCount > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-600 text-white tracking-wider shadow-sm">
+                    {viewMode === 'history' ? 'NOTIFICATION HISTORY' : 'NOTIFICATIONS'}
+                    {viewMode === 'active' && unreadCount > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-600 text-white tracking-wider shadow-sm animate-pulse">
                         {unreadCount} NEW
+                      </span>
+                    )}
+                    {viewMode === 'history' && historyCount > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white/80 tracking-wider shadow-sm">
+                        {historyCount} SAVED
                       </span>
                     )}
                   </h2>
                   <p className="text-[11px] text-slate-500 dark:text-[#94A3B8] font-medium">
-                    Real-time updates across all TalkSphere events
+                    {viewMode === 'history' 
+                      ? 'Archived & past notifications saved in database' 
+                      : 'Real-time updates across all TalkSphere events'}
                   </p>
                 </div>
               </div>
 
               {/* Header Action Controls */}
               <div className="flex items-center gap-1.5">
-                {notifications.length > 0 && (
+                {viewMode === 'active' ? (
+                  <>
+                    {notifications.length > 0 && (
+                      <>
+                        <button
+                          onClick={markAllAsRead}
+                          title="Mark all as read"
+                          className="p-2 rounded-xl bg-slate-100 dark:bg-[#1C1D2A] hover:bg-slate-200 dark:hover:bg-[#252738] text-slate-600 dark:text-[#94A3B8] hover:text-indigo-400 border border-slate-200 dark:border-white/[0.08] transition-all cursor-pointer"
+                        >
+                          <CheckCheck size={16} />
+                        </button>
+                        <button
+                          onClick={clearAllActive}
+                          title="Clear all (move to history - saved in database)"
+                          className="p-2 rounded-xl bg-slate-100 dark:bg-[#1C1D2A] hover:bg-slate-200 dark:hover:bg-[#252738] text-slate-600 dark:text-[#94A3B8] hover:text-indigo-400 border border-slate-200 dark:border-white/[0.08] transition-all cursor-pointer flex items-center gap-1"
+                        >
+                          <Archive size={16} />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to permanently delete all notifications from the database?')) {
+                              deleteAll();
+                            }
+                          }}
+                          title="Delete all permanently from database"
+                          className="p-2 rounded-xl bg-slate-100 dark:bg-[#1C1D2A] hover:bg-rose-500/15 text-slate-600 dark:text-[#94A3B8] hover:text-rose-500 border border-slate-200 dark:border-white/[0.08] transition-all cursor-pointer"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </>
+                    )}
+                  </>
+                ) : (
                   <>
                     <button
-                      onClick={markAllAsRead}
-                      title="Mark all as read"
+                      onClick={fetchHistory}
+                      title="Refresh history from database"
                       className="p-2 rounded-xl bg-slate-100 dark:bg-[#1C1D2A] hover:bg-slate-200 dark:hover:bg-[#252738] text-slate-600 dark:text-[#94A3B8] hover:text-indigo-400 border border-slate-200 dark:border-white/[0.08] transition-all cursor-pointer"
                     >
-                      <CheckCheck size={16} />
+                      <RefreshCw size={16} className={isLoadingHistory ? 'animate-spin' : ''} />
                     </button>
-                    <button
-                      onClick={clearAll}
-                      title="Clear all"
-                      className="p-2 rounded-xl bg-slate-100 dark:bg-[#1C1D2A] hover:bg-slate-200 dark:hover:bg-[#252738] text-slate-600 dark:text-[#94A3B8] hover:text-rose-500 border border-slate-200 dark:border-white/[0.08] transition-all cursor-pointer"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {historyNotifications.length > 0 && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm('Are you sure you want to permanently delete all notification history from the database?')) {
+                            clearHistory();
+                          }
+                        }}
+                        title="Clear history (permanently delete from database)"
+                        className="p-2 rounded-xl bg-slate-100 dark:bg-[#1C1D2A] hover:bg-rose-500/15 text-slate-600 dark:text-[#94A3B8] hover:text-rose-500 border border-slate-200 dark:border-white/[0.08] transition-all cursor-pointer"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </>
                 )}
                 <button
@@ -212,8 +277,55 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
               </div>
             </div>
 
+            {/* View Mode Toggle: Active Notifications vs History */}
+            <div className="p-3 border-b border-slate-200 dark:border-white/[0.08] bg-white/50 dark:bg-[#12131C]/60 shrink-0">
+              <div className="flex items-center gap-1.5 p-1 bg-slate-200/80 dark:bg-[#1C1D2A] rounded-xl border border-slate-300/60 dark:border-white/[0.06]">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('active')}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    viewMode === 'active'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
+                      : 'text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Bell size={13} />
+                  <span>Notifications</span>
+                  {unreadCount > 0 ? (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-rose-500 text-white">
+                      {unreadCount}
+                    </span>
+                  ) : activeCount > 0 ? (
+                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${viewMode === 'active' ? 'bg-white/20 text-white' : 'bg-slate-300 dark:bg-white/10 text-slate-700 dark:text-white'}`}>
+                      {activeCount}
+                    </span>
+                  ) : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode('history');
+                    fetchHistory();
+                  }}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    viewMode === 'history'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
+                      : 'text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <History size={13} />
+                  <span>History</span>
+                  {historyCount > 0 && (
+                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${viewMode === 'history' ? 'bg-white/20 text-white' : 'bg-slate-300 dark:bg-white/10 text-slate-700 dark:text-white'}`}>
+                      {historyCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+
             {/* Filter Tabs */}
-            <div className="px-4 py-2.5 border-b border-slate-200 dark:border-white/[0.08] flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 bg-slate-100/50 dark:bg-[#12131C]/60">
+            <div className="px-4 py-2 border-b border-slate-200 dark:border-white/[0.08] flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 bg-slate-100/50 dark:bg-[#12131C]/60">
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat.id}
@@ -231,17 +343,37 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
 
             {/* Notifications List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 relative">
-              {filteredNotifications.length === 0 ? (
+              {isLoading || (viewMode === 'history' && isLoadingHistory) ? (
+                <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center p-6">
+                  <Loader2 size={32} className="text-indigo-500 animate-spin mb-2" />
+                  <p className="text-xs text-slate-500 dark:text-gray-400">Loading notifications...</p>
+                </div>
+              ) : filteredNotifications.length === 0 ? (
                 <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center p-6 select-none">
                   <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-[#1C1D2A] border border-slate-200 dark:border-white/[0.08] flex items-center justify-center text-slate-400 dark:text-[#94A3B8] mb-3 shadow-sm">
-                    <Bell size={28} className="stroke-[1.5]" />
+                    {viewMode === 'history' ? <History size={28} className="stroke-[1.5]" /> : <Bell size={28} className="stroke-[1.5]" />}
                   </div>
                   <h3 className="text-sm font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider">
-                    All Caught Up
+                    {viewMode === 'history' ? 'No Notification History' : 'All Caught Up'}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-gray-500 max-w-xs mt-1">
-                    No active notifications in this category. You're completely up to date!
+                    {viewMode === 'history'
+                      ? 'Notifications you clear will be safely archived here in your database history.'
+                      : "No active notifications in this category. You're completely up to date!"}
                   </p>
+                  {viewMode === 'active' && historyCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setViewMode('history');
+                        fetchHistory();
+                      }}
+                      className="mt-3 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-bold border border-indigo-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <History size={13} />
+                      View {historyCount} in History
+                    </button>
+                  )}
                 </div>
               ) : (
                 filteredNotifications.map((notif) => {
@@ -257,13 +389,15 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.96 }}
                       className={`relative p-3.5 sm:p-4 rounded-2xl border transition-all ${
-                        notif.isRead
+                        viewMode === 'history'
+                          ? 'bg-slate-50/90 dark:bg-[#151622]/90 border-slate-200/60 dark:border-white/[0.06] opacity-90'
+                          : notif.isRead
                           ? 'bg-white/80 dark:bg-[#1C1D2A]/80 border-slate-200/80 dark:border-white/[0.08] shadow-sm hover:shadow-md'
                           : 'bg-indigo-500/[0.08] dark:bg-gradient-to-r dark:from-indigo-500/[0.12] dark:to-violet-500/[0.06] border-indigo-500/40 dark:border-indigo-500/35 shadow-md shadow-indigo-500/10'
                       }`}
                     >
-                      {/* Unread Glowing Dot */}
-                      {!notif.isRead && (
+                      {/* Unread Glowing Dot for Active view */}
+                      {viewMode === 'active' && !notif.isRead && (
                         <span className="absolute top-3.5 right-3.5 w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_#6366F1]" />
                       )}
 
@@ -284,13 +418,18 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
                         </div>
 
                         {/* Content */}
-                        <div className="flex-1 min-w-0 pr-4">
+                        <div className="flex-1 min-w-0 pr-2 sm:pr-4">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
                             <span
                               className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border ${visuals.badgeColor}`}
                             >
                               {visuals.badge}
                             </span>
+                            {viewMode === 'history' && (
+                              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-white/10">
+                                📜 Saved in History
+                              </span>
+                            )}
                             <span className="text-[10px] text-slate-400 dark:text-gray-400 flex items-center gap-1 font-mono">
                               <Clock size={10} />
                               {formatTimeAgo(notif.createdAt)}
@@ -381,23 +520,59 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
                           )}
                         </div>
 
-                        {/* Individual Delete / Dismiss */}
+                        {/* Card Action Controls: Clear / Restore / Delete */}
                         <div className="flex flex-col items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => deleteNotification(notif._id)}
-                            title="Remove notification"
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 dark:text-gray-500 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-all cursor-pointer"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                          {!notif.isRead && (
-                            <button
-                              onClick={() => markAsRead(notif._id)}
-                              title="Mark read"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 dark:text-gray-500 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-all cursor-pointer"
-                            >
-                              <CheckCheck size={13} />
-                            </button>
+                          {viewMode === 'active' ? (
+                            <>
+                              {/* Option 1: Clear single notification (moves to History, saved in DB) */}
+                              <button
+                                onClick={() => clearNotification(notif._id)}
+                                title="Clear notification (save in history)"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 dark:text-gray-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-all cursor-pointer"
+                              >
+                                <Archive size={14} />
+                              </button>
+
+                              {/* Option 2: Delete single notification (permanently deletes from DB) */}
+                              <button
+                                onClick={() => deleteNotification(notif._id, false)}
+                                title="Delete permanently from database"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 dark:text-gray-400 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-all cursor-pointer"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+
+                              {/* Mark read toggle */}
+                              {!notif.isRead && (
+                                <button
+                                  onClick={() => markAsRead(notif._id)}
+                                  title="Mark as read"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 dark:text-gray-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-all cursor-pointer"
+                                >
+                                  <CheckCheck size={14} />
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              {/* Option 1: Restore to active notifications */}
+                              <button
+                                onClick={() => restoreNotification(notif._id)}
+                                title="Restore back to active notifications"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 dark:text-gray-400 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-all cursor-pointer"
+                              >
+                                <RotateCcw size={14} />
+                              </button>
+
+                              {/* Option 2: Delete permanently from DB */}
+                              <button
+                                onClick={() => deleteNotification(notif._id, true)}
+                                title="Delete permanently from database"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 dark:text-gray-400 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-all cursor-pointer"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -413,7 +588,9 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
                 <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
                 Live Socket Active
               </span>
-              <span>TalkSphere Notifications</span>
+              <span>
+                {viewMode === 'history' ? `${historyCount} Archived Records` : `${activeCount} Active Alerts`}
+              </span>
             </div>
           </motion.div>
         </div>

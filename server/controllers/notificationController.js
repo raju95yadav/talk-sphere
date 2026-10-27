@@ -4,23 +4,44 @@ const User = require('../models/User');
 const { createAndSendNotification } = require('../utils/notify');
 
 // GET /api/notifications
+// Supports ?history=true to fetch history (cleared notifications)
 exports.getNotifications = async (req, res) => {
   try {
     const userId = req.user._id;
-    const notifications = await Notification.find({ recipient: userId })
+    const isHistory = req.query.history === 'true';
+
+    const filter = {
+      recipient: userId,
+      isCleared: isHistory ? true : { $ne: true }
+    };
+
+    const notifications = await Notification.find(filter)
       .sort({ createdAt: -1 })
-      .limit(60)
+      .limit(80)
       .populate('sender', 'name username avatar email')
       .lean();
 
     const unreadCount = await Notification.countDocuments({
       recipient: userId,
+      isCleared: { $ne: true },
       isRead: false
+    });
+
+    const activeCount = await Notification.countDocuments({
+      recipient: userId,
+      isCleared: { $ne: true }
+    });
+
+    const historyCount = await Notification.countDocuments({
+      recipient: userId,
+      isCleared: true
     });
 
     res.json({
       notifications,
-      unreadCount
+      unreadCount,
+      activeCount,
+      historyCount
     });
   } catch (error) {
     console.error('getNotifications error:', error);
@@ -61,29 +82,101 @@ exports.markAllAsRead = async (req, res) => {
   }
 };
 
+// PUT /api/notifications/:id/clear
+// Clears a single notification from active list -> saves in database under History
+exports.clearNotification = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const notification = await Notification.findOneAndUpdate(
+      { _id: id, recipient: req.user._id },
+      { isCleared: true, isRead: true },
+      { new: true }
+    );
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+    res.json({ success: true, message: 'Notification moved to history', notification });
+  } catch (error) {
+    console.error('clearNotification error:', error);
+    res.status(500).json({ message: 'Failed to clear notification' });
+  }
+};
+
+// PUT /api/notifications/clear-all
+// Clears all active notifications -> keeps in database under History
+exports.clearAllNotifications = async (req, res) => {
+  try {
+    await Notification.updateMany(
+      { recipient: req.user._id, isCleared: { $ne: true } },
+      { isCleared: true, isRead: true }
+    );
+    res.json({ success: true, message: 'All active notifications moved to history' });
+  } catch (error) {
+    console.error('clearAllNotifications error:', error);
+    res.status(500).json({ message: 'Failed to clear notifications' });
+  }
+};
+
+// PUT /api/notifications/:id/restore
+// Restores a notification from history back to active
+exports.restoreNotification = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const notification = await Notification.findOneAndUpdate(
+      { _id: id, recipient: req.user._id },
+      { isCleared: false },
+      { new: true }
+    );
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+    res.json({ success: true, message: 'Notification restored to active', notification });
+  } catch (error) {
+    console.error('restoreNotification error:', error);
+    res.status(500).json({ message: 'Failed to restore notification' });
+  }
+};
+
 // DELETE /api/notifications/:id
+// Permanently deletes a single notification from the database
 exports.deleteNotification = async (req, res) => {
   try {
     const { id } = req.params;
-    await Notification.findOneAndDelete({
+    const deleted = await Notification.findOneAndDelete({
       _id: id,
       recipient: req.user._id
     });
-    res.json({ success: true, message: 'Notification removed' });
+    if (!deleted) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+    res.json({ success: true, message: 'Notification permanently deleted from database' });
   } catch (error) {
     console.error('deleteNotification error:', error);
     res.status(500).json({ message: 'Failed to delete notification' });
   }
 };
 
+// DELETE /api/notifications/history
+// Permanently deletes all history notifications from database
+exports.clearHistory = async (req, res) => {
+  try {
+    await Notification.deleteMany({ recipient: req.user._id, isCleared: true });
+    res.json({ success: true, message: 'Notification history permanently deleted' });
+  } catch (error) {
+    console.error('clearHistory error:', error);
+    res.status(500).json({ message: 'Failed to clear notification history' });
+  }
+};
+
 // DELETE /api/notifications
-exports.clearAllNotifications = async (req, res) => {
+// Permanently deletes all notifications (active + history) from database
+exports.deleteAllNotifications = async (req, res) => {
   try {
     await Notification.deleteMany({ recipient: req.user._id });
-    res.json({ success: true, message: 'All notifications cleared' });
+    res.json({ success: true, message: 'All notifications permanently deleted from database' });
   } catch (error) {
-    console.error('clearAllNotifications error:', error);
-    res.status(500).json({ message: 'Failed to clear notifications' });
+    console.error('deleteAllNotifications error:', error);
+    res.status(500).json({ message: 'Failed to delete all notifications' });
   }
 };
 

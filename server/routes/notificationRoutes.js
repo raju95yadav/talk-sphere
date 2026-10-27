@@ -5,8 +5,12 @@ const {
   getNotifications,
   markAsRead,
   markAllAsRead,
-  deleteNotification,
+  clearNotification,
   clearAllNotifications,
+  restoreNotification,
+  deleteNotification,
+  clearHistory,
+  deleteAllNotifications,
   claimInvite,
   connectInviteUser
 } = require('../controllers/notificationController');
@@ -17,9 +21,14 @@ router.get('/', getNotifications);
 router.post('/claim-invite', claimInvite);
 router.post('/connect-invite', connectInviteUser);
 router.put('/read-all', markAllAsRead);
+router.put('/clear-all', clearAllNotifications);
 router.put('/:id/read', markAsRead);
-router.delete('/all', clearAllNotifications);
+router.put('/:id/clear', clearNotification);
+router.put('/:id/restore', restoreNotification);
+
+router.delete('/history', clearHistory);
+router.delete('/all', deleteAllNotifications);
 router.delete('/:id', deleteNotification);
-router.delete('/', clearAllNotifications);
+router.delete('/', deleteAllNotifications);
 
 module.exports = router;

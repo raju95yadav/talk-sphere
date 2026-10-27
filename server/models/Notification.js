@@ -44,6 +44,11 @@ const notificationSchema = new mongoose.Schema({
     default: false,
     index: true
   },
+  isCleared: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
   actionType: {
     type: String,
     enum: ['none', 'connect_chat', 'view_devices', 'open_chat', 'open_ai', 'open_settings'],
@@ -55,6 +60,6 @@ const notificationSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-notificationSchema.index({ recipient: 1, createdAt: -1 });
+notificationSchema.index({ recipient: 1, isCleared: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Notification', notificationSchema);

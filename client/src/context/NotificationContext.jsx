@@ -12,9 +12,14 @@ export const NotificationProvider = ({ children }) => {
   const socket = useSocket();
 
   const [notifications, setNotifications] = useState([]);
+  const [historyNotifications, setHistoryNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [activeCount, setActiveCount] = useState(0);
+  const [historyCount, setHistoryCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [viewMode, setViewMode] = useState('active'); // 'active' | 'history'
 
   // Active chat switch callback set by Dashboard / ChatSection
   const onConnectAndChatRef = useRef(null);
@@ -23,11 +28,13 @@ export const NotificationProvider = ({ children }) => {
     onConnectAndChatRef.current = callback;
   }, []);
 
-  // 1. Fetch Notifications
+  // 1. Fetch Active Notifications
   const fetchNotifications = useCallback(async () => {
     if (!token) {
       setNotifications([]);
       setUnreadCount(0);
+      setActiveCount(0);
+      setHistoryCount(0);
       return;
     }
 
@@ -36,6 +43,8 @@ export const NotificationProvider = ({ children }) => {
       const res = await apiClient.get('/api/notifications');
       setNotifications(res.data.notifications || []);
       setUnreadCount(res.data.unreadCount || 0);
+      setActiveCount(res.data.activeCount ?? (res.data.notifications || []).length);
+      setHistoryCount(res.data.historyCount || 0);
     } catch (err) {
       console.error('Failed to load notifications:', err.message);
     } finally {
@@ -43,10 +52,38 @@ export const NotificationProvider = ({ children }) => {
     }
   }, [token]);
 
+  // Fetch History Notifications
+  const fetchHistory = useCallback(async () => {
+    if (!token) {
+      setHistoryNotifications([]);
+      return;
+    }
+
+    try {
+      setIsLoadingHistory(true);
+      const res = await apiClient.get('/api/notifications?history=true');
+      setHistoryNotifications(res.data.notifications || []);
+      setHistoryCount(res.data.historyCount ?? (res.data.notifications || []).length);
+      if (typeof res.data.activeCount === 'number') setActiveCount(res.data.activeCount);
+      if (typeof res.data.unreadCount === 'number') setUnreadCount(res.data.unreadCount);
+    } catch (err) {
+      console.error('Failed to load notification history:', err.message);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, [token]);
+
   // Initial load when logged in
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
+
+  // When switching to history mode, fetch history items
+  useEffect(() => {
+    if (viewMode === 'history' && isOpen) {
+      fetchHistory();
+    }
+  }, [viewMode, isOpen, fetchHistory]);
 
   // 2. Real-time Socket Listener for New Notifications
   useEffect(() => {
@@ -60,13 +97,13 @@ export const NotificationProvider = ({ children }) => {
 
       // Prepend to notifications list
       setNotifications((prev) => {
-        // Prevent duplicate IDs
         if (prev.some((n) => n._id === notif._id)) return prev;
         return [notif, ...prev];
       });
 
-      // Increment unread count
+      // Increment counts
       setUnreadCount((prev) => prev + 1);
+      setActiveCount((prev) => prev + 1);
 
       // Show high-priority Toast
       if (notif.type === 'invite_joined') {
@@ -93,6 +130,7 @@ export const NotificationProvider = ({ children }) => {
               <button
                 onClick={() => {
                   toast.dismiss(t.id);
+                  setViewMode('active');
                   setIsOpen(true);
                 }}
                 className="ml-3 px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-500/25 shrink-0 self-center"
@@ -166,27 +204,112 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  const deleteNotification = async (id) => {
+  // Clear single notification from active list -> Saved in Database under History
+  const clearNotification = async (id) => {
     try {
       const target = notifications.find((n) => n._id === id);
       setNotifications((prev) => prev.filter((n) => n._id !== id));
-      if (target && !target.isRead) {
-        setUnreadCount((prev) => Math.max(0, prev - 1));
+      setActiveCount((prev) => Math.max(0, prev - 1));
+      setHistoryCount((prev) => prev + 1);
+      if (target) {
+        setHistoryNotifications((prev) => [{ ...target, isCleared: true, isRead: true }, ...prev]);
+        if (!target.isRead) {
+          setUnreadCount((prev) => Math.max(0, prev - 1));
+        }
       }
-      await apiClient.delete(`/api/notifications/${id}`);
+      await apiClient.put(`/api/notifications/${id}/clear`);
+      toast.success('Notification cleared to history');
     } catch (err) {
-      console.error('Failed to delete notification:', err.message);
+      console.error('Failed to clear notification:', err.message);
+      toast.error('Failed to clear notification');
     }
   };
 
-  const clearAll = async () => {
+  // Clear all active notifications -> Saved in Database under History
+  const clearAllActive = async () => {
     try {
+      const count = notifications.length;
+      if (count === 0) return;
+      const clearedItems = notifications.map((n) => ({ ...n, isCleared: true, isRead: true }));
       setNotifications([]);
       setUnreadCount(0);
-      await apiClient.delete('/api/notifications');
-      toast.success('Notifications cleared');
+      setActiveCount(0);
+      setHistoryCount((prev) => prev + count);
+      setHistoryNotifications((prev) => [...clearedItems, ...prev]);
+      await apiClient.put('/api/notifications/clear-all');
+      toast.success('All notifications cleared to history');
     } catch (err) {
-      console.error('Failed to clear notifications:', err.message);
+      console.error('Failed to clear all notifications:', err.message);
+      toast.error('Failed to clear notifications');
+    }
+  };
+
+  // Restore notification from history back to active
+  const restoreNotification = async (id) => {
+    try {
+      const target = historyNotifications.find((n) => n._id === id);
+      setHistoryNotifications((prev) => prev.filter((n) => n._id !== id));
+      setHistoryCount((prev) => Math.max(0, prev - 1));
+      setActiveCount((prev) => prev + 1);
+      if (target) {
+        setNotifications((prev) => [{ ...target, isCleared: false }, ...prev]);
+      }
+      await apiClient.put(`/api/notifications/${id}/restore`);
+      toast.success('Notification restored to active');
+    } catch (err) {
+      console.error('Failed to restore notification:', err.message);
+      toast.error('Failed to restore notification');
+    }
+  };
+
+  // Permanently delete a single notification from MongoDB database
+  const deleteNotification = async (id, isFromHistory = false) => {
+    try {
+      if (isFromHistory) {
+        setHistoryNotifications((prev) => prev.filter((n) => n._id !== id));
+        setHistoryCount((prev) => Math.max(0, prev - 1));
+      } else {
+        const target = notifications.find((n) => n._id === id);
+        setNotifications((prev) => prev.filter((n) => n._id !== id));
+        setActiveCount((prev) => Math.max(0, prev - 1));
+        if (target && !target.isRead) {
+          setUnreadCount((prev) => Math.max(0, prev - 1));
+        }
+      }
+      await apiClient.delete(`/api/notifications/${id}`);
+      toast.success('Notification permanently deleted from database');
+    } catch (err) {
+      console.error('Failed to delete notification:', err.message);
+      toast.error('Failed to delete notification');
+    }
+  };
+
+  // Permanently delete all history notifications from MongoDB database
+  const clearHistory = async () => {
+    try {
+      setHistoryNotifications([]);
+      setHistoryCount(0);
+      await apiClient.delete('/api/notifications/history');
+      toast.success('History permanently deleted from database');
+    } catch (err) {
+      console.error('Failed to clear history:', err.message);
+      toast.error('Failed to clear history');
+    }
+  };
+
+  // Permanently delete ALL notifications (active + history) from database
+  const deleteAll = async () => {
+    try {
+      setNotifications([]);
+      setHistoryNotifications([]);
+      setUnreadCount(0);
+      setActiveCount(0);
+      setHistoryCount(0);
+      await apiClient.delete('/api/notifications/all');
+      toast.success('All notifications permanently deleted from database');
+    } catch (err) {
+      console.error('Failed to delete all notifications:', err.message);
+      toast.error('Failed to delete notifications');
     }
   };
 
@@ -223,17 +346,28 @@ export const NotificationProvider = ({ children }) => {
 
   const value = {
     notifications,
+    historyNotifications,
     unreadCount,
+    activeCount,
+    historyCount,
     isLoading,
+    isLoadingHistory,
     isOpen,
+    viewMode,
+    setViewMode,
     setIsOpen,
     openNotifications: () => setIsOpen(true),
     closeNotifications: () => setIsOpen(false),
     fetchNotifications,
+    fetchHistory,
     markAsRead,
     markAllAsRead,
+    clearNotification,
+    clearAllActive,
+    restoreNotification,
     deleteNotification,
-    clearAll,
+    clearHistory,
+    deleteAll,
     connectUser,
     registerChatOpener,
   };
