@@ -156,6 +156,18 @@ exports.deleteNotification = async (req, res) => {
   }
 };
 
+// DELETE /api/notifications/active
+// Permanently deletes all active notifications from database (keeps history intact)
+exports.deleteActiveNotifications = async (req, res) => {
+  try {
+    await Notification.deleteMany({ recipient: req.user._id, isCleared: { $ne: true } });
+    res.json({ success: true, message: 'All active notifications permanently deleted from database' });
+  } catch (error) {
+    console.error('deleteActiveNotifications error:', error);
+    res.status(500).json({ message: 'Failed to delete active notifications' });
+  }
+};
+
 // DELETE /api/notifications/history
 // Permanently deletes all history notifications from database
 exports.clearHistory = async (req, res) => {

@@ -68,6 +68,7 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
     clearAllActive,
     restoreNotification,
     deleteNotification,
+    deleteAllActive,
     clearHistory,
     deleteAll,
     connectUser,
@@ -579,6 +580,83 @@ const NotificationCenter = ({ onOpenSettings, onOpenChatWithContact }) => {
                     </motion.div>
                   );
                 })
+              )}
+
+              {/* WhatsApp-Style Bottom Action Options Directly Below Notifications */}
+              {viewMode === 'active' && filteredNotifications.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-6 pt-4 pb-2 border-t border-slate-200/80 dark:border-white/[0.08] flex flex-col gap-2.5"
+                >
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-[#94A3B8] flex items-center gap-1.5">
+                      <Sparkles size={12} className="text-indigo-400" />
+                      Actions
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400 dark:text-gray-500 font-bold">
+                      {filteredNotifications.length} notification{filteredNotifications.length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-2.5">
+                    {/* 1. Add All to History Section at Once (saved in database) */}
+                    <button
+                      type="button"
+                      onClick={clearAllActive}
+                      className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-extrabold text-xs flex items-center justify-center gap-2 border border-indigo-500/25 shadow-sm active:scale-95 transition-all cursor-pointer group"
+                    >
+                      <Archive size={15} className="text-indigo-500 group-hover:scale-110 transition-transform shrink-0" />
+                      <span>Add All to History</span>
+                    </button>
+
+                    {/* 2. Delete All Notifications at Once (permanently from database) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to permanently delete all active notifications from the database? This cannot be undone.')) {
+                          deleteAllActive();
+                        }
+                      }}
+                      className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-extrabold text-xs flex items-center justify-center gap-2 border border-rose-500/25 shadow-sm active:scale-95 transition-all cursor-pointer group"
+                    >
+                      <Trash2 size={15} className="text-rose-500 group-hover:scale-110 transition-transform shrink-0" />
+                      <span>Delete All at Once</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* History Bottom Action Options */}
+              {viewMode === 'history' && filteredNotifications.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-6 pt-4 pb-2 border-t border-slate-200/80 dark:border-white/[0.08] flex flex-col gap-2.5"
+                >
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-[#94A3B8] flex items-center gap-1.5">
+                      <History size={12} className="text-indigo-400" />
+                      History Actions
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400 dark:text-gray-500 font-bold">
+                      {filteredNotifications.length} archived record{filteredNotifications.length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to permanently delete all notification history from the database? This cannot be undone.')) {
+                        clearHistory();
+                      }
+                    }}
+                    className="w-full py-3 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-extrabold text-xs flex items-center justify-center gap-2 border border-rose-500/25 shadow-sm active:scale-95 transition-all cursor-pointer group"
+                  >
+                    <Trash2 size={15} className="text-rose-500 group-hover:scale-110 transition-transform shrink-0" />
+                    <span>Delete All History at Once</span>
+                  </button>
+                </motion.div>
               )}
             </div>
 

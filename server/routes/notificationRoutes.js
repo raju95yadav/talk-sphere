@@ -9,6 +9,7 @@ const {
   clearAllNotifications,
   restoreNotification,
   deleteNotification,
+  deleteActiveNotifications,
   clearHistory,
   deleteAllNotifications,
   claimInvite,
@@ -26,6 +27,7 @@ router.put('/:id/read', markAsRead);
 router.put('/:id/clear', clearNotification);
 router.put('/:id/restore', restoreNotification);
 
+router.delete('/active', deleteActiveNotifications);
 router.delete('/history', clearHistory);
 router.delete('/all', deleteAllNotifications);
 router.delete('/:id', deleteNotification);

@@ -297,6 +297,20 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
+  // Permanently delete all ACTIVE notifications at once from MongoDB database (keeps history intact)
+  const deleteAllActive = async () => {
+    try {
+      setNotifications([]);
+      setUnreadCount(0);
+      setActiveCount(0);
+      await apiClient.delete('/api/notifications/active');
+      toast.success('All active notifications permanently deleted from database');
+    } catch (err) {
+      console.error('Failed to delete active notifications:', err.message);
+      toast.error('Failed to delete active notifications');
+    }
+  };
+
   // Permanently delete ALL notifications (active + history) from database
   const deleteAll = async () => {
     try {
@@ -366,6 +380,7 @@ export const NotificationProvider = ({ children }) => {
     clearAllActive,
     restoreNotification,
     deleteNotification,
+    deleteAllActive,
     clearHistory,
     deleteAll,
     connectUser,
