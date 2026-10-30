@@ -51,7 +51,14 @@ exports.pingAI = async (req, res) => {
  */
 exports.getAISessions = async (req, res) => {
   try {
-    const sessions = await AISession.find({ user: req.user._id }).sort({ updatedAt: -1 });
+    const { mode, documentId } = req.query;
+    const filter = { user: req.user._id };
+    if (mode) filter.mode = mode;
+    if (documentId && documentId !== 'all') filter.ragDocument = documentId;
+
+    const sessions = await AISession.find(filter)
+      .populate('ragDocument', 'title originalName fileType totalChunks')
+      .sort({ updatedAt: -1 });
     res.json(sessions);
   } catch (error) {
     logger.error('GET_AI_SESSIONS_ERROR', error.message || error);
@@ -64,11 +71,13 @@ exports.getAISessions = async (req, res) => {
  */
 exports.createAISession = async (req, res) => {
   try {
-    const { title, modelPreference, messages } = req.body;
+    const { title, modelPreference, messages, mode, ragDocument } = req.body;
     const session = await AISession.create({
       user: req.user._id,
       title: title || 'New Chat',
       modelPreference: modelPreference || 'gemini-3.6-flash',
+      mode: mode || 'general',
+      ragDocument: ragDocument || null,
       messages: messages || []
     });
     res.status(201).json(session);
@@ -84,7 +93,7 @@ exports.createAISession = async (req, res) => {
 exports.updateAISession = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, modelPreference, messages } = req.body;
+    const { title, modelPreference, messages, mode, ragDocument } = req.body;
 
     const session = await AISession.findOne({ _id: id, user: req.user._id });
     if (!session) {
@@ -93,6 +102,8 @@ exports.updateAISession = async (req, res) => {
 
     if (title !== undefined) session.title = title;
     if (modelPreference !== undefined) session.modelPreference = modelPreference;
+    if (mode !== undefined) session.mode = mode;
+    if (ragDocument !== undefined) session.ragDocument = ragDocument;
     if (messages !== undefined) session.messages = messages;
 
     await session.save();

@@ -99,6 +99,7 @@ app.use('/api/users',   require('./routes/userRoutes'));
 app.use('/api/chat',    require('./routes/chatRoutes'));
 app.use('/api/groups',  require('./routes/groupRoutes'));
 app.use('/api/ai',      require('./routes/aiRoutes'));
+app.use('/api/rag',     require('./routes/ragRoutes'));
 app.use('/api/devices',       require('./routes/deviceRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 

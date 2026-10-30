@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Send, Bot, Loader2, Trash2, Sparkles, Plus, MessageSquare, 
   History, X, Square, Copy, Check, Volume2, VolumeX, RefreshCw, 
-  Download, Cpu, AlertTriangle, Zap, Code2, BookOpen, Lightbulb, Wrench 
+  Download, Cpu, AlertTriangle, Zap, Code2, BookOpen, Lightbulb, Wrench,
+  FileText, UploadCloud, Database, Layers
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import useSocket from '../hooks/useSocket';
@@ -11,6 +12,12 @@ import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import apiClient from '../api/apiClient';
+
+// RAG Subcomponents
+import RagSourcesCard from './rag/RagSourcesCard';
+import RagDocumentSelector from './rag/RagDocumentSelector';
+import RagDocumentsModal from './rag/RagDocumentsModal';
+import RagDropzoneView from './rag/RagDropzoneView';
 
 const getApiBase = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
@@ -40,7 +47,11 @@ const AIChatSection = () => {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState('gemini-3.5-flash');
+
+  // Mode Switch State: 'general' vs 'rag'
+  const [assistantMode, setAssistantMode] = useState('general');
   
+  // Sessions & Active Chat
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 768);
@@ -49,6 +60,14 @@ const AIChatSection = () => {
   const [serverStatus, setServerStatus] = useState('checking');
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [speakingIndex, setSpeakingIndex] = useState(null);
+
+  // RAG Document State
+  const [documents, setDocuments] = useState([]);
+  const [selectedDocId, setSelectedDocId] = useState('all');
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [uploadStep, setUploadStep] = useState('');
+  const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+  const [isDeletingDoc, setIsDeletingDoc] = useState(false);
 
   const scrollRef = useRef();
   const abortControllerRef = useRef(null);
@@ -65,7 +84,9 @@ const AIChatSection = () => {
       const res = await apiClient.get('/api/ai/sessions');
       if (res.data && res.data.length > 0) {
         setSessions(res.data);
-        setActiveSessionId(res.data[0]._id);
+        // Find matching active session for current mode if possible
+        const matching = res.data.find(s => assistantMode === 'rag' ? s.mode === 'rag' : s.mode !== 'rag');
+        setActiveSessionId(matching ? (matching._id || matching.id) : (res.data[0]._id || res.data[0].id));
         if (res.data[0].modelPreference) {
           setSelectedModel(res.data[0].modelPreference);
         }
@@ -74,6 +95,7 @@ const AIChatSection = () => {
         const createRes = await apiClient.post('/api/ai/sessions', {
           title: 'New Chat',
           modelPreference: 'gemini-3.6-flash',
+          mode: 'general',
           messages: []
         });
         setSessions([createRes.data]);
@@ -81,6 +103,18 @@ const AIChatSection = () => {
       }
     } catch (err) {
       console.error('Failed to load AI sessions:', err);
+    }
+  };
+
+  // Load RAG Documents from MongoDB
+  const fetchDocuments = async () => {
+    try {
+      const res = await apiClient.get('/api/rag/documents');
+      if (res.data) {
+        setDocuments(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch RAG documents:', err);
     }
   };
 
@@ -107,20 +141,44 @@ const AIChatSection = () => {
     if (token) {
       checkServerPing();
       fetchSessions();
+      fetchDocuments();
     }
   }, [token]);
+
+  // When switching modes, auto-select a session of that mode or create one
+  useEffect(() => {
+    const modeSessions = sessions.filter(s => assistantMode === 'rag' ? s.mode === 'rag' : s.mode !== 'rag');
+    if (modeSessions.length > 0) {
+      const currentExists = modeSessions.some(s => (s._id || s.id) === activeSessionId);
+      if (!currentExists) {
+        setActiveSessionId(modeSessions[0]._id || modeSessions[0].id);
+      }
+    }
+    if (assistantMode === 'rag') {
+      fetchDocuments();
+    }
+  }, [assistantMode]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [sessions, activeSessionId]);
 
-  const activeSession = sessions.find(s => (s._id || s.id) === activeSessionId) || sessions[0];
+  // Filter sessions by mode for the sidebar
+  const visibleSessions = sessions.filter(s => assistantMode === 'rag' ? s.mode === 'rag' : s.mode !== 'rag');
+  const activeSession = sessions.find(s => (s._id || s.id) === activeSessionId) || visibleSessions[0];
+  const selectedDoc = documents.find(d => d._id === selectedDocId);
 
   const startNewChat = async () => {
     try {
+      const title = assistantMode === 'rag' 
+        ? (selectedDoc ? `Q&A: ${selectedDoc.title.slice(0, 16)}...` : 'Document Q&A')
+        : 'New Chat';
+
       const res = await apiClient.post('/api/ai/sessions', {
-        title: 'New Chat',
+        title,
         modelPreference: selectedModel,
+        mode: assistantMode,
+        ragDocument: (assistantMode === 'rag' && selectedDocId !== 'all') ? selectedDocId : null,
         messages: []
       });
       setSessions([res.data, ...sessions]);
@@ -142,21 +200,125 @@ const AIChatSection = () => {
     toast('Generation stopped', { icon: '🛑' });
   };
 
+  // Upload document handler
+  const handleUploadDocument = async (file) => {
+    if (!file) return;
+
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!['pdf', 'docx', 'txt', 'md'].includes(ext)) {
+      return toast.error('Supported formats: .pdf, .docx, .txt, .md');
+    }
+
+    if (file.size > 25 * 1024 * 1024) {
+      return toast.error('File size must be under 25MB');
+    }
+
+    setIsUploadingDoc(true);
+    setUploadStep('Extracting text & chunking...');
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', file.name.replace(/\.[^/.]+$/, ''));
+
+    try {
+      const stepTimer = setTimeout(() => {
+        setUploadStep('Generating 768-dim embeddings with Gemini...');
+      }, 1200);
+
+      const res = await apiClient.post('/api/rag/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      clearTimeout(stepTimer);
+      setUploadStep('Saving to MongoDB...');
+
+      toast.success(`"${res.data.document.title}" embedded (${res.data.document.totalChunks} chunks)`);
+      await fetchDocuments();
+      setSelectedDocId(res.data.document._id);
+
+      // Create new RAG session for this document
+      const newSessionRes = await apiClient.post('/api/ai/sessions', {
+        title: `Q&A: ${res.data.document.title.slice(0, 18)}`,
+        modelPreference: selectedModel,
+        mode: 'rag',
+        ragDocument: res.data.document._id,
+        messages: []
+      });
+      setSessions(prev => [newSessionRes.data, ...prev]);
+      setActiveSessionId(newSessionRes.data._id);
+    } catch (err) {
+      console.error('Upload document error:', err);
+      toast.error(err.response?.data?.message || 'Failed to upload document');
+    } finally {
+      setIsUploadingDoc(false);
+      setUploadStep('');
+    }
+  };
+
+  // Delete document with cascade delete
+  const handleDeleteDocument = async (docId, docTitle) => {
+    const confirmDelete = window.confirm(
+      `Permanently delete "${docTitle}"?\n\nThis will CASCADE DELETE:\n• The document record\n• All 768-dim vector embeddings & text chunks\n• All associated chat messages from MongoDB.`
+    );
+    if (!confirmDelete) return;
+
+    setIsDeletingDoc(true);
+    try {
+      const res = await apiClient.delete(`/api/rag/documents/${docId}`);
+      toast.success(res.data.message || 'Document, embeddings, and chat sessions cascade-deleted from MongoDB.');
+      await fetchDocuments();
+      if (selectedDocId === docId) {
+        setSelectedDocId('all');
+      }
+      // Refresh sessions to remove any cascade deleted sessions
+      await fetchSessions();
+    } catch (err) {
+      console.error('Delete document error:', err);
+      toast.error(err.response?.data?.message || 'Failed to delete document');
+    } finally {
+      setIsDeletingDoc(false);
+    }
+  };
+
+  // Clear RAG history
+  const handleClearRagHistory = async () => {
+    const confirmClear = window.confirm(
+      'Clear Document RAG conversation history?\n\nThis will remove all RAG chat sessions from MongoDB.'
+    );
+    if (!confirmClear) return;
+
+    try {
+      await apiClient.post('/api/rag/clear-history', { documentId: selectedDocId });
+      toast.success('RAG conversation history cleared');
+      await fetchSessions();
+    } catch (err) {
+      toast.error('Failed to clear RAG history');
+    }
+  };
+
   const handleSendMessage = async (e, customPrompt = null) => {
     if (e) e.preventDefault();
     const promptToSend = customPrompt || message;
     if (!promptToSend.trim() || isLoading) return;
+
+    // Check if in RAG mode with no documents uploaded
+    if (assistantMode === 'rag' && documents.length === 0) {
+      toast('Please upload a document (.pdf, .docx, .txt, .md) first.', { icon: '📄' });
+      return;
+    }
 
     const userMsg = { role: 'user', content: promptToSend, createdAt: new Date().toISOString() };
     
     let targetSessionId = activeSessionId;
     let currentHistory = [];
 
-    if (!targetSessionId || sessions.length === 0) {
+    if (!targetSessionId || !sessions.find(s => (s._id || s.id) === targetSessionId)) {
       try {
         const createRes = await apiClient.post('/api/ai/sessions', {
           title: promptToSend.slice(0, 24) + '...',
           modelPreference: selectedModel,
+          mode: assistantMode,
+          ragDocument: (assistantMode === 'rag' && selectedDocId !== 'all') ? selectedDocId : null,
           messages: [userMsg]
         });
         setSessions([createRes.data, ...sessions]);
@@ -187,7 +349,13 @@ const AIChatSection = () => {
       setIsColdStarting(true);
     }, 6000);
 
-    const aiPlaceholderMsg = { role: 'assistant', content: '', createdAt: new Date().toISOString() };
+    const aiPlaceholderMsg = { 
+      role: 'assistant', 
+      content: '', 
+      sources: [], 
+      createdAt: new Date().toISOString() 
+    };
+
     setSessions(prev => prev.map(s => {
       if ((s._id || s.id) === targetSessionId) {
         return {
@@ -202,18 +370,29 @@ const AIChatSection = () => {
 
     try {
       const apiBase = getApiBase();
-      const response = await fetch(`${apiBase}/api/ai/stream`, {
+      const endpoint = assistantMode === 'rag' ? `${apiBase}/api/rag/stream` : `${apiBase}/api/ai/stream`;
+      
+      const payload = assistantMode === 'rag' 
+        ? {
+            question: promptToSend,
+            documentId: selectedDocId,
+            sessionId: targetSessionId,
+            history: currentHistory.slice(-6)
+          }
+        : {
+            message: promptToSend,
+            history: currentHistory.slice(-10),
+            sessionId: targetSessionId,
+            model: selectedModel
+          };
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          message: promptToSend,
-          history: currentHistory.slice(-10),
-          sessionId: targetSessionId,
-          model: selectedModel
-        }),
+        body: JSON.stringify(payload),
         signal: abortControllerRef.current.signal
       });
 
@@ -253,6 +432,8 @@ const AIChatSection = () => {
               if (parsed.error) {
                 toast.error(parsed.error);
                 appendChunkToSession(targetSessionId, `\n\n${parsed.error}`);
+              } else if (parsed.type === 'sources') {
+                attachSourcesToSession(targetSessionId, parsed.sources);
               } else if (parsed.chunk) {
                 appendChunkToSession(targetSessionId, parsed.chunk);
               }
@@ -282,6 +463,8 @@ const AIChatSection = () => {
         apiClient.put(`/api/ai/sessions/${targetSessionId}`, {
           title: updatedSess.title,
           modelPreference: selectedModel,
+          mode: assistantMode,
+          ragDocument: updatedSess.ragDocument || (selectedDocId !== 'all' ? selectedDocId : null),
           messages: updatedSess.messages
         }).catch(err => console.error('Failed to sync session to MongoDB:', err));
       }
@@ -304,6 +487,22 @@ const AIChatSection = () => {
     }));
   };
 
+  const attachSourcesToSession = (sessionId, sources) => {
+    setSessions(prev => prev.map(s => {
+      if ((s._id || s.id) === sessionId) {
+        const msgs = [...s.messages];
+        if (msgs.length > 0 && msgs[msgs.length - 1].role === 'assistant') {
+          msgs[msgs.length - 1] = {
+            ...msgs[msgs.length - 1],
+            sources: sources
+          };
+        }
+        return { ...s, messages: msgs };
+      }
+      return s;
+    }));
+  };
+
   const deleteSession = async (e, id) => {
     e.stopPropagation();
     try {
@@ -311,15 +510,19 @@ const AIChatSection = () => {
       const filtered = sessions.filter(s => (s._id || s.id) !== id);
       if (filtered.length === 0) {
         const createRes = await apiClient.post('/api/ai/sessions', {
-          title: 'New Chat',
+          title: assistantMode === 'rag' ? 'Document Q&A' : 'New Chat',
           modelPreference: selectedModel,
+          mode: assistantMode,
           messages: []
         });
         setSessions([createRes.data]);
         setActiveSessionId(createRes.data._id);
       } else {
         setSessions(filtered);
-        if (activeSessionId === id) setActiveSessionId(filtered[0]._id || filtered[0].id);
+        if (activeSessionId === id) {
+          const nextSess = filtered.find(s => assistantMode === 'rag' ? s.mode === 'rag' : s.mode !== 'rag') || filtered[0];
+          setActiveSessionId(nextSess._id || nextSess.id);
+        }
       }
       toast.success('Chat deleted');
     } catch (err) {
@@ -376,10 +579,17 @@ const AIChatSection = () => {
     if (!activeSession || activeSession.messages.length === 0) {
       return toast.error('No messages to export');
     }
-    let content = `# ${activeSession.title}\n\n*Exported from Talk Sphere AI Assistant on ${new Date().toLocaleString()}*\n\n---\n\n`;
+    let content = `# ${activeSession.title}\n\n*Exported from Talk Sphere AI Assistant (${assistantMode.toUpperCase()} Mode) on ${new Date().toLocaleString()}*\n\n---\n\n`;
     activeSession.messages.forEach(m => {
       const sender = m.role === 'user' ? '👤 User' : '🤖 AI Assistant';
       content += `### ${sender}\n${m.content}\n\n`;
+      if (m.sources && m.sources.length > 0) {
+        content += `> **Grounded Sources (${m.sources.length} chunks):**\n`;
+        m.sources.forEach(src => {
+          content += `> - ${src.documentTitle} (Chunk #${src.chunkIndex}, ${src.similarity || 0}% match): "${src.snippet}"\n`;
+        });
+        content += '\n';
+      }
     });
     const blob = new Blob([content], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
@@ -393,7 +603,7 @@ const AIChatSection = () => {
 
   return (
     <div className="glass-card flex h-full overflow-hidden shadow-2xl relative w-full border border-border-main font-sans min-w-0">
-      {/* Subtle Ambient Depth Layer - Eliminates blur and visual noise while preserving cyberpunk depth */}
+      {/* Background Depth Ambient Layer */}
       <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute -top-28 -left-28 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-28 -right-28 w-96 h-96 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -420,9 +630,11 @@ const AIChatSection = () => {
         <div className="p-4 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-violet-400">
-              <Sparkles size={15} />
+              {assistantMode === 'rag' ? <BookOpen size={15} /> : <Sparkles size={15} />}
             </div>
-            <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-white">Chat History</h3>
+            <h3 className="text-xs font-black tracking-wider uppercase text-slate-900 dark:text-white">
+              {assistantMode === 'rag' ? 'RAG Q&A History' : 'Chat History'}
+            </h3>
           </div>
           <button 
             onClick={() => setIsSidebarOpen(false)} 
@@ -437,48 +649,68 @@ const AIChatSection = () => {
             onClick={startNewChat}
             className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-500/25 active:scale-95 cursor-pointer"
           >
-            <Plus size={15} /> New Conversation
+            <Plus size={15} /> {assistantMode === 'rag' ? 'New Document Chat' : 'New Conversation'}
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-1.5 custom-scrollbar">
-          {sessions.map(s => {
-            const sId = s._id || s.id;
-            const isActive = activeSessionId === sId;
-            return (
-              <div 
-                key={sId}
-                onClick={() => {
-                  setActiveSessionId(sId);
-                  if (s.modelPreference) setSelectedModel(s.modelPreference);
-                  if (window.innerWidth < 768) setIsSidebarOpen(false);
-                }}
-                className={`p-3 rounded-xl cursor-pointer group transition-all border ${
-                    isActive 
-                      ? 'bg-violet-500/15 border-violet-500/40 text-violet-600 dark:text-violet-300 font-bold shadow-sm' 
-                      : 'bg-slate-50/80 dark:bg-white/[0.03] border-slate-200/80 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-950 dark:hover:text-white'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5 truncate">
-                    <MessageSquare size={14} className={isActive ? 'text-violet-500 dark:text-violet-400 shrink-0' : 'text-slate-400 dark:text-slate-500 shrink-0'} />
-                    <span className="text-xs truncate">{s.title}</span>
+          {visibleSessions.length === 0 ? (
+            <div className="text-center py-8 px-2 text-xs text-slate-500 dark:text-slate-400">
+              No previous {assistantMode === 'rag' ? 'RAG' : 'chat'} sessions.
+            </div>
+          ) : (
+            visibleSessions.map(s => {
+              const sId = s._id || s.id;
+              const isActive = activeSessionId === sId;
+              return (
+                <div 
+                  key={sId}
+                  onClick={() => {
+                    setActiveSessionId(sId);
+                    if (s.modelPreference) setSelectedModel(s.modelPreference);
+                    if (s.ragDocument?._id) setSelectedDocId(s.ragDocument._id);
+                    if (window.innerWidth < 768) setIsSidebarOpen(false);
+                  }}
+                  className={`p-3 rounded-xl cursor-pointer group transition-all border ${
+                      isActive 
+                        ? 'bg-violet-500/15 border-violet-500/40 text-violet-600 dark:text-violet-300 font-bold shadow-sm' 
+                        : 'bg-slate-50/80 dark:bg-white/[0.03] border-slate-200/80 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-950 dark:hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 truncate">
+                      {s.mode === 'rag' ? (
+                        <FileText size={14} className={isActive ? 'text-violet-500 dark:text-violet-400 shrink-0' : 'text-slate-400 dark:text-slate-500 shrink-0'} />
+                      ) : (
+                        <MessageSquare size={14} className={isActive ? 'text-violet-500 dark:text-violet-400 shrink-0' : 'text-slate-400 dark:text-slate-500 shrink-0'} />
+                      )}
+                      <span className="text-xs truncate">{s.title}</span>
+                    </div>
+                    <button 
+                      onClick={(e) => deleteSession(e, sId)}
+                      className="opacity-70 md:opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/15 rounded-md transition-all shrink-0 cursor-pointer"
+                      title="Delete Chat"
+                    >
+                      <Trash2 size={12} className="text-red-500 dark:text-red-400" />
+                    </button>
                   </div>
-                  <button 
-                    onClick={(e) => deleteSession(e, sId)}
-                    className="opacity-70 md:opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/15 rounded-md transition-all shrink-0 cursor-pointer"
-                    title="Delete Chat"
-                  >
-                    <Trash2 size={12} className="text-red-500 dark:text-red-400" />
-                  </button>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
 
-        {/* Sidebar Footer Export */}
-        <div className="p-3 border-t border-slate-200 dark:border-white/10">
+        {/* Sidebar Footer */}
+        <div className="p-3 border-t border-slate-200 dark:border-white/10 space-y-2">
+          {assistantMode === 'rag' && (
+            <button
+              onClick={handleClearRagHistory}
+              className="w-full flex items-center justify-center gap-2 py-2 text-red-600 dark:text-red-400 hover:bg-red-500/10 text-xs font-semibold rounded-xl border border-red-500/20 transition-all cursor-pointer"
+            >
+              <Trash2 size={13} /> Clear RAG History
+            </button>
+          )}
+
           <button
             onClick={exportChatSession}
             className="w-full flex items-center justify-center gap-2 py-2 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white text-xs font-semibold bg-slate-100/80 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 hover:border-violet-500/40 transition-all cursor-pointer"
@@ -490,30 +722,38 @@ const AIChatSection = () => {
 
       {/* Main Workspace Column */}
       <div className="flex-1 flex flex-col bg-transparent relative z-10 min-w-0 h-full overflow-hidden">
-        {/* Header Bar - Fully Responsive */}
-        <div className="p-2.5 sm:p-4 border-b border-slate-200 dark:border-white/10 flex items-center justify-between bg-white/95 dark:bg-[#11131E]/95 backdrop-blur-xl gap-2 sm:gap-3 min-w-0 shrink-0">
+        
+        {/* Header Bar with Mode Switcher & Model Controls */}
+        <div className="p-2.5 sm:p-4 border-b border-slate-200 dark:border-white/10 flex flex-wrap items-center justify-between bg-white/95 dark:bg-[#11131E]/95 backdrop-blur-xl gap-2 sm:gap-3 min-w-0 shrink-0">
+          
           {/* Left Title & Status */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="p-2 sm:p-2.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-slate-700 dark:text-slate-200 hover:text-violet-400 hover:border-violet-500/40 shadow-sm transition-all shrink-0 cursor-pointer active:scale-95"
-              title="Chat History"
+              title="Toggle History"
             >
               <History size={16} />
             </button>
             
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center shrink-0">
-              <Sparkles size={17} className="text-violet-400 animate-pulse" />
+              {assistantMode === 'rag' ? (
+                <BookOpen size={17} className="text-violet-400 animate-pulse" />
+              ) : (
+                <Sparkles size={17} className="text-violet-400 animate-pulse" />
+              )}
             </div>
 
             <div className="min-w-0 flex-1">
               <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
-                {activeSession?.title || 'New Chat'}
+                {assistantMode === 'rag' 
+                  ? (selectedDoc ? selectedDoc.title : 'Document RAG Workspace') 
+                  : (activeSession?.title || 'New Chat')}
               </h4>
               <div className="flex items-center gap-2 mt-0.5 whitespace-nowrap overflow-hidden">
                 <span className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                  Real-time Neural Engine
+                  {assistantMode === 'rag' ? '768-dim Vector Grounding' : 'Real-time Neural Engine'}
                 </span>
                 {serverPingMs && (
                   <span className="text-[10px] font-mono text-slate-400 dark:text-slate-400 hidden sm:inline">
@@ -524,29 +764,74 @@ const AIChatSection = () => {
             </div>
           </div>
 
-          {/* Right Controls: Model Select & Regenerate */}
+          {/* Right Controls: Mode Switcher & Model Select */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <div className="relative max-w-[135px] sm:max-w-[190px]">
-              <select
-                value={selectedModel}
-                onChange={(e) => {
-                  const newModel = e.target.value;
-                  setSelectedModel(newModel);
-                  if (activeSessionId) {
-                    apiClient.put(`/api/ai/sessions/${activeSessionId}`, { modelPreference: newModel }).catch(() => {});
-                  }
-                }}
-                aria-label="Select AI Model"
-                className="w-full bg-slate-100 dark:bg-[#161826] text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 hover:border-violet-500/50 rounded-xl px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-bold outline-none cursor-pointer appearance-none pr-7 sm:pr-8 truncate shadow-sm transition-all focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30"
+            
+            {/* Mode Switcher Pill */}
+            <div className="flex items-center p-0.5 sm:p-1 bg-slate-100 dark:bg-[#161826] border border-slate-200 dark:border-white/10 rounded-xl shadow-inner">
+              <button
+                type="button"
+                onClick={() => setAssistantMode('general')}
+                className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
+                  assistantMode === 'general'
+                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
+                }`}
+                title="General AI Conversational Assistant"
               >
-                {AI_MODELS.map(m => (
-                  <option key={m.id} value={m.id} className="bg-white dark:bg-[#161826] text-slate-900 dark:text-white text-xs">
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-              <Cpu size={13} className="absolute right-2 sm:right-2.5 top-1/2 -translate-y-1/2 text-violet-400 pointer-events-none" />
+                <span>💬</span>
+                <span className="hidden sm:inline">General Chat</span>
+                <span className="sm:hidden">Chat</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAssistantMode('rag');
+                  fetchDocuments();
+                }}
+                className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
+                  assistantMode === 'rag'
+                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
+                }`}
+                title="Document RAG Grounded Q&A"
+              >
+                <span>📄</span>
+                <span className="hidden sm:inline">Document RAG Mode</span>
+                <span className="sm:hidden">RAG</span>
+              </button>
             </div>
+
+            {/* Model Select (or Gemini 1.5 Flash in RAG mode) */}
+            {assistantMode === 'general' ? (
+              <div className="relative max-w-[130px] sm:max-w-[170px]">
+                <select
+                  value={selectedModel}
+                  onChange={(e) => {
+                    const newModel = e.target.value;
+                    setSelectedModel(newModel);
+                    if (activeSessionId) {
+                      apiClient.put(`/api/ai/sessions/${activeSessionId}`, { modelPreference: newModel }).catch(() => {});
+                    }
+                  }}
+                  aria-label="Select AI Model"
+                  className="w-full bg-slate-100 dark:bg-[#161826] text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 hover:border-violet-500/50 rounded-xl px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-bold outline-none cursor-pointer appearance-none pr-7 sm:pr-8 truncate shadow-sm transition-all focus:border-violet-500"
+                >
+                  {AI_MODELS.map(m => (
+                    <option key={m.id} value={m.id} className="bg-white dark:bg-[#161826] text-slate-900 dark:text-white text-xs">
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+                <Cpu size={13} className="absolute right-2 sm:right-2.5 top-1/2 -translate-y-1/2 text-violet-400 pointer-events-none" />
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 px-2.5 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-xl text-[11px] sm:text-xs font-bold text-violet-600 dark:text-violet-300">
+                <Sparkles size={12} className="text-violet-400" />
+                <span>Gemini 1.5 Flash</span>
+              </div>
+            )}
 
             {activeSession?.messages?.length > 0 && (
               <button
@@ -560,6 +845,20 @@ const AIChatSection = () => {
             )}
           </div>
         </div>
+
+        {/* In RAG Mode: Document Toolbar with Selector & Upload */}
+        {assistantMode === 'rag' && (
+          <RagDocumentSelector
+            documents={documents}
+            selectedDocId={selectedDocId}
+            onSelectDoc={(id) => setSelectedDocId(id)}
+            onUploadFile={handleUploadDocument}
+            onDeleteCurrentDoc={handleDeleteDocument}
+            onOpenManageModal={() => setIsManageModalOpen(true)}
+            isUploading={isUploadingDoc}
+            uploadStep={uploadStep}
+          />
+        )}
 
         {/* Cold Start Warning Banner */}
         <AnimatePresence>
@@ -585,49 +884,62 @@ const AIChatSection = () => {
         {/* Main Content Area (Scrollable) */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-6 space-y-5 min-w-0">
           {(!activeSession || activeSession.messages.length === 0) ? (
-            <div className="flex flex-col items-center justify-center min-h-full py-8 px-2 sm:px-4 max-w-2xl mx-auto my-auto text-center">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 border border-violet-500/30 flex items-center justify-center mb-4 shadow-xl shadow-indigo-500/15">
-                <Sparkles size={26} className="text-violet-400" />
-              </div>
-              
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
-                How can I assist you today?
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-6 sm:mb-8 leading-relaxed max-w-md font-medium">
-                Ask questions, inspect code, draft documents, or compare concepts in real-time.
-              </p>
+            assistantMode === 'rag' ? (
+              <RagDropzoneView
+                documents={documents}
+                selectedDoc={selectedDoc}
+                onUploadFile={handleUploadDocument}
+                onSelectPrompt={(p) => {
+                  setMessage(p);
+                  document.getElementById('ai-message-input')?.focus();
+                }}
+                isUploading={isUploadingDoc}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center min-h-full py-8 px-2 sm:px-4 max-w-2xl mx-auto my-auto text-center font-sans">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 border border-violet-500/30 flex items-center justify-center mb-4 shadow-xl shadow-indigo-500/15">
+                  <Sparkles size={26} className="text-violet-400" />
+                </div>
+                
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
+                  How can I assist you today?
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-6 sm:mb-8 leading-relaxed max-w-md font-medium">
+                  Ask questions, inspect code, draft documents, or compare concepts in real-time.
+                </p>
 
-              {/* 2x2 Quick Action Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full">
-                {PRESET_PROMPTS.map((p, idx) => {
-                  const Icon = p.icon;
-                  return (
-                    <motion.button
-                      key={idx}
-                      whileHover={{ y: -3, scale: 1.01 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        setMessage(p.prompt + ' ');
-                        document.getElementById('ai-message-input')?.focus();
-                      }}
-                      className="p-4 bg-white dark:bg-[#161826] hover:bg-slate-50 dark:hover:bg-[#1d2033] border border-slate-200 dark:border-white/10 hover:border-violet-500/50 hover:shadow-lg hover:shadow-violet-500/10 rounded-2xl text-left transition-all duration-300 group cursor-pointer flex items-start gap-3.5 shadow-sm"
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center group-hover:border-violet-500/50 group-hover:scale-105 shrink-0 transition-all">
-                        <Icon size={18} className="text-violet-400 transition-colors" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-violet-400 transition-colors mb-0.5">
-                          {p.label}
+                {/* 2x2 Quick Action Cards Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full">
+                  {PRESET_PROMPTS.map((p, idx) => {
+                    const Icon = p.icon;
+                    return (
+                      <motion.button
+                        key={idx}
+                        whileHover={{ y: -3, scale: 1.01 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          setMessage(p.prompt + ' ');
+                          document.getElementById('ai-message-input')?.focus();
+                        }}
+                        className="p-4 bg-white dark:bg-[#161826] hover:bg-slate-50 dark:hover:bg-[#1d2033] border border-slate-200 dark:border-white/10 hover:border-violet-500/50 hover:shadow-lg hover:shadow-violet-500/10 rounded-2xl text-left transition-all duration-300 group cursor-pointer flex items-start gap-3.5 shadow-sm"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center group-hover:border-violet-500/50 group-hover:scale-105 shrink-0 transition-all">
+                          <Icon size={18} className="text-violet-400 transition-colors" />
                         </div>
-                        <div className="text-xs font-normal text-slate-600 dark:text-slate-300 leading-snug line-clamp-2">
-                          {p.prompt}
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-violet-400 transition-colors mb-0.5">
+                            {p.label}
+                          </div>
+                          <div className="text-xs font-normal text-slate-600 dark:text-slate-300 leading-snug line-clamp-2">
+                            {p.prompt}
+                          </div>
                         </div>
-                      </div>
-                    </motion.button>
-                  );
-                })}
+                      </motion.button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )
           ) : (
             <AnimatePresence initial={false}>
               {activeSession.messages.map((msg, i) => {
@@ -638,13 +950,17 @@ const AIChatSection = () => {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.25 }}
-                    className={`flex items-start gap-2.5 sm:gap-3 ${isUser ? 'justify-end' : 'justify-start'} min-w-0`}
+                    className={`flex items-start gap-2.5 sm:gap-3 ${isUser ? 'justify-end' : 'justify-start'} min-w-0 font-sans`}
                   >
                     {/* Bot Avatar Icon */}
                     {!isUser && (
                       <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 via-violet-500 to-indigo-600 p-[1px] shrink-0 shadow-md shadow-indigo-500/25 mt-1">
                         <div className="w-full h-full bg-[#090A0F] rounded-[11px] flex items-center justify-center">
-                          <Bot size={15} className="text-violet-400" />
+                          {assistantMode === 'rag' ? (
+                            <BookOpen size={14} className="text-violet-400" />
+                          ) : (
+                            <Bot size={15} className="text-violet-400" />
+                          )}
                         </div>
                       </div>
                     )}
@@ -750,6 +1066,11 @@ const AIChatSection = () => {
                           </ReactMarkdown>
                         </div>
 
+                        {/* Grounded Document Citations (For RAG messages) */}
+                        {!isUser && msg.sources && msg.sources.length > 0 && (
+                          <RagSourcesCard sources={msg.sources} />
+                        )}
+
                         {/* Action Bar for AI Messages */}
                         {!isUser && msg.content && (
                           <div className="flex items-center justify-between gap-3 mt-3.5 pt-2.5 border-t border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-500 dark:text-slate-400">
@@ -802,7 +1123,11 @@ const AIChatSection = () => {
           {isLoading && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center shrink-0">
-                <Bot size={15} className="text-violet-400" />
+                {assistantMode === 'rag' ? (
+                  <BookOpen size={15} className="text-violet-400 animate-spin" />
+                ) : (
+                  <Bot size={15} className="text-violet-400" />
+                )}
               </div>
               <div className="bg-white dark:bg-[#161826] border border-slate-200/90 dark:border-white/10 p-3 sm:p-4 rounded-2xl rounded-tl-xs flex items-center gap-3 shadow-md">
                  <div className="flex gap-1.5">
@@ -811,7 +1136,7 @@ const AIChatSection = () => {
                    <div className="w-2 h-2 bg-violet-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                  </div>
                  <span className="text-xs font-bold text-violet-600 dark:text-violet-300">
-                   Generating response...
+                   {assistantMode === 'rag' ? 'Retrieving vector chunks & generating answer...' : 'Generating response...'}
                  </span>
               </div>
             </motion.div>
@@ -828,9 +1153,15 @@ const AIChatSection = () => {
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Ask anything or request code analysis..."
+              placeholder={
+                assistantMode === 'rag'
+                  ? (selectedDoc 
+                      ? `Ask grounded question about "${selectedDoc.title || selectedDoc.originalName}"...` 
+                      : (documents.length > 0 ? "Ask a grounded question across uploaded documents..." : "Upload a document above to begin grounded Q&A..."))
+                  : "Ask anything or request code analysis..."
+              }
               aria-label="AI message input"
-              disabled={isLoading}
+              disabled={isLoading || (assistantMode === 'rag' && documents.length === 0)}
               className="flex-1 bg-transparent px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none disabled:opacity-50 min-w-0"
             />
 
@@ -846,7 +1177,7 @@ const AIChatSection = () => {
             ) : (
               <button 
                 type="submit" 
-                disabled={!message.trim()}
+                disabled={!message.trim() || (assistantMode === 'rag' && documents.length === 0)}
                 className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl text-white shadow-md shadow-indigo-500/25 flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:opacity-30 shrink-0 cursor-pointer"
                 title="Send message"
               >
@@ -856,6 +1187,18 @@ const AIChatSection = () => {
           </div>
         </form>
       </div>
+
+      {/* RAG Documents Manager Modal */}
+      <RagDocumentsModal
+        isOpen={isManageModalOpen}
+        onClose={() => setIsManageModalOpen(false)}
+        documents={documents}
+        onDeleteDocument={handleDeleteDocument}
+        onUploadClick={() => {
+          document.querySelector('input[type="file"]')?.click();
+        }}
+        isDeleting={isDeletingDoc}
+      />
     </div>
   );
 };
