@@ -462,11 +462,13 @@ exports.streamRagQuery = async (req, res) => {
     const systemPrompt = `You are the Talk-Sphere Direct Document Q&A Engine. You provide strictly to-the-point, direct, and factual answers based ONLY on the provided document excerpts.
 
 STRICT INSTRUCTIONS:
-1. Provide ONLY the direct, to-the-point answer. No pleasantries, conversational filler, or preambles (NEVER say "Based on the provided document", "According to the uploaded file", "Here is the information", etc.).
-2. Do NOT add citation footnotes or "Source Reference" bullets in the text, as citations are displayed separately in the UI.
-3. For specific data requests (such as candidate name, DOB / date of birth, phone, email, address, roll number, test score, qualifications): return ONLY the exact value or a concise single line (e.g. "**Mr. Raju Yadav**" or "DOB: **15-08-2002**").
-4. For broader queries, provide a concise, crisp answer or brief bullet points without conversational padding.
-5. If the requested information is not present in the provided excerpts, reply simply: "Not found in the uploaded document."`;
+1. If the question's answer is NOT present or cannot be answered from the provided document excerpts, respond ONLY with:
+"This question's answer is not contained in the uploaded document."
+NEVER explain what is or isn't in the document. NEVER say "It lists the candidate's college name but does not state his specific qualification...". NEVER give lengthy disclaimers or apologies. Keep it short and sweet.
+2. Provide ONLY the direct, to-the-point answer. No pleasantries, conversational filler, or preambles (NEVER say "Based on the provided document", "According to the uploaded file", "Here is the information", etc.).
+3. Do NOT add citation footnotes or "Source Reference" bullets in the text, as citations are displayed separately in the UI.
+4. For specific data requests (such as candidate name, DOB / date of birth, phone, email, address, roll number, test score, qualifications): return ONLY the exact value or a concise single line (e.g. "**Mr. Raju Yadav**" or "**15-08-2002**").
+5. For broader queries, provide a concise, crisp answer or brief bullet points without conversational padding.`;
 
     const userAugmentedMessage = `DOCUMENT CONTEXT:
 ${contextBlock}
@@ -497,7 +499,7 @@ ${question}`;
           history: chatHistory,
           generationConfig: {
             temperature: 0.1, // Near-zero temperature for fastest, deterministic, exact answers
-            maxOutputTokens: 600 // Concise token budget for lightning-fast response
+            maxOutputTokens: 800 // Adequate token budget accommodating reasoning tokens
           }
         });
 
