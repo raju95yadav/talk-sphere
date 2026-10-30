@@ -9,10 +9,34 @@ const mammoth = require('mammoth');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-// Generate 768-dimensional embeddings using Gemini text-embedding-004 with fallback
+// High-speed runtime cache for verified models (eliminates 404 fallback delays on subsequent queries)
+let verifiedEmbeddingModel = null;
+let verifiedChatModel = null;
+
+// Query embedding cache to avoid redundant network calls for identical/repeated questions
+const queryEmbeddingCache = new Map();
+
+// Generate 768-dimensional embeddings using Gemini with smart fast-path caching
 const generateEmbedding = async (text) => {
   if (!text || typeof text !== 'string' || !text.trim()) {
     return new Array(768).fill(0);
+  }
+
+  // Fast-path: use verified working model directly (0ms probe overhead)
+  if (verifiedEmbeddingModel) {
+    try {
+      const model = genAI.getGenerativeModel({ model: verifiedEmbeddingModel });
+      const res = await model.embedContent({
+        content: { parts: [{ text }] },
+        outputDimensionality: 768
+      });
+      if (res?.embedding?.values && res.embedding.values.length === 768) {
+        return res.embedding.values;
+      }
+    } catch (cachedErr) {
+      logger.warn('RAG_EMBEDDING_CACHED_FAIL', `Cached model ${verifiedEmbeddingModel} failed, re-probing...`);
+      verifiedEmbeddingModel = null;
+    }
   }
 
   // Primary: text-embedding-004 with 768 dimensions
@@ -23,6 +47,7 @@ const generateEmbedding = async (text) => {
       outputDimensionality: 768
     });
     if (res?.embedding?.values && res.embedding.values.length === 768) {
+      verifiedEmbeddingModel = 'text-embedding-004';
       return res.embedding.values;
     }
   } catch (err) {
@@ -37,6 +62,7 @@ const generateEmbedding = async (text) => {
       outputDimensionality: 768
     });
     if (res?.embedding?.values && res.embedding.values.length === 768) {
+      verifiedEmbeddingModel = 'gemini-embedding-001';
       return res.embedding.values;
     }
   } catch (fallbackErr) {
@@ -156,8 +182,12 @@ const chunkText = (fullText, chunkSize = 800, overlap = 150) => {
   return chunks;
 };
 
-// Candidate generation models starting with gemini-1.5-flash as specified
+// Candidate generation models starting with verified working model for maximum speed
 const getGenerationCandidates = () => {
+  if (verifiedChatModel) {
+    const fallbacks = ['gemini-1.5-flash', 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-flash-latest'].filter(m => m !== verifiedChatModel);
+    return [verifiedChatModel, ...fallbacks];
+  }
   return ['gemini-1.5-flash', 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-flash-latest'];
 };
 
@@ -359,18 +389,31 @@ exports.streamRagQuery = async (req, res) => {
   }
 
   try {
-    // Step A: Generate 768-dim embedding for user question
-    const queryEmbedding = await generateEmbedding(question);
+    // Step A: Generate 768-dim embedding for user question (with memory cache for instant response)
+    const cacheKey = question.trim().toLowerCase();
+    let queryEmbedding = queryEmbeddingCache.get(cacheKey);
+    if (!queryEmbedding) {
+      queryEmbedding = await generateEmbedding(question);
+      if (queryEmbeddingCache.size > 200) {
+        queryEmbeddingCache.delete(queryEmbeddingCache.keys().next().value);
+      }
+      queryEmbeddingCache.set(cacheKey, queryEmbedding);
+    }
 
-    // Step B: Retrieve candidate chunks from MongoDB
+    // Step B: Fast parallel retrieval of candidate chunks from MongoDB
     const chunkFilter = { user: req.user._id };
     if (documentId && documentId !== 'all') {
       chunkFilter.document = documentId;
     }
 
-    const candidateChunks = await RagChunk.find(chunkFilter)
-      .populate('document', 'title originalName fileType')
-      .lean();
+    const [candidateChunks, docRecord] = await Promise.all([
+      RagChunk.find(chunkFilter)
+        .select('chunkIndex content embedding pageNumber document')
+        .lean(),
+      (documentId && documentId !== 'all')
+        ? RagDocument.findById(documentId).select('title originalName').lean()
+        : null
+    ]);
 
     if (!candidateChunks || candidateChunks.length === 0) {
       res.write(`data: ${JSON.stringify({
@@ -380,11 +423,13 @@ exports.streamRagQuery = async (req, res) => {
       return res.end();
     }
 
+    const defaultDocTitle = docRecord?.title || docRecord?.originalName || 'Document';
+
     // Step C: Calculate Cosine Similarity & Rank Top Chunks
     const scoredChunks = candidateChunks.map(c => ({
       chunkIndex: c.chunkIndex,
-      documentTitle: c.document?.title || c.document?.originalName || 'Document',
-      documentId: c.document?._id,
+      documentTitle: defaultDocTitle,
+      documentId: c.document,
       content: c.content,
       pageNumber: c.pageNumber || 1,
       similarity: cosineSimilarity(queryEmbedding, c.embedding)
@@ -393,14 +438,14 @@ exports.streamRagQuery = async (req, res) => {
     // Sort descending by similarity
     scoredChunks.sort((a, b) => b.similarity - a.similarity);
 
-    // Take top 4-5 most relevant chunks
-    const topChunks = scoredChunks.slice(0, 5);
+    // Take top 4 most relevant chunks (focused context speeds up generation)
+    const topChunks = scoredChunks.slice(0, 4);
 
-    // Filter relevant sources (similarity threshold e.g. > 0.25)
+    // Filter relevant sources
     const relevantSources = topChunks.map(c => ({
       chunkIndex: c.chunkIndex,
       documentTitle: c.documentTitle,
-      snippet: c.content.slice(0, 220) + (c.content.length > 220 ? '...' : ''),
+      snippet: c.content.slice(0, 200) + (c.content.length > 200 ? '...' : ''),
       similarity: Math.round(c.similarity * 100),
       pageNumber: c.pageNumber
     }));
@@ -410,16 +455,18 @@ exports.streamRagQuery = async (req, res) => {
 
     // Step D: Construct Augmented Prompt with Grounded Context
     const contextBlock = topChunks.map((c, idx) => 
-      `[Source #${idx + 1} from "${c.documentTitle}" (Chunk ${c.chunkIndex})]:\n${c.content}`
+      `[Excerpt #${idx + 1} (Chunk ${c.chunkIndex})]:\n${c.content}`
     ).join('\n\n---\n\n');
 
-    const systemPrompt = `You are the Talk-Sphere Neural Document Q&A Engine. You answer questions strictly and factually based on the provided document excerpts.
+    // Strict to-the-point system prompt eliminating conversational filler
+    const systemPrompt = `You are the Talk-Sphere Direct Document Q&A Engine. You provide strictly to-the-point, direct, and factual answers based ONLY on the provided document excerpts.
 
-CRITICAL INSTRUCTIONS:
-1. Ground your entire answer in the provided document context.
-2. If the excerpts do not contain the answer, explicitly state: "The uploaded document does not contain sufficient information to answer this question." Do not extrapolate or guess.
-3. Reference specific parts or section concepts where relevant.
-4. Format your answer using clean GitHub-flavored Markdown with bold headings, bullet lists, or code snippets when helpful.`;
+STRICT INSTRUCTIONS:
+1. Provide ONLY the direct, to-the-point answer. No pleasantries, conversational filler, or preambles (NEVER say "Based on the provided document", "According to the uploaded file", "Here is the information", etc.).
+2. Do NOT add citation footnotes or "Source Reference" bullets in the text, as citations are displayed separately in the UI.
+3. For specific data requests (such as candidate name, DOB / date of birth, phone, email, address, roll number, test score, qualifications): return ONLY the exact value or a concise single line (e.g. "**Mr. Raju Yadav**" or "DOB: **15-08-2002**").
+4. For broader queries, provide a concise, crisp answer or brief bullet points without conversational padding.
+5. If the requested information is not present in the provided excerpts, reply simply: "Not found in the uploaded document."`;
 
     const userAugmentedMessage = `DOCUMENT CONTEXT:
 ${contextBlock}
@@ -428,7 +475,7 @@ ${contextBlock}
 USER QUESTION:
 ${question}`;
 
-    // Step E: Stream generation using Gemini (trying gemini-1.5-flash first with fallback)
+    // Step E: Stream generation using Gemini with verified fast model
     const candidateModels = getGenerationCandidates();
     let streamSuccess = false;
     let accumulatedText = '';
@@ -449,8 +496,8 @@ ${question}`;
         const chat = model.startChat({
           history: chatHistory,
           generationConfig: {
-            temperature: 0.2, // Low temperature for high factual precision
-            maxOutputTokens: 2500
+            temperature: 0.1, // Near-zero temperature for fastest, deterministic, exact answers
+            maxOutputTokens: 600 // Concise token budget for lightning-fast response
           }
         });
 
@@ -465,6 +512,7 @@ ${question}`;
         }
 
         streamSuccess = true;
+        verifiedChatModel = modelName; // Cache verified working model for instantaneous future queries
         break;
       } catch (genErr) {
         lastError = genErr;
