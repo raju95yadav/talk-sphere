@@ -27,13 +27,6 @@ const getApiBase = () => {
   return 'http://localhost:5000';
 };
 
-const AI_MODELS = [
-  { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', desc: 'Ultra-Fast & Stable', icon: Zap, color: 'text-amber-400' },
-  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', desc: 'Realtime Neural', icon: Sparkles, color: 'text-purple-400' },
-  { id: 'gemini-flash-latest', name: 'Gemini Flash Latest', desc: 'High Reliability', icon: Cpu, color: 'text-blue-400' },
-  { id: 'groq-llama3', name: 'Groq Llama 3.3', desc: 'Low Latency LPU', icon: Zap, color: 'text-violet-400' }
-];
-
 const PRESET_PROMPTS = [
   { label: 'Code Review', icon: Code2, prompt: 'Perform a full code review and optimize performance for:' },
   { label: 'Summarize Document', icon: BookOpen, prompt: 'Provide a concise summary with key takeaways of:' },
@@ -802,36 +795,6 @@ const AIChatSection = () => {
                 <span className="sm:hidden">RAG</span>
               </button>
             </div>
-
-            {/* Model Select (or Gemini 1.5 Flash in RAG mode) */}
-            {assistantMode === 'general' ? (
-              <div className="relative max-w-[130px] sm:max-w-[170px]">
-                <select
-                  value={selectedModel}
-                  onChange={(e) => {
-                    const newModel = e.target.value;
-                    setSelectedModel(newModel);
-                    if (activeSessionId) {
-                      apiClient.put(`/api/ai/sessions/${activeSessionId}`, { modelPreference: newModel }).catch(() => {});
-                    }
-                  }}
-                  aria-label="Select AI Model"
-                  className="w-full bg-slate-100 dark:bg-[#161826] text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 hover:border-violet-500/50 rounded-xl px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-bold outline-none cursor-pointer appearance-none pr-7 sm:pr-8 truncate shadow-sm transition-all focus:border-violet-500"
-                >
-                  {AI_MODELS.map(m => (
-                    <option key={m.id} value={m.id} className="bg-white dark:bg-[#161826] text-slate-900 dark:text-white text-xs">
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
-                <Cpu size={13} className="absolute right-2 sm:right-2.5 top-1/2 -translate-y-1/2 text-violet-400 pointer-events-none" />
-              </div>
-            ) : (
-              <div className="flex items-center gap-1 px-2.5 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-xl text-[11px] sm:text-xs font-bold text-violet-600 dark:text-violet-300">
-                <Sparkles size={12} className="text-violet-400" />
-                <span>Gemini 1.5 Flash</span>
-              </div>
-            )}
 
             {activeSession?.messages?.length > 0 && (
               <button
