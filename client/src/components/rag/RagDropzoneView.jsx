@@ -82,7 +82,7 @@ const RagDropzoneView = ({
             Upload Knowledge Document
           </h3>
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-6 max-w-md font-medium leading-relaxed">
-            Drop your file here to generate 768-dimensional vector embeddings with Gemini and start a grounded document Q&A chat.
+            Drop your file here to start asking questions directly from your document.
           </p>
 
           {/* Formats Pills */}
@@ -115,11 +115,11 @@ const RagDropzoneView = ({
             />
           </label>
 
-          {/* Specifications Checklist */}
+          {/* Highlights Checklist */}
           <div className="mt-8 pt-6 border-t border-slate-200 dark:border-white/10 w-full flex flex-wrap items-center justify-center gap-4 text-[11px] text-slate-500 dark:text-slate-400 font-medium">
             <span className="flex items-center gap-1.5">
               <CheckCircle size={13} className="text-emerald-500" />
-              text-embedding-004 (768-dim)
+              Smart Semantic Search
             </span>
             <span className="flex items-center gap-1.5">
               <CheckCircle size={13} className="text-emerald-500" />
@@ -127,7 +127,7 @@ const RagDropzoneView = ({
             </span>
             <span className="flex items-center gap-1.5">
               <CheckCircle size={13} className="text-emerald-500" />
-              MongoDB Permanent Persistence
+              Source Citations Included
             </span>
           </div>
         </div>
@@ -178,7 +178,7 @@ const RagDropzoneView = ({
         Ask about "{selectedDoc.title || selectedDoc.originalName}"
       </h3>
       <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-6 max-w-md font-medium leading-relaxed">
-        Indexed into {selectedDoc.totalChunks || 0} chunks with 768-dim vectors in MongoDB. Ask any grounded question below.
+        Indexed into {selectedDoc.totalChunks || 0} sections. Ask any question about this document below.
       </p>
 
       {/* Suggested RAG Questions */}

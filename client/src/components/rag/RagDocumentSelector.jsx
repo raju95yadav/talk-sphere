@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { 
   FileText, UploadCloud, Trash2, FolderOpen, 
-  Loader2, CheckCircle, Database, Sparkles, ChevronDown 
+  Loader2, CheckCircle, Sparkles, ChevronDown 
 } from 'lucide-react';
 
 const RagDocumentSelector = ({
@@ -112,11 +112,6 @@ const RagDocumentSelector = ({
             <span>Upload Document</span>
           </button>
         )}
-
-        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 bg-slate-200/60 dark:bg-white/5 border border-slate-300/60 dark:border-white/10 rounded-xl text-[10px] font-mono text-slate-600 dark:text-slate-400">
-          <Database size={11} className="text-violet-400" />
-          <span>768-dim MongoDB</span>
-        </div>
       </div>
     </div>
   );

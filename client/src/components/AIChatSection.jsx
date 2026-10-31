@@ -477,7 +477,8 @@ const AIChatSection = () => {
             question: promptToSend,
             documentId: selectedDocId,
             sessionId: targetSessionId,
-            history: currentHistory.slice(-6)
+            model: 'gemini-3.5-flash-lite',
+            history: currentHistory.slice(-4)
           }
         : {
             message: promptToSend,
@@ -871,17 +872,6 @@ const AIChatSection = () => {
                   ? (selectedDoc ? (selectedDoc.title || selectedDoc.originalName) : (activeSession?.title || 'New Document Chat')) 
                   : (activeSession?.title || 'New Chat')}
               </h4>
-              <div className="flex items-center gap-2 mt-0.5 whitespace-nowrap overflow-hidden">
-                <span className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                  {assistantMode === 'rag' ? '768-dim Vector Grounding' : 'Real-time Neural Engine'}
-                </span>
-                {serverPingMs && (
-                  <span className="text-[10px] font-mono text-slate-400 dark:text-slate-400 hidden sm:inline">
-                    • {serverPingMs}ms latency
-                  </span>
-                )}
-              </div>
             </div>
           </div>
 
