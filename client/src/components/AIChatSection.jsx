@@ -79,7 +79,12 @@ const AIChatSection = () => {
         setSessions(res.data);
         // Find matching active session for current mode if possible
         const matching = res.data.find(s => assistantMode === 'rag' ? s.mode === 'rag' : s.mode !== 'rag');
-        setActiveSessionId(matching ? (matching._id || matching.id) : (res.data[0]._id || res.data[0].id));
+        const activeSess = matching || res.data[0];
+        setActiveSessionId(activeSess._id || activeSess.id);
+        if (assistantMode === 'rag' && activeSess?.ragDocument) {
+          const docId = activeSess.ragDocument._id || (typeof activeSess.ragDocument === 'string' ? activeSess.ragDocument : null);
+          if (docId) setSelectedDocId(docId);
+        }
         if (res.data[0].modelPreference) {
           setSelectedModel(res.data[0].modelPreference);
         }
@@ -105,6 +110,10 @@ const AIChatSection = () => {
       const res = await apiClient.get('/api/rag/documents');
       if (res.data) {
         setDocuments(res.data);
+        if (res.data.length > 0) {
+          // Auto-focus on the first/latest uploaded document instead of generic 'all'
+          setSelectedDocId(prev => (prev === 'all' || !res.data.some(d => d._id === prev)) ? res.data[0]._id : prev);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch RAG documents:', err);
@@ -144,7 +153,12 @@ const AIChatSection = () => {
     if (modeSessions.length > 0) {
       const currentExists = modeSessions.some(s => (s._id || s.id) === activeSessionId);
       if (!currentExists) {
-        setActiveSessionId(modeSessions[0]._id || modeSessions[0].id);
+        const nextSess = modeSessions[0];
+        setActiveSessionId(nextSess._id || nextSess.id);
+        if (assistantMode === 'rag' && nextSess?.ragDocument) {
+          const docId = nextSess.ragDocument._id || (typeof nextSess.ragDocument === 'string' ? nextSess.ragDocument : null);
+          if (docId) setSelectedDocId(docId);
+        }
       }
     }
     if (assistantMode === 'rag') {
@@ -163,15 +177,22 @@ const AIChatSection = () => {
 
   const startNewChat = async () => {
     try {
+      let targetDoc = documents.find(d => d._id === selectedDocId);
+      if (!targetDoc && documents.length > 0) {
+        targetDoc = documents[0];
+        setSelectedDocId(documents[0]._id);
+      }
+
+      // Session title should strictly be the uploaded document/PDF name, never a random placeholder
       const title = assistantMode === 'rag' 
-        ? (selectedDoc ? `Q&A: ${selectedDoc.title.slice(0, 16)}...` : 'Document Q&A')
+        ? (targetDoc ? (targetDoc.title || targetDoc.originalName) : 'New Document Chat')
         : 'New Chat';
 
       const res = await apiClient.post('/api/ai/sessions', {
         title,
         modelPreference: selectedModel,
         mode: assistantMode,
-        ragDocument: (assistantMode === 'rag' && selectedDocId !== 'all') ? selectedDocId : null,
+        ragDocument: (assistantMode === 'rag' && targetDoc) ? targetDoc._id : null,
         messages: []
       });
       setSessions([res.data, ...sessions]);
@@ -229,9 +250,9 @@ const AIChatSection = () => {
       await fetchDocuments();
       setSelectedDocId(res.data.document._id);
 
-      // Create new RAG session for this document
+      // Create new RAG session strictly named after the uploaded document
       const newSessionRes = await apiClient.post('/api/ai/sessions', {
-        title: `Q&A: ${res.data.document.title.slice(0, 18)}`,
+        title: res.data.document.title || res.data.document.originalName,
         modelPreference: selectedModel,
         mode: 'rag',
         ragDocument: res.data.document._id,
@@ -305,13 +326,23 @@ const AIChatSection = () => {
     let targetSessionId = activeSessionId;
     let currentHistory = [];
 
+    let targetDoc = documents.find(d => d._id === selectedDocId);
+    if (!targetDoc && documents.length > 0) {
+      targetDoc = documents[0];
+      setSelectedDocId(documents[0]._id);
+    }
+
     if (!targetSessionId || !sessions.find(s => (s._id || s.id) === targetSessionId)) {
       try {
+        const sessionTitle = assistantMode === 'rag'
+          ? (targetDoc ? (targetDoc.title || targetDoc.originalName) : 'Document Chat')
+          : promptToSend.slice(0, 24) + '...';
+
         const createRes = await apiClient.post('/api/ai/sessions', {
-          title: promptToSend.slice(0, 24) + '...',
+          title: sessionTitle,
           modelPreference: selectedModel,
           mode: assistantMode,
-          ragDocument: (assistantMode === 'rag' && selectedDocId !== 'all') ? selectedDocId : null,
+          ragDocument: (assistantMode === 'rag' && targetDoc) ? targetDoc._id : null,
           messages: [userMsg]
         });
         setSessions([createRes.data, ...sessions]);
@@ -324,10 +355,23 @@ const AIChatSection = () => {
       currentHistory = activeSession?.messages || [];
       setSessions(prev => prev.map(s => {
         if ((s._id || s.id) === targetSessionId) {
+          let sessionTitle = s.title;
+          if (assistantMode === 'rag') {
+            // In RAG mode, ensure the title is always the document name, not a random prompt snippet
+            if (!sessionTitle || sessionTitle === 'Document Q&A' || sessionTitle === 'New Chat' || sessionTitle.endsWith('...')) {
+              sessionTitle = targetDoc ? (targetDoc.title || targetDoc.originalName) : 'Document Chat';
+            }
+          } else {
+            if (s.messages.length === 0) {
+              sessionTitle = promptToSend.slice(0, 24) + '...';
+            }
+          }
+
           return {
             ...s,
             messages: [...s.messages, userMsg],
-            title: s.messages.length === 0 ? promptToSend.slice(0, 24) + '...' : s.title
+            title: sessionTitle,
+            ragDocument: s.ragDocument || (targetDoc ? targetDoc._id : null)
           };
         }
         return s;
@@ -655,13 +699,32 @@ const AIChatSection = () => {
             visibleSessions.map(s => {
               const sId = s._id || s.id;
               const isActive = activeSessionId === sId;
+
+              // Dynamically resolve clean document title in RAG mode so it shows the uploaded PDF/file name
+              let sessionTitle = s.title;
+              if (s.mode === 'rag') {
+                const sessionDocId = s.ragDocument?._id || (typeof s.ragDocument === 'string' ? s.ragDocument : null);
+                const matchedDoc = sessionDocId ? documents.find(d => d._id === sessionDocId) : (documents.length > 0 ? documents[0] : null);
+                if (matchedDoc) {
+                  sessionTitle = matchedDoc.title || matchedDoc.originalName;
+                } else if (!sessionTitle || sessionTitle === 'Document Q&A' || sessionTitle === 'New Chat') {
+                  sessionTitle = documents.length > 0 ? (documents[0].title || documents[0].originalName) : 'Document Chat';
+                }
+              }
+
               return (
                 <div 
                   key={sId}
                   onClick={() => {
                     setActiveSessionId(sId);
-                    if (s.modelPreference) setSelectedModel(s.modelPreference);
-                    if (s.ragDocument?._id) setSelectedDocId(s.ragDocument._id);
+                    if (s.mode === 'rag') {
+                      const docId = s.ragDocument?._id || (typeof s.ragDocument === 'string' ? s.ragDocument : null);
+                      if (docId) {
+                        setSelectedDocId(docId);
+                      } else if (documents.length > 0) {
+                        setSelectedDocId(documents[0]._id);
+                      }
+                    }
                     if (window.innerWidth < 768) setIsSidebarOpen(false);
                   }}
                   className={`p-3 rounded-xl cursor-pointer group transition-all border ${
@@ -677,7 +740,7 @@ const AIChatSection = () => {
                       ) : (
                         <MessageSquare size={14} className={isActive ? 'text-violet-500 dark:text-violet-400 shrink-0' : 'text-slate-400 dark:text-slate-500 shrink-0'} />
                       )}
-                      <span className="text-xs truncate">{s.title}</span>
+                      <span className="text-xs truncate">{sessionTitle}</span>
                     </div>
                     <button 
                       onClick={(e) => deleteSession(e, sId)}
@@ -740,7 +803,7 @@ const AIChatSection = () => {
             <div className="min-w-0 flex-1">
               <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
                 {assistantMode === 'rag' 
-                  ? (selectedDoc ? selectedDoc.title : 'Document RAG Workspace') 
+                  ? (selectedDoc ? (selectedDoc.title || selectedDoc.originalName) : (activeSession?.title || (documents[0] ? (documents[0].title || documents[0].originalName) : 'Document RAG Workspace'))) 
                   : (activeSession?.title || 'New Chat')}
               </h4>
               <div className="flex items-center gap-2 mt-0.5 whitespace-nowrap overflow-hidden">

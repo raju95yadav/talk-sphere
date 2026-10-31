@@ -532,23 +532,29 @@ ${question}`;
     // Step F: Persist Q&A turn with sources in AISession
     if (sessionId) {
       try {
+        const sessionUpdate = {
+          $push: {
+            messages: [
+              { role: 'user', content: question, createdAt: new Date() },
+              { 
+                role: 'assistant', 
+                content: accumulatedText || 'No response generated.', 
+                sources: relevantSources,
+                createdAt: new Date() 
+              }
+            ]
+          },
+          mode: 'rag',
+          ragDocument: documentId && documentId !== 'all' ? documentId : null
+        };
+
+        if (docRecord?.title) {
+          sessionUpdate.title = docRecord.title;
+        }
+
         await AISession.findOneAndUpdate(
           { _id: sessionId, user: req.user._id },
-          {
-            $push: {
-              messages: [
-                { role: 'user', content: question, createdAt: new Date() },
-                { 
-                  role: 'assistant', 
-                  content: accumulatedText || 'No response generated.', 
-                  sources: relevantSources,
-                  createdAt: new Date() 
-                }
-              ]
-            },
-            mode: 'rag',
-            ragDocument: documentId && documentId !== 'all' ? documentId : null
-          }
+          sessionUpdate
         );
       } catch (saveErr) {
         logger.warn('RAG_SESSION_SAVE_ERROR', saveErr.message);
