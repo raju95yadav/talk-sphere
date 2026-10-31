@@ -182,13 +182,29 @@ const chunkText = (fullText, chunkSize = 800, overlap = 150) => {
   return chunks;
 };
 
-// Candidate generation models starting with verified working model for maximum speed
-const getGenerationCandidates = () => {
-  if (verifiedChatModel) {
-    const fallbacks = ['gemini-1.5-flash', 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-flash-latest'].filter(m => m !== verifiedChatModel);
-    return [verifiedChatModel, ...fallbacks];
+// High-speed candidate generation models (prioritizing gemini-3.5-flash-lite for ultra-fast response)
+const getGenerationCandidates = (clientModel) => {
+  const fastModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash'];
+  if (clientModel && fastModels.includes(clientModel)) {
+    return [clientModel, ...fastModels.filter(m => m !== clientModel)];
   }
-  return ['gemini-1.5-flash', 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-flash-latest'];
+  if (verifiedChatModel && fastModels.includes(verifiedChatModel)) {
+    return [verifiedChatModel, ...fastModels.filter(m => m !== verifiedChatModel)];
+  }
+  return fastModels;
+};
+
+// Clean answer text: strictly removes preambles, filler, and source references
+const cleanAnswerText = (text) => {
+  if (!text) return '';
+  let cleaned = text;
+  // Strip conversational preambles
+  cleaned = cleaned.replace(/^(?:Based on (?:the )?(?:provided |uploaded )?(?:document|file|excerpts?|context)[,\.\:\s]*|According to (?:the )?(?:provided |uploaded )?(?:document|file|excerpts?|context)[,\.\:\s]*)/i, '');
+  // Strip "the candidate's name is ...", "the candidate's DOB is ...", etc.
+  cleaned = cleaned.replace(/^(?:the |a )?(?:candidate's |applicant's |person's )?(?:full )?(?:name|dob|date of birth|email|phone|contact|address) (?:is|was)[\s\:\-]+/i, '');
+  // Strip Source Reference / Excerpt Reference lines
+  cleaned = cleaned.replace(/(?:^|\n)\s*(?:[-•*]\s*)?(?:Source|Excerpt|Document) Reference:[^\n]*/gi, '');
+  return cleaned.trim();
 };
 
 /**
@@ -389,24 +405,25 @@ exports.streamRagQuery = async (req, res) => {
   }
 
   try {
-    // Step A: Generate 768-dim embedding for user question (with memory cache for instant response)
+    // Step A & B: Run Question Embedding & Candidate Chunks retrieval in PARALLEL
     const cacheKey = question.trim().toLowerCase();
-    let queryEmbedding = queryEmbeddingCache.get(cacheKey);
-    if (!queryEmbedding) {
-      queryEmbedding = await generateEmbedding(question);
-      if (queryEmbeddingCache.size > 200) {
-        queryEmbeddingCache.delete(queryEmbeddingCache.keys().next().value);
-      }
-      queryEmbeddingCache.set(cacheKey, queryEmbedding);
-    }
-
-    // Step B: Fast parallel retrieval of candidate chunks from MongoDB
     const chunkFilter = { user: req.user._id };
     if (documentId && documentId !== 'all') {
       chunkFilter.document = documentId;
     }
 
-    const [candidateChunks, docRecord] = await Promise.all([
+    const [queryEmbedding, candidateChunks, docRecord] = await Promise.all([
+      (async () => {
+        let emb = queryEmbeddingCache.get(cacheKey);
+        if (!emb) {
+          emb = await generateEmbedding(question);
+          if (queryEmbeddingCache.size > 300) {
+            queryEmbeddingCache.delete(queryEmbeddingCache.keys().next().value);
+          }
+          queryEmbeddingCache.set(cacheKey, emb);
+        }
+        return emb;
+      })(),
       RagChunk.find(chunkFilter)
         .select('chunkIndex content embedding pageNumber document')
         .lean(),
@@ -425,21 +442,35 @@ exports.streamRagQuery = async (req, res) => {
 
     const defaultDocTitle = docRecord?.title || docRecord?.originalName || 'Document';
 
-    // Step C: Calculate Cosine Similarity & Rank Top Chunks
-    const scoredChunks = candidateChunks.map(c => ({
-      chunkIndex: c.chunkIndex,
-      documentTitle: defaultDocTitle,
-      documentId: c.document,
-      content: c.content,
-      pageNumber: c.pageNumber || 1,
-      similarity: cosineSimilarity(queryEmbedding, c.embedding)
-    }));
+    // Step C: Calculate Cosine Similarity with Keyword Boost & Rank Top Chunks
+    const queryTerms = question.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+
+    const scoredChunks = candidateChunks.map(c => {
+      const cosSim = cosineSimilarity(queryEmbedding, c.embedding);
+      let keywordBoost = 0;
+      if (queryTerms.length > 0 && c.content) {
+        const lower = c.content.toLowerCase();
+        let matches = 0;
+        for (const term of queryTerms) {
+          if (lower.includes(term)) matches++;
+        }
+        keywordBoost = (matches / queryTerms.length) * 0.25;
+      }
+      return {
+        chunkIndex: c.chunkIndex,
+        documentTitle: defaultDocTitle,
+        documentId: c.document,
+        content: c.content,
+        pageNumber: c.pageNumber || 1,
+        similarity: cosSim + keywordBoost
+      };
+    });
 
     // Sort descending by similarity
     scoredChunks.sort((a, b) => b.similarity - a.similarity);
 
-    // Take top 4 most relevant chunks (focused context speeds up generation)
-    const topChunks = scoredChunks.slice(0, 4);
+    // Take top 3 most relevant chunks (focused context speeds up generation significantly)
+    const topChunks = scoredChunks.slice(0, 3);
 
     // Filter relevant sources
     const relevantSources = topChunks.map(c => ({
@@ -458,17 +489,24 @@ exports.streamRagQuery = async (req, res) => {
       `[Excerpt #${idx + 1} (Chunk ${c.chunkIndex})]:\n${c.content}`
     ).join('\n\n---\n\n');
 
-    // Strict to-the-point system prompt eliminating conversational filler
-    const systemPrompt = `You are the Talk-Sphere Direct Document Q&A Engine. You provide strictly to-the-point, direct, and factual answers based ONLY on the provided document excerpts.
+    // Strict to-the-point system prompt eliminating conversational filler and citations
+    const systemPrompt = `You are the Talk-Sphere Direct Document Q&A Engine.
+Your task is to give strictly direct, to-the-point, exact answers based ONLY on the provided document context.
 
-STRICT INSTRUCTIONS:
-1. If the question's answer is NOT present or cannot be answered from the provided document excerpts, respond ONLY with:
-"This question's answer is not contained in the uploaded document."
-NEVER explain what is or isn't in the document. NEVER say "It lists the candidate's college name but does not state his specific qualification...". NEVER give lengthy disclaimers or apologies. Keep it short and sweet.
-2. Provide ONLY the direct, to-the-point answer. No pleasantries, conversational filler, or preambles (NEVER say "Based on the provided document", "According to the uploaded file", "Here is the information", etc.).
-3. Do NOT add citation footnotes or "Source Reference" bullets in the text, as citations are displayed separately in the UI.
-4. For specific data requests (such as candidate name, DOB / date of birth, phone, email, address, roll number, test score, qualifications): return ONLY the exact value or a concise single line (e.g. "**Mr. Raju Yadav**" or "**15-08-2002**").
-5. For broader queries, provide a concise, crisp answer or brief bullet points without conversational padding.`;
+ABSOLUTE RULES:
+1. GIVE ONLY THE DIRECT ANSWER. ZERO CONVERSATIONAL FILLER.
+   - NEVER start with: "Based on the provided document", "According to the document", "Based on excerpt", "The document states", "Here is the...", "The answer is...", etc.
+   - NEVER include citation bullets, "Source Reference:", or footnote citations in your response text. Citations are handled separately by the system UI.
+2. For specific data fields (e.g. candidate name, DOB / date of birth, roll number, email, phone, marks, date, college name, skills):
+   - Output ONLY the exact value.
+   - Examples:
+     User: "please give me condidate name" -> Response: "Mr. Raju Yadav"
+     User: "DOB of candidate" -> Response: "12/04/2002"
+     User: "email id" -> Response: "raju.yadav@example.com"
+3. For explanations or list questions:
+   - Provide only crisp, direct bullet points or 1-2 concise sentences without introduction or conclusion.
+4. If the information is NOT present in the document:
+   - Output ONLY: "Not found in document."`;
 
     const userAugmentedMessage = `DOCUMENT CONTEXT:
 ${contextBlock}
@@ -498,18 +536,46 @@ ${question}`;
         const chat = model.startChat({
           history: chatHistory,
           generationConfig: {
-            temperature: 0.1, // Near-zero temperature for fastest, deterministic, exact answers
-            maxOutputTokens: 800 // Adequate token budget accommodating reasoning tokens
+            temperature: 0.0, // 0.0 for fastest deterministic, exact, factual extraction
+            maxOutputTokens: 250 // Concise token budget for lightning-fast response
           }
         });
 
         const resultStream = await chat.sendMessageStream(userAugmentedMessage);
 
+        let preambleBuffer = '';
+        let isFlushingPreamble = false;
+
         for await (const chunk of resultStream.stream) {
           const chunkText = chunk.text();
-          if (chunkText) {
-            accumulatedText += chunkText;
-            res.write(`data: ${JSON.stringify({ chunk: chunkText })}\n\n`);
+          if (!chunkText) continue;
+          accumulatedText += chunkText;
+
+          if (!isFlushingPreamble) {
+            preambleBuffer += chunkText;
+            if (
+              preambleBuffer.length > 45 ||
+              preambleBuffer.includes('\n') ||
+              !/^(?:based|according|the\s+candidate)/i.test(preambleBuffer.trim())
+            ) {
+              isFlushingPreamble = true;
+              const cleaned = cleanAnswerText(preambleBuffer);
+              if (cleaned) {
+                res.write(`data: ${JSON.stringify({ chunk: cleaned })}\n\n`);
+              }
+            }
+          } else {
+            // Filter out any "Source Reference: ..." lines from the stream
+            if (!chunkText.toLowerCase().includes('source reference:')) {
+              res.write(`data: ${JSON.stringify({ chunk: chunkText })}\n\n`);
+            }
+          }
+        }
+
+        if (!isFlushingPreamble && preambleBuffer) {
+          const cleaned = cleanAnswerText(preambleBuffer);
+          if (cleaned) {
+            res.write(`data: ${JSON.stringify({ chunk: cleaned })}\n\n`);
           }
         }
 
@@ -529,7 +595,8 @@ ${question}`;
       })}\n\n`);
     }
 
-    // Step F: Persist Q&A turn with sources in AISession
+    // Step F: Persist Q&A turn with sources in AISession (cleaning any preamble from stored text)
+    accumulatedText = cleanAnswerText(accumulatedText) || accumulatedText.trim();
     if (sessionId) {
       try {
         const sessionUpdate = {

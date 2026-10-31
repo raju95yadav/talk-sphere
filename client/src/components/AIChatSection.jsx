@@ -56,7 +56,7 @@ const AIChatSection = () => {
 
   // RAG Document State
   const [documents, setDocuments] = useState([]);
-  const [selectedDocId, setSelectedDocId] = useState('all');
+  const [selectedDocId, setSelectedDocId] = useState(null);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
   const [uploadStep, setUploadStep] = useState('');
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
@@ -81,9 +81,9 @@ const AIChatSection = () => {
         const matching = res.data.find(s => assistantMode === 'rag' ? s.mode === 'rag' : s.mode !== 'rag');
         const activeSess = matching || res.data[0];
         setActiveSessionId(activeSess._id || activeSess.id);
-        if (assistantMode === 'rag' && activeSess?.ragDocument) {
-          const docId = activeSess.ragDocument._id || (typeof activeSess.ragDocument === 'string' ? activeSess.ragDocument : null);
-          if (docId) setSelectedDocId(docId);
+        if (assistantMode === 'rag') {
+          const docId = activeSess?.ragDocument?._id || (typeof activeSess?.ragDocument === 'string' ? activeSess.ragDocument : null);
+          setSelectedDocId(docId || null);
         }
         if (res.data[0].modelPreference) {
           setSelectedModel(res.data[0].modelPreference);
@@ -91,13 +91,15 @@ const AIChatSection = () => {
       } else {
         // Create initial MongoDB session
         const createRes = await apiClient.post('/api/ai/sessions', {
-          title: 'New Chat',
+          title: assistantMode === 'rag' ? 'New Document Chat' : 'New Chat',
           modelPreference: 'gemini-3.6-flash',
-          mode: 'general',
+          mode: assistantMode,
+          ragDocument: null,
           messages: []
         });
         setSessions([createRes.data]);
         setActiveSessionId(createRes.data._id);
+        setSelectedDocId(null);
       }
     } catch (err) {
       console.error('Failed to load AI sessions:', err);
@@ -110,10 +112,11 @@ const AIChatSection = () => {
       const res = await apiClient.get('/api/rag/documents');
       if (res.data) {
         setDocuments(res.data);
-        if (res.data.length > 0) {
-          // Auto-focus on the first/latest uploaded document instead of generic 'all'
-          setSelectedDocId(prev => (prev === 'all' || !res.data.some(d => d._id === prev)) ? res.data[0]._id : prev);
-        }
+        // Keep selectedDocId only if it still exists in the fetched documents
+        setSelectedDocId(prev => {
+          if (!prev || prev === 'all') return prev;
+          return res.data.some(d => d._id === prev) ? prev : null;
+        });
       }
     } catch (err) {
       console.error('Failed to fetch RAG documents:', err);
@@ -152,13 +155,19 @@ const AIChatSection = () => {
     const modeSessions = sessions.filter(s => assistantMode === 'rag' ? s.mode === 'rag' : s.mode !== 'rag');
     if (modeSessions.length > 0) {
       const currentExists = modeSessions.some(s => (s._id || s.id) === activeSessionId);
+      const nextSess = currentExists 
+        ? modeSessions.find(s => (s._id || s.id) === activeSessionId) 
+        : modeSessions[0];
       if (!currentExists) {
-        const nextSess = modeSessions[0];
         setActiveSessionId(nextSess._id || nextSess.id);
-        if (assistantMode === 'rag' && nextSess?.ragDocument) {
-          const docId = nextSess.ragDocument._id || (typeof nextSess.ragDocument === 'string' ? nextSess.ragDocument : null);
-          if (docId) setSelectedDocId(docId);
-        }
+      }
+      if (assistantMode === 'rag') {
+        const docId = nextSess?.ragDocument?._id || (typeof nextSess?.ragDocument === 'string' ? nextSess.ragDocument : null);
+        setSelectedDocId(docId || null);
+      }
+    } else {
+      if (assistantMode === 'rag') {
+        setSelectedDocId(null);
       }
     }
     if (assistantMode === 'rag') {
@@ -177,26 +186,29 @@ const AIChatSection = () => {
 
   const startNewChat = async () => {
     try {
-      let targetDoc = documents.find(d => d._id === selectedDocId);
-      if (!targetDoc && documents.length > 0) {
-        targetDoc = documents[0];
-        setSelectedDocId(documents[0]._id);
+      if (assistantMode === 'rag') {
+        // Fresh document chat with NO document pre-selected -> shows clean upload dropzone UI
+        const res = await apiClient.post('/api/ai/sessions', {
+          title: 'New Document Chat',
+          modelPreference: selectedModel,
+          mode: 'rag',
+          ragDocument: null,
+          messages: []
+        });
+        setSelectedDocId(null);
+        setSessions(prev => [res.data, ...prev]);
+        setActiveSessionId(res.data._id);
+      } else {
+        const res = await apiClient.post('/api/ai/sessions', {
+          title: 'New Chat',
+          modelPreference: selectedModel,
+          mode: 'general',
+          ragDocument: null,
+          messages: []
+        });
+        setSessions(prev => [res.data, ...prev]);
+        setActiveSessionId(res.data._id);
       }
-
-      // Session title should strictly be the uploaded document/PDF name, never a random placeholder
-      const title = assistantMode === 'rag' 
-        ? (targetDoc ? (targetDoc.title || targetDoc.originalName) : 'New Document Chat')
-        : 'New Chat';
-
-      const res = await apiClient.post('/api/ai/sessions', {
-        title,
-        modelPreference: selectedModel,
-        mode: assistantMode,
-        ragDocument: (assistantMode === 'rag' && targetDoc) ? targetDoc._id : null,
-        messages: []
-      });
-      setSessions([res.data, ...sessions]);
-      setActiveSessionId(res.data._id);
       if (window.innerWidth < 768) setIsSidebarOpen(false);
     } catch (err) {
       toast.error('Failed to create new chat session');
@@ -246,26 +258,81 @@ const AIChatSection = () => {
       clearTimeout(stepTimer);
       setUploadStep('Saving to MongoDB...');
 
-      toast.success(`"${res.data.document.title}" embedded (${res.data.document.totalChunks} chunks)`);
-      await fetchDocuments();
-      setSelectedDocId(res.data.document._id);
+      const uploadedDoc = res.data.document;
+      const docTitle = uploadedDoc.title || uploadedDoc.originalName;
 
-      // Create new RAG session strictly named after the uploaded document
-      const newSessionRes = await apiClient.post('/api/ai/sessions', {
-        title: res.data.document.title || res.data.document.originalName,
-        modelPreference: selectedModel,
-        mode: 'rag',
-        ragDocument: res.data.document._id,
-        messages: []
-      });
-      setSessions(prev => [newSessionRes.data, ...prev]);
-      setActiveSessionId(newSessionRes.data._id);
+      toast.success(`"${docTitle}" embedded (${uploadedDoc.totalChunks} chunks)`);
+      await fetchDocuments();
+      setSelectedDocId(uploadedDoc._id);
+
+      // Check if current active session is a RAG session with no messages yet
+      const currentActive = sessions.find(s => (s._id || s.id) === activeSessionId && s.mode === 'rag');
+      if (currentActive && (!currentActive.ragDocument || currentActive.messages.length === 0)) {
+        await apiClient.put(`/api/ai/sessions/${currentActive._id || currentActive.id}`, {
+          title: docTitle,
+          ragDocument: uploadedDoc._id
+        });
+        setSessions(prev => prev.map(s => {
+          if ((s._id || s.id) === (currentActive._id || currentActive.id)) {
+            return {
+              ...s,
+              title: docTitle,
+              ragDocument: uploadedDoc._id
+            };
+          }
+          return s;
+        }));
+      } else {
+        // Create new RAG session strictly named after the uploaded document
+        const newSessionRes = await apiClient.post('/api/ai/sessions', {
+          title: docTitle,
+          modelPreference: selectedModel,
+          mode: 'rag',
+          ragDocument: uploadedDoc._id,
+          messages: []
+        });
+        setSessions(prev => [newSessionRes.data, ...prev]);
+        setActiveSessionId(newSessionRes.data._id);
+      }
     } catch (err) {
       console.error('Upload document error:', err);
       toast.error(err.response?.data?.message || 'Failed to upload document');
     } finally {
       setIsUploadingDoc(false);
       setUploadStep('');
+    }
+  };
+
+  // Handler for selecting document from selector or dropzone library picker
+  const handleSelectDocument = async (docId) => {
+    setSelectedDocId(docId);
+    if (!docId) return;
+
+    if (docId !== 'all') {
+      const matched = documents.find(d => d._id === docId);
+      const docTitle = matched?.title || matched?.originalName;
+
+      const currentActive = sessions.find(s => (s._id || s.id) === activeSessionId && s.mode === 'rag');
+      if (currentActive && (!currentActive.ragDocument || currentActive.messages.length === 0)) {
+        try {
+          await apiClient.put(`/api/ai/sessions/${currentActive._id || currentActive.id}`, {
+            title: docTitle || currentActive.title,
+            ragDocument: docId
+          });
+          setSessions(prev => prev.map(s => {
+            if ((s._id || s.id) === (currentActive._id || currentActive.id)) {
+              return {
+                ...s,
+                title: docTitle || s.title,
+                ragDocument: docId
+              };
+            }
+            return s;
+          }));
+        } catch (e) {
+          console.error('Failed to link document to session:', e);
+        }
+      }
     }
   };
 
@@ -282,7 +349,7 @@ const AIChatSection = () => {
       toast.success(res.data.message || 'Document, embeddings, and chat sessions cascade-deleted from MongoDB.');
       await fetchDocuments();
       if (selectedDocId === docId) {
-        setSelectedDocId('all');
+        setSelectedDocId(null);
       }
       // Refresh sessions to remove any cascade deleted sessions
       await fetchSessions();
@@ -315,10 +382,12 @@ const AIChatSection = () => {
     const promptToSend = customPrompt || message;
     if (!promptToSend.trim() || isLoading) return;
 
-    // Check if in RAG mode with no documents uploaded
-    if (assistantMode === 'rag' && documents.length === 0) {
-      toast('Please upload a document (.pdf, .docx, .txt, .md) first.', { icon: '📄' });
-      return;
+    // In RAG mode, require a document to be uploaded or selected
+    if (assistantMode === 'rag') {
+      if (!selectedDocId) {
+        toast.error('Please upload or select a document for this chat first.', { icon: '📄' });
+        return;
+      }
     }
 
     const userMsg = { role: 'user', content: promptToSend, createdAt: new Date().toISOString() };
@@ -326,16 +395,13 @@ const AIChatSection = () => {
     let targetSessionId = activeSessionId;
     let currentHistory = [];
 
-    let targetDoc = documents.find(d => d._id === selectedDocId);
-    if (!targetDoc && documents.length > 0) {
-      targetDoc = documents[0];
-      setSelectedDocId(documents[0]._id);
-    }
+    const targetDoc = documents.find(d => d._id === selectedDocId);
+    const sessionDocTitle = targetDoc ? (targetDoc.title || targetDoc.originalName) : 'Document Chat';
 
     if (!targetSessionId || !sessions.find(s => (s._id || s.id) === targetSessionId)) {
       try {
         const sessionTitle = assistantMode === 'rag'
-          ? (targetDoc ? (targetDoc.title || targetDoc.originalName) : 'Document Chat')
+          ? sessionDocTitle
           : promptToSend.slice(0, 24) + '...';
 
         const createRes = await apiClient.post('/api/ai/sessions', {
@@ -357,10 +423,7 @@ const AIChatSection = () => {
         if ((s._id || s.id) === targetSessionId) {
           let sessionTitle = s.title;
           if (assistantMode === 'rag') {
-            // In RAG mode, ensure the title is always the document name, not a random prompt snippet
-            if (!sessionTitle || sessionTitle === 'Document Q&A' || sessionTitle === 'New Chat' || sessionTitle.endsWith('...')) {
-              sessionTitle = targetDoc ? (targetDoc.title || targetDoc.originalName) : 'Document Chat';
-            }
+            sessionTitle = sessionDocTitle;
           } else {
             if (s.messages.length === 0) {
               sessionTitle = promptToSend.slice(0, 24) + '...';
@@ -547,18 +610,24 @@ const AIChatSection = () => {
       const filtered = sessions.filter(s => (s._id || s.id) !== id);
       if (filtered.length === 0) {
         const createRes = await apiClient.post('/api/ai/sessions', {
-          title: assistantMode === 'rag' ? 'Document Q&A' : 'New Chat',
+          title: assistantMode === 'rag' ? 'New Document Chat' : 'New Chat',
           modelPreference: selectedModel,
           mode: assistantMode,
+          ragDocument: null,
           messages: []
         });
         setSessions([createRes.data]);
         setActiveSessionId(createRes.data._id);
+        setSelectedDocId(null);
       } else {
         setSessions(filtered);
         if (activeSessionId === id) {
           const nextSess = filtered.find(s => assistantMode === 'rag' ? s.mode === 'rag' : s.mode !== 'rag') || filtered[0];
-          setActiveSessionId(nextSess._id || nextSess.id);
+          setActiveSessionId(nextSess ? (nextSess._id || nextSess.id) : null);
+          if (assistantMode === 'rag') {
+            const docId = nextSess?.ragDocument?._id || (typeof nextSess?.ragDocument === 'string' ? nextSess.ragDocument : null);
+            setSelectedDocId(docId || null);
+          }
         }
       }
       toast.success('Chat deleted');
@@ -704,11 +773,11 @@ const AIChatSection = () => {
               let sessionTitle = s.title;
               if (s.mode === 'rag') {
                 const sessionDocId = s.ragDocument?._id || (typeof s.ragDocument === 'string' ? s.ragDocument : null);
-                const matchedDoc = sessionDocId ? documents.find(d => d._id === sessionDocId) : (documents.length > 0 ? documents[0] : null);
+                const matchedDoc = sessionDocId ? documents.find(d => d._id === sessionDocId) : null;
                 if (matchedDoc) {
                   sessionTitle = matchedDoc.title || matchedDoc.originalName;
                 } else if (!sessionTitle || sessionTitle === 'Document Q&A' || sessionTitle === 'New Chat') {
-                  sessionTitle = documents.length > 0 ? (documents[0].title || documents[0].originalName) : 'Document Chat';
+                  sessionTitle = 'New Document Chat';
                 }
               }
 
@@ -719,11 +788,7 @@ const AIChatSection = () => {
                     setActiveSessionId(sId);
                     if (s.mode === 'rag') {
                       const docId = s.ragDocument?._id || (typeof s.ragDocument === 'string' ? s.ragDocument : null);
-                      if (docId) {
-                        setSelectedDocId(docId);
-                      } else if (documents.length > 0) {
-                        setSelectedDocId(documents[0]._id);
-                      }
+                      setSelectedDocId(docId || null);
                     }
                     if (window.innerWidth < 768) setIsSidebarOpen(false);
                   }}
@@ -803,7 +868,7 @@ const AIChatSection = () => {
             <div className="min-w-0 flex-1">
               <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
                 {assistantMode === 'rag' 
-                  ? (selectedDoc ? (selectedDoc.title || selectedDoc.originalName) : (activeSession?.title || (documents[0] ? (documents[0].title || documents[0].originalName) : 'Document RAG Workspace'))) 
+                  ? (selectedDoc ? (selectedDoc.title || selectedDoc.originalName) : (activeSession?.title || 'New Document Chat')) 
                   : (activeSession?.title || 'New Chat')}
               </h4>
               <div className="flex items-center gap-2 mt-0.5 whitespace-nowrap overflow-hidden">
@@ -877,7 +942,7 @@ const AIChatSection = () => {
           <RagDocumentSelector
             documents={documents}
             selectedDocId={selectedDocId}
-            onSelectDoc={(id) => setSelectedDocId(id)}
+            onSelectDoc={handleSelectDocument}
             onUploadFile={handleUploadDocument}
             onDeleteCurrentDoc={handleDeleteDocument}
             onOpenManageModal={() => setIsManageModalOpen(true)}
@@ -915,6 +980,7 @@ const AIChatSection = () => {
                 documents={documents}
                 selectedDoc={selectedDoc}
                 onUploadFile={handleUploadDocument}
+                onSelectDoc={handleSelectDocument}
                 onSelectPrompt={(p) => {
                   setMessage(p);
                   document.getElementById('ai-message-input')?.focus();

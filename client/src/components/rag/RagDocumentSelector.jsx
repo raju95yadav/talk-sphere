@@ -4,17 +4,9 @@ import {
   Loader2, CheckCircle, Database, Sparkles, ChevronDown 
 } from 'lucide-react';
 
-const formatBytes = (bytes) => {
-  if (!bytes) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-};
-
 const RagDocumentSelector = ({
   documents = [],
-  selectedDocId = 'all',
+  selectedDocId = null,
   onSelectDoc,
   onUploadFile,
   onDeleteCurrentDoc,
@@ -48,15 +40,27 @@ const RagDocumentSelector = ({
       <div className="flex items-center gap-2 flex-1 min-w-[220px]">
         <div className="relative flex-1 max-w-xs sm:max-w-md">
           <select
-            value={selectedDocId}
-            onChange={(e) => onSelectDoc(e.target.value)}
+            value={selectedDocId || ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === '__upload_new__') {
+                fileInputRef.current?.click();
+              } else {
+                onSelectDoc(val || null);
+              }
+            }}
             disabled={isUploading}
             aria-label="Select RAG Document"
             className="w-full bg-white dark:bg-[#1a1c2e] text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 hover:border-violet-500/50 rounded-xl pl-8 pr-8 py-1.5 text-xs font-bold outline-none cursor-pointer appearance-none truncate shadow-sm transition-all focus:border-violet-500"
           >
-            <option value="all">
-              📚 All Uploaded Documents ({documents.length})
+            <option value="">
+              ➕ Upload New Document...
             </option>
+            {documents.length > 1 && (
+              <option value="all">
+                📚 All Uploaded Documents ({documents.length})
+              </option>
+            )}
             {documents.map(d => (
               <option key={d._id} value={d._id}>
                 📄 {d.title || d.originalName} ({d.fileType.toUpperCase()} • {d.totalChunks || 0} chunks)
@@ -119,4 +123,3 @@ const RagDocumentSelector = ({
 };
 
 export default RagDocumentSelector;
-

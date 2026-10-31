@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
   UploadCloud, FileText, Sparkles, BookOpen, 
-  HelpCircle, CheckCircle, Database, Layers, ArrowRight 
+  HelpCircle, CheckCircle, Database, Layers, ArrowRight,
+  FolderOpen, ArrowUpRight
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -30,12 +31,14 @@ const RAG_SUGGESTED_QUESTIONS = [
 
 const RagDropzoneView = ({
   documents = [],
-  selectedDoc,
+  selectedDoc = null,
   onUploadFile,
+  onSelectDoc,
   onSelectPrompt,
-  isUploading
+  isUploading = false
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
+  const [selectedExistingId, setSelectedExistingId] = useState(documents[0]?._id || '');
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -51,14 +54,16 @@ const RagDropzoneView = ({
     e.preventDefault();
     setIsDragOver(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) {
+    if (file && onUploadFile) {
       onUploadFile(file);
     }
   };
 
-  if (documents.length === 0) {
+  // If no document is selected for this chat, show the clean upload dropzone UI
+  if (!selectedDoc) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-full py-8 px-4 max-w-2xl mx-auto my-auto text-center font-sans">
+      <div className="flex flex-col items-center justify-center min-h-full py-8 px-4 max-w-2xl mx-auto my-auto text-center font-sans space-y-6">
+        {/* Main Upload Dropzone */}
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -77,7 +82,7 @@ const RagDropzoneView = ({
             Upload Knowledge Document
           </h3>
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-6 max-w-md font-medium leading-relaxed">
-            Drop your file here to generate 768-dimensional vector embeddings with Gemini and perform grounded Q&A.
+            Drop your file here to generate 768-dimensional vector embeddings with Gemini and start a grounded document Q&A chat.
           </p>
 
           {/* Formats Pills */}
@@ -104,7 +109,7 @@ const RagDropzoneView = ({
               accept=".pdf,.docx,.txt,.md"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) onUploadFile(file);
+                if (file && onUploadFile) onUploadFile(file);
               }}
               className="hidden"
             />
@@ -118,7 +123,7 @@ const RagDropzoneView = ({
             </span>
             <span className="flex items-center gap-1.5">
               <CheckCircle size={13} className="text-emerald-500" />
-              Gemini 1.5 Flash Grounding
+              Direct Exact Answers
             </span>
             <span className="flex items-center gap-1.5">
               <CheckCircle size={13} className="text-emerald-500" />
@@ -126,11 +131,43 @@ const RagDropzoneView = ({
             </span>
           </div>
         </div>
+
+        {/* Optional Secondary Option: Pick from Existing Documents in Library */}
+        {documents.length > 0 && onSelectDoc && (
+          <div className="w-full p-4 rounded-2xl bg-slate-50/80 dark:bg-[#161826]/40 border border-slate-200 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
+            <div className="flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-300">
+              <FolderOpen size={16} className="text-violet-400 shrink-0" />
+              <span>Or link an existing document from your library:</span>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <select
+                value={selectedExistingId}
+                onChange={(e) => setSelectedExistingId(e.target.value)}
+                className="bg-white dark:bg-[#1f2238] text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 rounded-xl px-3 py-1.5 text-xs font-semibold outline-none cursor-pointer flex-1 sm:max-w-[200px] truncate"
+              >
+                {documents.map(d => (
+                  <option key={d._id} value={d._id}>
+                    {d.title || d.originalName} ({d.fileType.toUpperCase()})
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedExistingId) onSelectDoc(selectedExistingId);
+                }}
+                className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer"
+              >
+                Use Document
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
-  // Documents exist, show selected document overview and quick questions
+  // Document is selected: show document overview and quick questions
   return (
     <div className="flex flex-col items-center justify-center min-h-full py-6 px-4 max-w-2xl mx-auto my-auto text-center font-sans">
       <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 border border-violet-500/30 flex items-center justify-center mb-3 text-violet-400 shadow-xl shadow-indigo-500/10">
@@ -138,12 +175,10 @@ const RagDropzoneView = ({
       </div>
 
       <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white mb-1">
-        {selectedDoc ? `Ask about "${selectedDoc.title || selectedDoc.originalName}"` : 'Document RAG Workspace'}
+        Ask about "{selectedDoc.title || selectedDoc.originalName}"
       </h3>
       <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-6 max-w-md font-medium leading-relaxed">
-        {selectedDoc
-          ? `Indexed into ${selectedDoc.totalChunks || 0} chunks with 768-dim vectors in MongoDB. Ask any grounded question below.`
-          : 'Query across all uploaded knowledge documents with precise chunk citations.'}
+        Indexed into {selectedDoc.totalChunks || 0} chunks with 768-dim vectors in MongoDB. Ask any grounded question below.
       </p>
 
       {/* Suggested RAG Questions */}
@@ -155,7 +190,7 @@ const RagDropzoneView = ({
               key={idx}
               whileHover={{ y: -2, scale: 1.01 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => onSelectPrompt(item.prompt)}
+              onClick={() => onSelectPrompt && onSelectPrompt(item.prompt)}
               className="p-3.5 bg-white dark:bg-[#161826] hover:bg-slate-50 dark:hover:bg-[#1d2033] border border-slate-200 dark:border-white/10 hover:border-violet-500/50 rounded-2xl text-left transition-all duration-300 group cursor-pointer flex items-start gap-3 shadow-sm"
             >
               <div className="w-9 h-9 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center group-hover:border-violet-500/50 group-hover:scale-105 shrink-0 transition-all text-violet-400">
@@ -179,4 +214,3 @@ const RagDropzoneView = ({
 };
 
 export default RagDropzoneView;
-
