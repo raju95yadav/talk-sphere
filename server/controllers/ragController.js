@@ -10,8 +10,8 @@ const mammoth = require('mammoth');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // High-speed runtime cache for verified models (eliminates 404 fallback delays on subsequent queries)
-let verifiedEmbeddingModel = null;
-let verifiedChatModel = null;
+let verifiedEmbeddingModel = 'gemini-embedding-001';
+let verifiedChatModel = 'gemini-3.5-flash-lite';
 
 // Query embedding cache to avoid redundant network calls for identical/repeated questions
 const queryEmbeddingCache = new Map();
@@ -39,30 +39,30 @@ const generateEmbedding = async (text) => {
     }
   }
 
-  // Primary: text-embedding-004 with 768 dimensions
+  // Primary: gemini-embedding-001 with outputDimensionality: 768 (active & fast in v1beta)
   try {
-    const embedModel = genAI.getGenerativeModel({ model: 'text-embedding-004' });
+    const embedModel = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
     const res = await embedModel.embedContent({
       content: { parts: [{ text }] },
       outputDimensionality: 768
     });
     if (res?.embedding?.values && res.embedding.values.length === 768) {
-      verifiedEmbeddingModel = 'text-embedding-004';
+      verifiedEmbeddingModel = 'gemini-embedding-001';
       return res.embedding.values;
     }
   } catch (err) {
-    logger.warn('RAG_EMBEDDING_RETRY', `text-embedding-004: ${err.message}. Falling back to gemini-embedding-001 (768-dim)...`);
+    logger.warn('RAG_EMBEDDING_RETRY', `gemini-embedding-001: ${err.message}. Trying text-embedding-004 fallback...`);
   }
 
-  // Fallback: gemini-embedding-001 with outputDimensionality: 768
+  // Fallback: text-embedding-004
   try {
-    const fallbackModel = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
+    const fallbackModel = genAI.getGenerativeModel({ model: 'text-embedding-004' });
     const res = await fallbackModel.embedContent({
       content: { parts: [{ text }] },
       outputDimensionality: 768
     });
     if (res?.embedding?.values && res.embedding.values.length === 768) {
-      verifiedEmbeddingModel = 'gemini-embedding-001';
+      verifiedEmbeddingModel = 'text-embedding-004';
       return res.embedding.values;
     }
   } catch (fallbackErr) {
