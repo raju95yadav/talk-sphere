@@ -12,6 +12,22 @@ const ApiError = require('./utils/ApiError');
 const logger = require('./utils/logger');
 const errorMiddleware = require('./middleware/errorMiddleware');
 const { createAndSendNotification } = require('./utils/notify');
+const {
+  initRedis,
+  addUserSocket,
+  removeUserSocket,
+  getUserSocketCount,
+  isUserOnline,
+  saveActiveCall,
+  getActiveCall,
+  findCallByParticipant,
+  findAllCallsForUser,
+  updateActiveCall,
+  removeActiveCall,
+  setLocalCallTimer,
+  clearLocalCallTimer
+} = require('./utils/redis');
+const { broadcastUserPresence } = require('./utils/presence');
 
 dotenv.config();
 
@@ -69,6 +85,11 @@ const io = new Server(server, {
 // Attach socket.io server instance to app
 app.set('io', io);
 
+// Mount Redis cluster adapter and pub/sub synchronization
+initRedis(io).catch((err) => {
+  logger.warn('REDIS_INIT_FAIL', `Redis adapter initialization error: ${err.message}`);
+});
+
 // Middleware
 app.use(cors(corsOptions));
 app.use(express.json());
@@ -107,8 +128,101 @@ app.get('/', (req, res) => {
   res.send('Talk Sphere API is running');
 });
 
-// Online Users Mapping (User ID string -> Set of Socket IDs)
-const onlineUsers = new Map();
+// Helper: Extract user ID string
+const getUserIdStr = (userObj) => {
+  if (!userObj) return null;
+  if (typeof userObj === 'string') return userObj;
+  if (userObj._id) return userObj._id.toString();
+  if (userObj.id) return userObj.id.toString();
+  return userObj.toString();
+};
+
+// Hoisted Helper: Create and persist call log message across cluster instances [B-03]
+const createCallLogMessage = async (senderId, receiverId, callType, callStatus, duration = 0) => {
+  try {
+    const formattedType = callType === 'video' ? 'Video Call' : 'Voice Call';
+    let content = '';
+    if (callStatus === 'missed') {
+      content = `Missed ${formattedType}`;
+    } else if (callStatus === 'declined') {
+      content = `Declined ${formattedType}`;
+    } else {
+      const mins = Math.floor(duration / 60);
+      const secs = duration % 60;
+      const durationStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+      content = `${formattedType} • ${durationStr}`;
+    }
+
+    const newMessage = new Message({
+      sender: senderId,
+      receiver: receiverId,
+      content,
+      type: 'call',
+      callDetails: {
+        callType,
+        status: callStatus,
+        duration
+      }
+    });
+
+    await newMessage.save();
+
+    const populatedLog = await Message.findById(newMessage._id)
+      .populate('sender', 'name username email avatar')
+      .populate('receiver', 'name username email avatar');
+
+    const messageData = {
+      _id: newMessage._id,
+      sender: senderId,
+      senderName: populatedLog?.sender?.name || populatedLog?.sender?.username || 'User',
+      senderUsername: populatedLog?.sender?.username || '',
+      senderAvatar: populatedLog?.sender?.avatar,
+      receiver: receiverId,
+      content,
+      type: 'call',
+      callDetails: newMessage.callDetails,
+      createdAt: newMessage.createdAt,
+      status: newMessage.status,
+      reactions: []
+    };
+
+    // Emit to both receiver and sender so active chat view updates immediately
+    io.to(receiverId.toString()).emit('receive_message', messageData);
+    io.to(senderId.toString()).emit('receive_message', messageData);
+    io.to(senderId.toString()).emit('message_sent', messageData);
+
+    // Emit real-time call log update to both caller and receiver
+    if (populatedLog) {
+      io.to(senderId.toString()).emit('receive_call_log', populatedLog);
+      io.to(receiverId.toString()).emit('receive_call_log', populatedLog);
+      io.to(senderId.toString()).emit('receive-call-log', populatedLog);
+      io.to(receiverId.toString()).emit('receive-call-log', populatedLog);
+      io.to(senderId.toString()).emit('update-call-history', populatedLog);
+      io.to(receiverId.toString()).emit('update-call-history', populatedLog);
+    }
+
+    // If missed or declined call, trigger a notification for the receiver
+    if (callStatus === 'missed' || callStatus === 'declined') {
+      const callerName = populatedLog?.sender?.name || populatedLog?.sender?.username || 'A contact';
+      createAndSendNotification(io, {
+        recipientId: receiverId,
+        senderId,
+        type: 'call_missed',
+        title: `Missed ${formattedType}`,
+        message: `You missed a ${callType} call from ${callerName}.`,
+        data: {
+          callerId: senderId,
+          callType,
+          callerName,
+          callerAvatar: populatedLog?.sender?.avatar
+        },
+        actionType: 'open_chat'
+      });
+    }
+  } catch (err) {
+    console.error('Error logging call message:', err);
+  }
+};
 
 // JWT Authentication Middleware for Sockets
 io.use((socket, next) => {
@@ -151,19 +265,16 @@ io.on('connection', (socket) => {
 
       socket.join(userId);
       
-      // Update multi-tab connection set
-      if (!onlineUsers.has(userId)) {
-        onlineUsers.set(userId, new Set());
-      }
-      onlineUsers.get(userId).add(socket.id);
+      // Update multi-tab connection set via Redis store [B-01, B-04]
+      const totalTabs = await addUserSocket(userId, socket.id);
       
-      console.log(`>>> Socket Connection: User ${userId} joined room. Total tabs: ${onlineUsers.get(userId).size}`);
+      console.log(`>>> Socket Connection: User ${userId} joined room. Total tabs: ${totalTabs}`);
       
-      // Only mark online and emit change if this is their first connection
-      if (onlineUsers.get(userId).size === 1) {
+      // Only mark online and emit change if this is their first connection across any cluster instance
+      if (totalTabs === 1) {
         await User.findByIdAndUpdate(userId, { isOnline: true });
-        io.emit('user_status_change', { userId, isOnline: true });
-        console.log(`User ${userId} is now online`);
+        await broadcastUserPresence(io, userId, true);
+        console.log(`User ${userId} is now online (scoped presence broadcast)`);
       }
       
       // Auto-deliver pending messages (WhatsApp behavior)
@@ -272,21 +383,18 @@ io.on('connection', (socket) => {
     const userId = socket.userId?.toString();
     
     if (userId) {
-      // Clean up any active call in progress for this disconnected user ONLY IF this specific socket was the one in the call, or if the user has no remaining sockets
-      const userSockets = onlineUsers.get(userId);
-      const remainingSocketsCount = userSockets ? (userSockets.has(socket.id) ? userSockets.size - 1 : userSockets.size) : 0;
+      // Remove socket session from Redis/in-memory store [B-01, B-04]
+      const remainingSocketsCount = await removeUserSocket(userId, socket.id);
 
-      for (const [key, call] of activeCalls.entries()) {
+      // Clean up any active call in progress for this disconnected user [B-03]
+      const userCalls = await findAllCallsForUser(userId, socket.id);
+      for (const { key, call } of userCalls) {
         const isCallSocket = (call.callerSocketId === socket.id || call.receiverSocketId === socket.id);
         const isUserParticipant = (call.caller === userId || call.receiver === userId);
 
         if (isCallSocket || (isUserParticipant && remainingSocketsCount === 0)) {
           console.log(`[WebRTC] Socket ${socket.id} (User ${userId}) disconnected during active call (key: ${key})`);
-          if (call.timeoutId) {
-            clearTimeout(call.timeoutId);
-            call.timeoutId = null;
-          }
-          activeCalls.delete(key);
+          await removeActiveCall(key);
 
           const otherPeerId = call.caller === userId ? call.receiver : call.caller;
           if (otherPeerId) {
@@ -301,29 +409,19 @@ io.on('connection', (socket) => {
           }
         }
       }
-    }
 
-    if (userId && onlineUsers.has(userId)) {
-      const userSockets = onlineUsers.get(userId);
-      userSockets.delete(socket.id);
-      
-      console.log(`Socket disconnected: ${socket.id} for User ${userId}. Remaining tabs: ${userSockets.size}`);
-      
-      if (userSockets.size === 0) {
-        onlineUsers.delete(userId);
+      console.log(`Socket disconnected: ${socket.id} for User ${userId}. Remaining tabs: ${remainingSocketsCount}`);
+
+      // If user has no active sockets remaining across all clusters, mark offline [B-02]
+      if (remainingSocketsCount === 0) {
         const lastSeen = new Date();
         await User.findByIdAndUpdate(userId, { 
           isOnline: false, 
           lastSeen 
         });
         
-        io.emit('user_status_change', { 
-          userId, 
-          isOnline: false, 
-          lastSeen 
-        });
-        
-        console.log(`User ${userId} disconnected and is now offline`);
+        await broadcastUserPresence(io, userId, false, lastSeen);
+        console.log(`User ${userId} disconnected and is now offline (scoped presence broadcast)`);
       }
     }
   });
@@ -530,105 +628,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Active Calls tracking Map (Session key -> Call metadata)
-  const activeCalls = new Map();
-
-  const getUserIdStr = (userObj) => {
-    if (!userObj) return null;
-    if (typeof userObj === 'string') return userObj;
-    if (userObj._id) return userObj._id.toString();
-    if (userObj.id) return userObj.id.toString();
-    return userObj.toString();
-  };
-
-  const createCallLogMessage = async (senderId, receiverId, callType, callStatus, duration = 0) => {
-    try {
-      const formattedType = callType === 'video' ? 'Video Call' : 'Voice Call';
-      let content = '';
-      if (callStatus === 'missed') {
-        content = `Missed ${formattedType}`;
-      } else if (callStatus === 'declined') {
-        content = `Declined ${formattedType}`;
-      } else {
-        const mins = Math.floor(duration / 60);
-        const secs = duration % 60;
-        const durationStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-        content = `${formattedType} • ${durationStr}`;
-      }
-
-      const newMessage = new Message({
-        sender: senderId,
-        receiver: receiverId,
-        content,
-        type: 'call',
-        callDetails: {
-          callType,
-          status: callStatus,
-          duration
-        }
-      });
-
-      await newMessage.save();
-
-      const populatedLog = await Message.findById(newMessage._id)
-        .populate('sender', 'name username email avatar')
-        .populate('receiver', 'name username email avatar');
-
-      const messageData = {
-        _id: newMessage._id,
-        sender: senderId,
-        senderName: populatedLog?.sender?.name || populatedLog?.sender?.username || 'User',
-        senderUsername: populatedLog?.sender?.username || '',
-        senderAvatar: populatedLog?.sender?.avatar,
-        receiver: receiverId,
-        content,
-        type: 'call',
-        callDetails: newMessage.callDetails,
-        createdAt: newMessage.createdAt,
-        status: newMessage.status,
-        reactions: []
-      };
-
-      // Emit to both receiver and sender so active chat view updates immediately
-      io.to(receiverId.toString()).emit('receive_message', messageData);
-      io.to(senderId.toString()).emit('receive_message', messageData);
-      io.to(senderId.toString()).emit('message_sent', messageData);
-
-      // Emit real-time call log update to both caller and receiver
-      if (populatedLog) {
-        io.to(senderId.toString()).emit('receive_call_log', populatedLog);
-        io.to(receiverId.toString()).emit('receive_call_log', populatedLog);
-        io.to(senderId.toString()).emit('receive-call-log', populatedLog);
-        io.to(receiverId.toString()).emit('receive-call-log', populatedLog);
-        io.to(senderId.toString()).emit('update-call-history', populatedLog);
-        io.to(receiverId.toString()).emit('update-call-history', populatedLog);
-      }
-
-      // If missed or declined call, trigger a notification for the receiver
-      if (callStatus === 'missed' || callStatus === 'declined') {
-        const callerName = populatedLog?.sender?.name || populatedLog?.sender?.username || 'A contact';
-        createAndSendNotification(io, {
-          recipientId: receiverId,
-          senderId,
-          type: 'call_missed',
-          title: `Missed ${formattedType}`,
-          message: `You missed a ${callType} call from ${callerName}.`,
-          data: {
-            callerId: senderId,
-            callType,
-            callerName,
-            callerAvatar: populatedLog?.sender?.avatar
-          },
-          actionType: 'open_chat'
-        });
-      }
-    } catch (err) {
-      console.error('Error logging call message:', err);
-    }
-  };
-
-  // WebRTC Signaling Handlers
-  socket.on('call_user', (data) => {
+  // WebRTC Signaling Handlers (Cluster-coordinated via Redis store) [B-03]
+  socket.on('call_user', async (data) => {
     const { userToCall, signalData, from, callerName, callerAvatar, callType } = data || {};
     const callerId = getUserIdStr(from) || socket.userId?.toString();
     const receiverId = getUserIdStr(userToCall);
@@ -637,16 +638,9 @@ io.on('connection', (socket) => {
     
     if (!callerId || !receiverId) return;
 
-    // Check if target user is already engaged in another call
-    let isTargetBusy = false;
-    for (const [_, activeCall] of activeCalls.entries()) {
-      if (activeCall.caller === receiverId || activeCall.receiver === receiverId) {
-        isTargetBusy = true;
-        break;
-      }
-    }
-
-    if (isTargetBusy) {
+    // Check if target user is already engaged in another call across any cluster node
+    const activeCall = await findCallByParticipant(receiverId);
+    if (activeCall) {
       console.log(`[WebRTC] Target user ${receiverId} is busy on another call`);
       socket.emit('user_busy', { message: 'User is on another call' });
       return;
@@ -654,25 +648,24 @@ io.on('connection', (socket) => {
 
     const key = `${callerId}_${receiverId}`;
     
-    // Clear any previous timeout for this pair if it exists
-    if (activeCalls.has(key)) {
-      const prev = activeCalls.get(key);
-      if (prev.timeoutId) clearTimeout(prev.timeoutId);
-    }
+    // Clear any previous call state for this pair if it exists
+    await removeActiveCall(key);
 
     // Set 35-second ringing timeout (only fires if call is NOT answered)
     const timeoutId = setTimeout(async () => {
-      const currentCall = activeCalls.get(key);
+      const currentCall = await getActiveCall(key);
       if (currentCall && !currentCall.answered) {
         console.log(`[WebRTC] Call timed out (35s) for key ${key}`);
-        activeCalls.delete(key);
+        await removeActiveCall(key);
         io.to(callerId).emit('call_timeout');
         io.to(receiverId).emit('call_timeout');
         await createCallLogMessage(currentCall.caller, currentCall.receiver, currentCall.callType, 'missed', 0);
       }
     }, 35000);
 
-    activeCalls.set(key, {
+    setLocalCallTimer(key, timeoutId);
+
+    await saveActiveCall(key, {
       caller: callerId,
       receiver: receiverId,
       callerSocketId: socket.id,
@@ -680,8 +673,7 @@ io.on('connection', (socket) => {
       callType: callType || 'video',
       startTime: Date.now(),
       answered: false,
-      answeredTime: null,
-      timeoutId
+      answeredTime: null
     });
 
     io.to(receiverId).emit('incoming_call', {
@@ -693,7 +685,7 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('answer_call', (data) => {
+  socket.on('answer_call', async (data) => {
     const { to, signal, from } = data || {};
     const calleeId = getUserIdStr(from) || socket.userId?.toString();
     const callerId = getUserIdStr(to);
@@ -701,20 +693,20 @@ io.on('connection', (socket) => {
     console.log(`[WebRTC] Call answered by callee ${calleeId} for caller ${callerId}`);
     
     // Search active calls by matching caller and receiver pair and clear ringing timeout immediately
-    for (const [key, call] of activeCalls.entries()) {
+    const matched = await findAllCallsForUser(callerId);
+    for (const { key, call } of matched) {
       const matchPair = (call.caller === callerId && call.receiver === calleeId) ||
                         (call.caller === calleeId && call.receiver === callerId);
       const matchCaller = (call.caller === callerId || call.receiver === callerId);
       const matchCallee = calleeId && (call.caller === calleeId || call.receiver === calleeId);
 
       if (matchPair || matchCaller || matchCallee) {
-        call.answered = true;
-        call.answeredTime = Date.now();
-        call.receiverSocketId = socket.id;
-        if (call.timeoutId) {
-          clearTimeout(call.timeoutId);
-          call.timeoutId = null;
-        }
+        clearLocalCallTimer(key);
+        await updateActiveCall(key, {
+          answered: true,
+          answeredTime: Date.now(),
+          receiverSocketId: socket.id
+        });
         console.log(`[WebRTC] 35s ringing timeout successfully cleared for active call key: ${key}`);
       }
     }
@@ -744,18 +736,15 @@ io.on('connection', (socket) => {
     console.log(`[WebRTC] Call ended signal sent between ${currentId} and ${targetId}`);
     if (targetId) io.to(targetId).emit('call_ended');
 
-    for (const [key, call] of activeCalls.entries()) {
+    const matched = await findAllCallsForUser(targetId);
+    for (const { key, call } of matched) {
       const matchPair = (call.caller === currentId && call.receiver === targetId) ||
                         (call.caller === targetId && call.receiver === currentId);
       const matchTarget = (call.caller === targetId || call.receiver === targetId);
       const matchCurrent = currentId && (call.caller === currentId || call.receiver === currentId);
 
       if (matchPair || matchTarget || matchCurrent) {
-        if (call.timeoutId) {
-          clearTimeout(call.timeoutId);
-          call.timeoutId = null;
-        }
-        activeCalls.delete(key);
+        await removeActiveCall(key);
 
         if (call.answered) {
           const duration = call.answeredTime ? Math.max(1, Math.round((Date.now() - call.answeredTime) / 1000)) : 1;
@@ -779,18 +768,15 @@ io.on('connection', (socket) => {
     
     if (currentId) socket.to(currentId).emit('dismiss_incoming_call');
 
-    for (const [key, call] of activeCalls.entries()) {
+    const matched = await findAllCallsForUser(targetId);
+    for (const { key, call } of matched) {
       const matchPair = (call.caller === currentId && call.receiver === targetId) ||
                         (call.caller === targetId && call.receiver === currentId);
       const matchTarget = (call.caller === targetId || call.receiver === targetId);
       const matchCurrent = currentId && (call.caller === currentId || call.receiver === currentId);
 
       if (matchPair || matchTarget || matchCurrent) {
-        if (call.timeoutId) {
-          clearTimeout(call.timeoutId);
-          call.timeoutId = null;
-        }
-        activeCalls.delete(key);
+        await removeActiveCall(key);
         await createCallLogMessage(call.caller, call.receiver, call.callType, 'declined', 0);
       }
     }

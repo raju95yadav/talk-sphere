@@ -9,6 +9,7 @@ const RefreshToken = require('../models/RefreshToken');
 const AISession = require('../models/AISession');
 const ApiError = require('../utils/ApiError');
 const logger = require('../utils/logger');
+const { broadcastUserProfileUpdate, broadcastUserPresence, getTargetRoomsForUser } = require('../utils/presence');
 
 exports.getProfile = async (req, res) => {
   try {
@@ -29,15 +30,10 @@ exports.updateAvatar = async (req, res) => {
     user.avatar = req.file.path; // Cloudinary URL
     await user.save();
 
-    // Broadcast profile update
+    // Scoped broadcast profile update to mutual contacts and group rooms
     const io = req.app.get('io');
     if (io) {
-      io.emit('user_profile_updated', {
-        userId: user._id,
-        username: user.username,
-        name: user.name,
-        avatar: user.avatar
-      });
+      broadcastUserProfileUpdate(io, user);
     }
 
     res.json({ 
@@ -82,15 +78,10 @@ exports.updateProfile = async (req, res) => {
 
     await user.save();
 
-    // Broadcast profile update
+    // Scoped broadcast profile update to mutual contacts and group rooms
     const io = req.app.get('io');
     if (io) {
-      io.emit('user_profile_updated', {
-        userId: user._id,
-        username: user.username,
-        name: user.name,
-        avatar: user.avatar
-      });
+      broadcastUserProfileUpdate(io, user);
     }
 
     const updatedUser = user.toObject();
@@ -252,12 +243,15 @@ exports.updatePresenceStatus = async (req, res) => {
       { new: true, select: '-otp' }
     );
 
-    // Broadcast real-time status change via Socket.io
+    // Broadcast real-time status change via Socket.io to target contact/group rooms
     const io = req.app.get('io');
     if (io) {
-      io.emit('presence_status_change', {
-        userId: user._id,
-        presenceStatus: user.presenceStatus,
+      const targetRooms = await getTargetRoomsForUser(user._id);
+      targetRooms.forEach((roomId) => {
+        io.to(roomId).emit('presence_status_change', {
+          userId: user._id,
+          presenceStatus: user.presenceStatus,
+        });
       });
     }
 
@@ -405,11 +399,10 @@ exports.deleteAccount = async (req, res) => {
     // 11. Delete the user document itself
     await User.findByIdAndDelete(userId);
 
-    // 12. Notify active socket connections
+    // 12. Notify active socket connections (scoped presence and account termination)
     const io = req.app.get('io');
     if (io) {
-      io.emit('user_status_change', { userId: userId.toString(), isOnline: false });
-      io.emit('user_deleted', { userId: userId.toString() });
+      broadcastUserPresence(io, userId, false);
       io.to(userId.toString()).emit('account_deleted');
     }
 

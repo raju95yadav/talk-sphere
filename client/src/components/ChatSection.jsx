@@ -778,8 +778,9 @@ const ChatSection = ({ externalContact }) => {
       });
 
       socket.on('removed_from_group', ({ groupId, groupName }) => {
-        toast(`You were removed from group "${groupName || 'Group'}"`, { icon: 'ℹ️' });
+        toast.error(`You were removed from group "${groupName || 'Group'}"`);
         setGroups(prev => prev.filter(g => (g._id || g.id)?.toString() !== groupId?.toString()));
+        fetchGroups();
         if (selectedGroupRef.current && (selectedGroupRef.current._id || selectedGroupRef.current.id)?.toString() === groupId?.toString()) {
           setSelectedGroup(null);
           setChatHistory([]);
@@ -820,14 +821,6 @@ const ChatSection = ({ externalContact }) => {
           ...prev,
           [groupId]: { ...(prev[groupId] || {}), [senderId]: false }
         }));
-      });
-
-      socket.on('removed_from_group', ({ groupId, groupName }) => {
-        toast.error(`You were removed from ${groupName}`);
-        fetchGroups();
-        if (selectedGroupRef.current && (selectedGroupRef.current._id || selectedGroupRef.current.id)?.toString() === (groupId)?.toString()) {
-          setSelectedGroup(null);
-        }
       });
     }
     return () => {
