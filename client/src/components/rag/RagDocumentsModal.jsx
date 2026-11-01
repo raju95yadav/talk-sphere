@@ -111,9 +111,15 @@ const RagDocumentsModal = ({
                     <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-500 dark:text-slate-400 flex-wrap">
                       <span>{formatBytes(doc.fileSize)}</span>
                       <span>•</span>
-                      <span className="font-semibold text-violet-600 dark:text-violet-400">
-                        {doc.totalChunks || 0} chunks (768-dim)
-                      </span>
+                      {doc.status && doc.status !== 'ready' ? (
+                        <span className={`font-semibold capitalize ${doc.status === 'failed' ? 'text-red-500' : 'text-amber-500 animate-pulse'}`}>
+                          {doc.status}...
+                        </span>
+                      ) : (
+                        <span className="font-semibold text-violet-600 dark:text-violet-400">
+                          {doc.totalChunks || 0} chunks (768-dim)
+                        </span>
+                      )}
                       <span>•</span>
                       <span className="flex items-center gap-1">
                         <Calendar size={11} />

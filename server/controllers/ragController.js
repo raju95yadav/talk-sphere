@@ -1,195 +1,23 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
 const fs = require('fs');
+const mongoose = require('mongoose');
 const RagDocument = require('../models/RagDocument');
 const RagChunk = require('../models/RagChunk');
 const AISession = require('../models/AISession');
 const logger = require('../utils/logger');
-const { ragEmbeddingBreaker, geminiBreaker } = require('../services/circuitBreaker');
-const pdfParse = require('pdf-parse');
-const mammoth = require('mammoth');
+const { geminiBreaker } = require('../services/circuitBreaker');
+const {
+  generateEmbedding,
+  getQueryEmbedding,
+  cosineSimilarity,
+  genAI
+} = require('../services/embeddingService');
+const { addDocumentJob } = require('../config/queue');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-
-// High-speed runtime cache for verified models (eliminates 404 fallback delays on subsequent queries)
-let verifiedEmbeddingModel = 'gemini-embedding-001';
+// High-speed runtime cache for verified chat model
 let verifiedChatModel = 'gemini-3.5-flash-lite';
 
-// Query embedding cache to avoid redundant network calls for identical/repeated questions
-const queryEmbeddingCache = new Map();
-
-// Generate 768-dimensional embeddings using Gemini with smart fast-path caching & Circuit Breaker [B-16]
-const generateEmbedding = async (text) => {
-  if (!text || typeof text !== 'string' || !text.trim()) {
-    return new Array(768).fill(0);
-  }
-
-  return ragEmbeddingBreaker.execute(async () => {
-    // Fast-path: use verified working model directly (0ms probe overhead)
-    if (verifiedEmbeddingModel) {
-      try {
-        const model = genAI.getGenerativeModel({ model: verifiedEmbeddingModel });
-        const res = await model.embedContent({
-          content: { parts: [{ text }] },
-          outputDimensionality: 768
-        });
-        if (res?.embedding?.values && res.embedding.values.length === 768) {
-          return res.embedding.values;
-        }
-      } catch (cachedErr) {
-        logger.warn('RAG_EMBEDDING_CACHED_FAIL', `Cached model ${verifiedEmbeddingModel} failed, re-probing...`);
-        verifiedEmbeddingModel = null;
-      }
-    }
-
-    // Primary: gemini-embedding-001 with outputDimensionality: 768 (active & fast in v1beta)
-    try {
-      const embedModel = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
-      const res = await embedModel.embedContent({
-        content: { parts: [{ text }] },
-        outputDimensionality: 768
-      });
-      if (res?.embedding?.values && res.embedding.values.length === 768) {
-        verifiedEmbeddingModel = 'gemini-embedding-001';
-        return res.embedding.values;
-      }
-    } catch (err) {
-      logger.warn('RAG_EMBEDDING_RETRY', `gemini-embedding-001: ${err.message}. Trying text-embedding-004 fallback...`);
-    }
-
-    // Fallback: text-embedding-004
-    try {
-      const fallbackModel = genAI.getGenerativeModel({ model: 'text-embedding-004' });
-      const res = await fallbackModel.embedContent({
-        content: { parts: [{ text }] },
-        outputDimensionality: 768
-      });
-      if (res?.embedding?.values && res.embedding.values.length === 768) {
-        verifiedEmbeddingModel = 'text-embedding-004';
-        return res.embedding.values;
-      }
-    } catch (fallbackErr) {
-      logger.error('RAG_EMBEDDING_FAILED', fallbackErr.message || fallbackErr);
-      throw new Error(`Embedding generation failed: ${fallbackErr.message}`);
-    }
-
-    throw new Error('Could not obtain 768-dimensional embedding from Gemini');
-  }, () => {
-    // Graceful fallback: return zero vector if circuit breaker is OPEN
-    return new Array(768).fill(0);
-  });
-};
-
-// Calculate cosine similarity between two vectors
-const cosineSimilarity = (vecA, vecB) => {
-  if (!vecA || !vecB || vecA.length === 0 || vecB.length === 0) return 0;
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  const len = Math.min(vecA.length, vecB.length);
-  for (let i = 0; i < len; i++) {
-    dot += vecA[i] * vecB[i];
-    normA += vecA[i] * vecA[i];
-    normB += vecB[i] * vecB[i];
-  }
-  if (normA === 0 || normB === 0) return 0;
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-};
-
-// Extract text from uploaded buffer by file format (.pdf, .docx, .txt, .md)
-const extractTextFromBuffer = async (buffer, fileType) => {
-  const normType = fileType.toLowerCase().replace(/^\./, '');
-  switch (normType) {
-    case 'pdf': {
-      if (typeof pdfParse === 'function') {
-        const data = await pdfParse(buffer);
-        return data.text || '';
-      }
-      if (pdfParse && pdfParse.PDFParse) {
-        const parser = new pdfParse.PDFParse({ data: buffer });
-        try {
-          const result = await parser.getText();
-          return result.text || '';
-        } finally {
-          if (typeof parser.destroy === 'function') {
-            await parser.destroy();
-          }
-        }
-      }
-      throw new Error('PDF parsing library is unavailable');
-    }
-    case 'docx': {
-      const result = await mammoth.extractRawText({ buffer });
-      return result.value || '';
-    }
-    case 'txt':
-    case 'md': {
-      return buffer.toString('utf-8');
-    }
-    default:
-      throw new Error(`Unsupported document format: ${fileType}`);
-  }
-};
-
-// Semantic chunking with overlap
-const chunkText = (fullText, chunkSize = 800, overlap = 150) => {
-  if (!fullText) return [];
-  const clean = fullText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
-  if (!clean) return [];
-
-  const paragraphs = clean.split(/\n\s*\n/);
-  const chunks = [];
-  let current = '';
-
-  for (const para of paragraphs) {
-    const trimmed = para.trim();
-    if (!trimmed) continue;
-
-    if ((current + '\n\n' + trimmed).length <= chunkSize) {
-      current = current ? current + '\n\n' + trimmed : trimmed;
-    } else {
-      if (current) {
-        chunks.push(current.trim());
-        const overlapStart = Math.max(0, current.length - overlap);
-        current = current.substring(overlapStart).trim();
-      }
-
-      if (trimmed.length > chunkSize) {
-        let start = 0;
-        while (start < trimmed.length) {
-          const end = Math.min(start + chunkSize, trimmed.length);
-          const slice = trimmed.substring(start, end).trim();
-          if (slice.length > 20) {
-            chunks.push(slice);
-          }
-          start += (chunkSize - overlap);
-        }
-        current = '';
-      } else {
-        current = current ? current + '\n\n' + trimmed : trimmed;
-      }
-    }
-  }
-
-  if (current && current.trim().length > 20) {
-    chunks.push(current.trim());
-  }
-
-  // Fallback to simple sliding window if no paragraphs were formed
-  if (chunks.length === 0 && clean.length > 0) {
-    let start = 0;
-    while (start < clean.length) {
-      const end = Math.min(start + chunkSize, clean.length);
-      const slice = clean.substring(start, end).trim();
-      if (slice.length > 0) chunks.push(slice);
-      start += (chunkSize - overlap);
-    }
-  }
-
-  return chunks;
-};
-
-// High-speed candidate generation models (prioritizing gemini-3.5-flash-lite for ultra-fast response)
+// High-speed candidate generation models
 const getGenerationCandidates = (clientModel) => {
   const fastModels = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash'];
   if (clientModel && fastModels.includes(clientModel)) {
@@ -215,7 +43,9 @@ const cleanAnswerText = (text) => {
 };
 
 /**
- * 1. Upload & Process Document (PDF, DOCX, TXT, MD) [B-08 Disk Staging & Cleanup]
+ * 1. Upload & Queue Document for Asynchronous Ingestion [B-06]
+ * Returns HTTP 202 Accepted immediately. Offloads text extraction,
+ * chunking, embedding generation, and bulk indexing to the background worker.
  */
 exports.uploadDocument = async (req, res) => {
   const tempFilePath = req.file?.path;
@@ -225,101 +55,62 @@ exports.uploadDocument = async (req, res) => {
       return res.status(400).json({ message: 'No document file uploaded.' });
     }
 
-    const { originalname, size, buffer } = req.file;
+    const { originalname, size, mimetype } = req.file;
     const ext = path.extname(originalname).toLowerCase().replace('.', '');
     const allowed = ['pdf', 'docx', 'txt', 'md'];
 
     if (!allowed.includes(ext)) {
-      return res.status(400).json({ 
-        message: `Unsupported file format '.${ext}'. Allowed formats: .pdf, .docx, .txt, .md` 
+      if (tempFilePath) {
+        await fs.promises.unlink(tempFilePath).catch(() => {});
+      }
+      return res.status(400).json({
+        message: `Unsupported file format '.${ext}'. Allowed formats: .pdf, .docx, .txt, .md`
       });
     }
 
     const title = req.body.title?.trim() || originalname.replace(/\.[^/.]+$/, '');
 
-    // Step A: Extract plain text (reads from disk if tempFilePath exists, with fallback to buffer)
-    let fileData = buffer;
-    if (!fileData && tempFilePath) {
-      fileData = await fs.promises.readFile(tempFilePath);
-    }
-
-    if (!fileData) {
-      return res.status(400).json({ message: 'Failed to access uploaded document data.' });
-    }
-
-    const extractedText = await extractTextFromBuffer(fileData, ext);
-    if (!extractedText || !extractedText.trim()) {
-      return res.status(400).json({ message: 'The uploaded document contains no readable text.' });
-    }
-
-    // Step B: Chunk text
-    const textChunks = chunkText(extractedText, 800, 150);
-    if (textChunks.length === 0) {
-      return res.status(400).json({ message: 'Failed to extract usable text chunks from document.' });
-    }
-
-    // Step C: Create Document in MongoDB
-    const ragDoc = await RagDocument.create({
+    // Step A: Create lightweight RagDocument record in MongoDB with status: "queued"
+    const document = await RagDocument.create({
       user: req.user._id,
       title,
       originalName: originalname,
       fileType: ext,
       fileSize: size,
-      totalChunks: textChunks.length
+      totalChunks: 0,
+      status: 'queued'
     });
 
-    // Step D: Generate 768-dim embeddings in small batches to respect rate limits
-    const chunkDocs = [];
-    const BATCH_SIZE = 4;
-    for (let i = 0; i < textChunks.length; i += BATCH_SIZE) {
-      const batch = textChunks.slice(i, i + BATCH_SIZE);
-      const batchPromises = batch.map(async (chunkTextContent, idx) => {
-        const chunkIndex = i + idx;
-        const embedding = await generateEmbedding(chunkTextContent);
-        return {
-          user: req.user._id,
-          document: ragDoc._id,
-          chunkIndex,
-          content: chunkTextContent,
-          embedding,
-          pageNumber: Math.floor(chunkIndex / 3) + 1,
-          tokenCount: Math.round(chunkTextContent.length / 4)
-        };
-      });
+    // Step B: Dispatch job to BullMQ queue (or resilient async fallback)
+    const queueDispatch = await addDocumentJob({
+      documentId: document._id.toString(),
+      filePath: tempFilePath,
+      fileType: mimetype || ext,
+      originalName: originalname,
+      userId: req.user._id.toString()
+    });
 
-      const batchResults = await Promise.all(batchPromises);
-      chunkDocs.push(...batchResults);
+    logger.info('RAG_JOB_QUEUED', `Document ${document._id} queued for processing via ${queueDispatch.mode} (job: ${queueDispatch.jobId})`);
 
-      if (i + BATCH_SIZE < textChunks.length) {
-        await new Promise(resolve => setTimeout(resolve, 150));
+    // Step C: Return HTTP 202 Accepted immediately [B-06]
+    return res.status(202).json({
+      success: true,
+      message: 'Document uploaded and queued for processing.',
+      document: {
+        id: document._id,
+        _id: document._id,
+        title: document.title,
+        originalName: document.originalName,
+        status: 'queued',
+        jobId: queueDispatch.jobId
       }
-    }
-
-    // Step E: Persist all chunks permanently in MongoDB under user's ID
-    await RagChunk.insertMany(chunkDocs);
-
-    logger.info('RAG_DOC_UPLOADED', `User ${req.user._id} uploaded ${originalname} (${chunkDocs.length} chunks)`);
-
-    res.status(201).json({
-      message: 'Document successfully parsed, chunked, and embedded with 768-dim vectors.',
-      document: ragDoc
     });
   } catch (error) {
     logger.error('RAG_UPLOAD_ERROR', error.message || error);
-    res.status(500).json({ message: `Document upload processing failed: ${error.message}` });
-  } finally {
-    // Mandatory disk cleanup: unlink temp file immediately upon completion or error [B-08]
     if (tempFilePath) {
-      try {
-        await fs.promises.unlink(tempFilePath);
-        logger.info('RAG_TEMP_CLEANUP', `Successfully unlinked staged file: ${tempFilePath}`);
-      } catch (unlinkErr) {
-        // Ignore if already deleted or does not exist
-        if (unlinkErr.code !== 'ENOENT') {
-          logger.warn('RAG_TEMP_CLEANUP_WARN', `Could not unlink staged file ${tempFilePath}: ${unlinkErr.message}`);
-        }
-      }
+      await fs.promises.unlink(tempFilePath).catch(() => {});
     }
+    return res.status(500).json({ message: `Document upload processing failed: ${error.message}` });
   }
 };
 
@@ -417,7 +208,13 @@ exports.clearRagHistory = async (req, res) => {
 };
 
 /**
- * 6. Document Grounded Q&A Streaming Endpoint (SSE)
+ * 6. Document Grounded Q&A Streaming Endpoint (SSE) [B-07]
+ * Decoupled Online Inference & Retrieval:
+ * 1. Generate query vector using cached Gemini embeddings.
+ * 2. Execute native MongoDB Atlas Vector Search ($vectorSearch aggregation stage)
+ *    to guarantee zero event-loop blocking during similarity scoring.
+ * 3. Graceful fallback to indexed cosine similarity if $vectorSearch is not configured.
+ * 4. Construct prompt and stream generation via SSE.
  */
 exports.streamRagQuery = async (req, res) => {
   const { question, documentId, sessionId, history } = req.body;
@@ -436,72 +233,113 @@ exports.streamRagQuery = async (req, res) => {
   }
 
   try {
-    // Step A & B: Run Question Embedding & Candidate Chunks retrieval in PARALLEL
-    const cacheKey = question.trim().toLowerCase();
-    const chunkFilter = { user: req.user._id };
-    if (documentId && documentId !== 'all') {
-      chunkFilter.document = documentId;
-    }
-
-    const [queryEmbedding, candidateChunks, docRecord] = await Promise.all([
-      (async () => {
-        let emb = queryEmbeddingCache.get(cacheKey);
-        if (!emb) {
-          emb = await generateEmbedding(question);
-          if (queryEmbeddingCache.size > 300) {
-            queryEmbeddingCache.delete(queryEmbeddingCache.keys().next().value);
-          }
-          queryEmbeddingCache.set(cacheKey, emb);
-        }
-        return emb;
-      })(),
-      RagChunk.find(chunkFilter)
-        .select('chunkIndex content embedding pageNumber document')
-        .lean(),
+    // Step A: Generate query embedding (with memory cache & circuit breaker)
+    const [queryEmbedding, docRecord] = await Promise.all([
+      getQueryEmbedding(question),
       (documentId && documentId !== 'all')
         ? RagDocument.findById(documentId).select('title originalName').lean()
         : null
     ]);
 
-    if (!candidateChunks || candidateChunks.length === 0) {
-      res.write(`data: ${JSON.stringify({
-        chunk: "⚠️ No documents found. Please upload a document (.pdf, .docx, .txt, or .md) to ask questions."
-      })}\n\n`);
-      res.write('data: [DONE]\n\n');
-      return res.end();
-    }
-
     const defaultDocTitle = docRecord?.title || docRecord?.originalName || 'Document';
 
-    // Step C: Calculate Cosine Similarity with Keyword Boost & Rank Top Chunks
-    const queryTerms = question.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+    let topChunks = [];
+    let searchModeUsed = 'fallback';
 
-    const scoredChunks = candidateChunks.map(c => {
-      const cosSim = cosineSimilarity(queryEmbedding, c.embedding);
-      let keywordBoost = 0;
-      if (queryTerms.length > 0 && c.content) {
-        const lower = c.content.toLowerCase();
-        let matches = 0;
-        for (const term of queryTerms) {
-          if (lower.includes(term)) matches++;
-        }
-        keywordBoost = (matches / queryTerms.length) * 0.25;
-      }
-      return {
-        chunkIndex: c.chunkIndex,
-        documentTitle: defaultDocTitle,
-        documentId: c.document,
-        content: c.content,
-        pageNumber: c.pageNumber || 1,
-        similarity: cosSim + keywordBoost
+    // Step B: Native MongoDB Atlas Vector Search ($vectorSearch aggregation) [B-07]
+    try {
+      const vectorSearchFilter = {
+        user: new mongoose.Types.ObjectId(req.user._id)
       };
-    });
+      if (documentId && documentId !== 'all') {
+        vectorSearchFilter.document = new mongoose.Types.ObjectId(documentId);
+      }
 
-    // Sort descending by similarity
-    scoredChunks.sort((a, b) => b.similarity - a.similarity);
+      const vectorPipeline = [
+        {
+          $vectorSearch: {
+            index: "vector_index",
+            path: "embedding",
+            queryVector: queryEmbedding,
+            numCandidates: 100,
+            limit: 10,
+            filter: vectorSearchFilter
+          }
+        },
+        {
+          $project: {
+            chunkIndex: 1,
+            content: 1,
+            pageNumber: 1,
+            document: 1,
+            score: { $meta: "vectorSearchScore" }
+          }
+        }
+      ];
 
-    // Take top 3 most relevant chunks (focused context speeds up generation significantly)
-    const topChunks = scoredChunks.slice(0, 3);
+      const atlasResults = await RagChunk.aggregate(vectorPipeline);
+      if (atlasResults && atlasResults.length > 0) {
+        searchModeUsed = 'atlas_vector_search';
+        topChunks = atlasResults.slice(0, 3).map(c => ({
+          chunkIndex: c.chunkIndex,
+          documentTitle: defaultDocTitle,
+          documentId: c.document,
+          content: c.content,
+          pageNumber: c.pageNumber || 1,
+          similarity: c.score || 0.95
+        }));
+      }
+    } catch (atlasErr) {
+      // Graceful fallback: If $vectorSearch is not configured in Atlas UI or running on local dev
+      logger.info('VECTOR_SEARCH_FALLBACK', `Atlas $vectorSearch bypassed (${atlasErr.message}). Using indexed cosine similarity.`);
+      searchModeUsed = 'cosine_fallback';
+    }
+
+    // Step C: Fallback to fast indexed lookup + cosine similarity if Atlas search was bypassed or empty
+    if (searchModeUsed !== 'atlas_vector_search' || topChunks.length === 0) {
+      const chunkFilter = { user: req.user._id };
+      if (documentId && documentId !== 'all') {
+        chunkFilter.document = documentId;
+      }
+
+      const candidateChunks = await RagChunk.find(chunkFilter)
+        .select('chunkIndex content embedding pageNumber document')
+        .lean();
+
+      if (!candidateChunks || candidateChunks.length === 0) {
+        res.write(`data: ${JSON.stringify({
+          chunk: "⚠️ No documents found. Please upload a document (.pdf, .docx, .txt, or .md) to ask questions."
+        })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      }
+
+      const queryTerms = question.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+
+      const scoredChunks = candidateChunks.map(c => {
+        const cosSim = cosineSimilarity(queryEmbedding, c.embedding);
+        let keywordBoost = 0;
+        if (queryTerms.length > 0 && c.content) {
+          const lower = c.content.toLowerCase();
+          let matches = 0;
+          for (const term of queryTerms) {
+            if (lower.includes(term)) matches++;
+          }
+          keywordBoost = (matches / queryTerms.length) * 0.25;
+        }
+        return {
+          chunkIndex: c.chunkIndex,
+          documentTitle: defaultDocTitle,
+          documentId: c.document,
+          content: c.content,
+          pageNumber: c.pageNumber || 1,
+          similarity: cosSim + keywordBoost
+        };
+      });
+
+      scoredChunks.sort((a, b) => b.similarity - a.similarity);
+      topChunks = scoredChunks.slice(0, 3);
+    }
 
     // Filter relevant sources
     const relevantSources = topChunks.map(c => ({
@@ -513,14 +351,13 @@ exports.streamRagQuery = async (req, res) => {
     }));
 
     // Emit sources metadata to client first
-    res.write(`data: ${JSON.stringify({ type: 'sources', sources: relevantSources })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: 'sources', sources: relevantSources, retrievalMode: searchModeUsed })}\n\n`);
 
     // Step D: Construct Augmented Prompt with Grounded Context
-    const contextBlock = topChunks.map((c, idx) => 
+    const contextBlock = topChunks.map((c, idx) =>
       `[Excerpt #${idx + 1} (Chunk ${c.chunkIndex})]:\n${c.content}`
     ).join('\n\n---\n\n');
 
-    // Strict to-the-point system prompt eliminating conversational filler and citations
     const systemPrompt = `You are the Talk-Sphere Direct Document Q&A Engine.
 Your task is to give strictly direct, to-the-point, exact answers based ONLY on the provided document context.
 
@@ -567,8 +404,8 @@ ${question}`;
         const chat = model.startChat({
           history: chatHistory,
           generationConfig: {
-            temperature: 0.0, // 0.0 for fastest deterministic, exact, factual extraction
-            maxOutputTokens: 250 // Concise token budget for lightning-fast response
+            temperature: 0.0,
+            maxOutputTokens: 250
           }
         });
 
@@ -599,7 +436,6 @@ ${question}`;
               }
             }
           } else {
-            // Filter out any "Source Reference: ..." lines from the stream
             if (!chunkText.toLowerCase().includes('source reference:')) {
               res.write(`data: ${JSON.stringify({ chunk: chunkText })}\n\n`);
             }
@@ -614,22 +450,22 @@ ${question}`;
         }
 
         streamSuccess = true;
-        verifiedChatModel = modelName; // Cache verified working model for instantaneous future queries
+        verifiedChatModel = modelName;
         break;
       } catch (genErr) {
         lastError = genErr;
         logger.warn('RAG_STREAM_MODEL_FALLBACK', `Model ${modelName} failed: ${genErr.message}`);
-        if (accumulatedText) break; // Don't garble output if partial chunks were sent
+        if (accumulatedText) break;
       }
     }
 
     if (!streamSuccess && !accumulatedText) {
-      res.write(`data: ${JSON.stringify({ 
-        chunk: `⚠️ *Generation Warning:* Could not complete generation. Error: ${lastError?.message || 'Gemini service busy'}` 
+      res.write(`data: ${JSON.stringify({
+        chunk: `⚠️ *Generation Warning:* Could not complete generation. Error: ${lastError?.message || 'Gemini service busy'}`
       })}\n\n`);
     }
 
-    // Step F: Persist Q&A turn with sources in AISession (cleaning any preamble from stored text)
+    // Step F: Persist Q&A turn with sources in AISession
     accumulatedText = cleanAnswerText(accumulatedText) || accumulatedText.trim();
     if (sessionId) {
       try {
@@ -637,11 +473,11 @@ ${question}`;
           $push: {
             messages: [
               { role: 'user', content: question, createdAt: new Date() },
-              { 
-                role: 'assistant', 
-                content: accumulatedText || 'No response generated.', 
+              {
+                role: 'assistant',
+                content: accumulatedText || 'No response generated.',
                 sources: relevantSources,
-                createdAt: new Date() 
+                createdAt: new Date()
               }
             ]
           },
@@ -649,16 +485,9 @@ ${question}`;
           ragDocument: documentId && documentId !== 'all' ? documentId : null
         };
 
-        if (docRecord?.title) {
-          sessionUpdate.title = docRecord.title;
-        }
-
-        await AISession.findOneAndUpdate(
-          { _id: sessionId, user: req.user._id },
-          sessionUpdate
-        );
-      } catch (saveErr) {
-        logger.warn('RAG_SESSION_SAVE_ERROR', saveErr.message);
+        await AISession.findByIdAndUpdate(sessionId, sessionUpdate, { new: true });
+      } catch (sessionErr) {
+        logger.warn('RAG_SESSION_UPDATE_ERROR', sessionErr.message || sessionErr);
       }
     }
 
@@ -666,7 +495,7 @@ ${question}`;
     res.end();
   } catch (error) {
     logger.error('RAG_STREAM_ERROR', error.message || error);
-    res.write(`data: ${JSON.stringify({ error: `RAG Q&A Error: ${error.message}` })}\n\n`);
+    res.write(`data: ${JSON.stringify({ error: `Internal query error: ${error.message}` })}\n\n`);
     res.write('data: [DONE]\n\n');
     res.end();
   }

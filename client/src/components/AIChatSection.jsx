@@ -150,6 +150,53 @@ const AIChatSection = () => {
     }
   }, [token]);
 
+  // Real-time RAG document ingestion status streaming via Socket.io [B-06]
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDocumentStatus = (data) => {
+      setDocuments(prevDocs => prevDocs.map(doc => {
+        if (doc._id === data.documentId) {
+          return {
+            ...doc,
+            status: data.status,
+            totalChunks: data.totalChunks !== undefined ? data.totalChunks : doc.totalChunks,
+            error: data.error !== undefined ? data.error : doc.error
+          };
+        }
+        return doc;
+      }));
+
+      if (data.status === 'parsing') {
+        setIsUploadingDoc(true);
+        setUploadStep(`Parsing document & extracting text (${data.progress || 20}%)...`);
+      } else if (data.status === 'indexing') {
+        setIsUploadingDoc(true);
+        if (data.totalChunks) {
+          setUploadStep(`Generating embeddings (${data.currentChunk || 0}/${data.totalChunks} chunks • ${data.progress || 35}%)...`);
+        } else {
+          setUploadStep('Generating vector embeddings...');
+        }
+      } else if (data.status === 'ready') {
+        setIsUploadingDoc(false);
+        setUploadStep('');
+        toast.success(`Document indexing complete (${data.totalChunks || 0} chunks ready)`);
+        fetchDocuments();
+      } else if (data.status === 'failed') {
+        setIsUploadingDoc(false);
+        setUploadStep('');
+        toast.error(`Document indexing failed: ${data.error || 'Extraction error'}`);
+        fetchDocuments();
+      }
+    };
+
+    socket.on('rag:document_status', handleDocumentStatus);
+
+    return () => {
+      socket.off('rag:document_status', handleDocumentStatus);
+    };
+  }, [socket]);
+
   // When switching modes, auto-select a session of that mode or create one
   useEffect(() => {
     const modeSessions = sessions.filter(s => assistantMode === 'rag' ? s.mode === 'rag' : s.mode !== 'rag');
@@ -247,37 +294,33 @@ const AIChatSection = () => {
     formData.append('title', file.name.replace(/\.[^/.]+$/, ''));
 
     try {
-      const stepTimer = setTimeout(() => {
-        setUploadStep('Generating 768-dim embeddings with Gemini...');
-      }, 1200);
-
       const res = await apiClient.post('/api/rag/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      clearTimeout(stepTimer);
-      setUploadStep('Saving to MongoDB...');
-
       const uploadedDoc = res.data.document;
       const docTitle = uploadedDoc.title || uploadedDoc.originalName;
+      const docId = uploadedDoc._id || uploadedDoc.id;
 
-      toast.success(`"${docTitle}" embedded (${uploadedDoc.totalChunks} chunks)`);
+      // HTTP 202 Accepted: Document queued for async ingestion in background worker [B-06]
+      setUploadStep('Document queued in background worker...');
+      toast.success(`"${docTitle}" uploaded and queued for background indexing.`);
       await fetchDocuments();
-      setSelectedDocId(uploadedDoc._id);
+      setSelectedDocId(docId);
 
       // Check if current active session is a RAG session with no messages yet
       const currentActive = sessions.find(s => (s._id || s.id) === activeSessionId && s.mode === 'rag');
       if (currentActive && (!currentActive.ragDocument || currentActive.messages.length === 0)) {
         await apiClient.put(`/api/ai/sessions/${currentActive._id || currentActive.id}`, {
           title: docTitle,
-          ragDocument: uploadedDoc._id
+          ragDocument: docId
         });
         setSessions(prev => prev.map(s => {
           if ((s._id || s.id) === (currentActive._id || currentActive.id)) {
             return {
               ...s,
               title: docTitle,
-              ragDocument: uploadedDoc._id
+              ragDocument: docId
             };
           }
           return s;
@@ -288,7 +331,7 @@ const AIChatSection = () => {
           title: docTitle,
           modelPreference: selectedModel,
           mode: 'rag',
-          ragDocument: uploadedDoc._id,
+          ragDocument: docId,
           messages: []
         });
         setSessions(prev => [newSessionRes.data, ...prev]);
@@ -296,10 +339,9 @@ const AIChatSection = () => {
       }
     } catch (err) {
       console.error('Upload document error:', err);
-      toast.error(err.response?.data?.message || 'Failed to upload document');
-    } finally {
       setIsUploadingDoc(false);
       setUploadStep('');
+      toast.error(err.response?.data?.message || 'Failed to upload document');
     }
   };
 

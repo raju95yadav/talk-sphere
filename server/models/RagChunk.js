@@ -42,5 +42,30 @@ const ragChunkSchema = new mongoose.Schema({
 ragChunkSchema.index({ user: 1, document: 1 });
 ragChunkSchema.index({ document: 1, chunkIndex: 1 });
 
-module.exports = mongoose.model('RagChunk', ragChunkSchema);
+/**
+ * Native MongoDB Atlas Vector Search index definition [B-07]
+ * To enable on MongoDB Atlas:
+ * 1. Navigate to Atlas Database Deployments -> Atlas Search -> JSON Editor
+ * 2. Target Database & Collection: talksphere.ragchunks
+ * 3. Create Search Index with name: "vector_index"
+ */
+ragChunkSchema.statics.vectorIndexDefinition = {
+  fields: [
+    {
+      type: "vector",
+      path: "embedding",
+      numDimensions: 768,
+      similarity: "cosine"
+    },
+    {
+      type: "filter",
+      path: "document"
+    },
+    {
+      type: "filter",
+      path: "user"
+    }
+  ]
+};
 
+module.exports = mongoose.model('RagChunk', ragChunkSchema);

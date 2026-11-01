@@ -63,7 +63,7 @@ const RagDocumentSelector = ({
             )}
             {documents.map(d => (
               <option key={d._id} value={d._id}>
-                📄 {d.title || d.originalName} ({d.fileType.toUpperCase()} • {d.totalChunks || 0} chunks)
+                📄 {d.title || d.originalName} ({d.fileType.toUpperCase()} • {d.status === 'ready' ? `${d.totalChunks || 0} chunks` : (d.status?.toUpperCase() || 'INDEXING')})
               </option>
             ))}
           </select>

@@ -90,6 +90,17 @@ initRedis(io).catch((err) => {
   logger.warn('REDIS_INIT_FAIL', `Redis adapter initialization error: ${err.message}`);
 });
 
+// Initialize BullMQ RAG Queue & Background Workers [B-06]
+const { initRagQueue } = require('./config/queue');
+const { startRagWorker } = require('./workers/ragWorker');
+
+initRagQueue().then(() => {
+  startRagWorker(io);
+}).catch((err) => {
+  logger.warn('RAG_QUEUE_INIT_WARN', `RAG Queue startup warning: ${err.message}`);
+  startRagWorker(io);
+});
+
 // Middleware
 app.use(cors(corsOptions));
 app.use(express.json());
@@ -269,6 +280,7 @@ io.on('connection', (socket) => {
       }
 
       socket.join(userId);
+      socket.join(`user:${userId}`);
       
       // Update multi-tab connection set via Redis store [B-01, B-04]
       const totalTabs = await addUserSocket(userId, socket.id);

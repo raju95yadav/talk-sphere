@@ -7,6 +7,14 @@ const ragDocumentSchema = new mongoose.Schema({
   fileType: { type: String, enum: ['pdf', 'docx', 'txt', 'md'], required: true },
   fileSize: { type: Number, required: true },
   totalChunks: { type: Number, default: 0 },
+  status: {
+    type: String,
+    enum: ['queued', 'parsing', 'indexing', 'ready', 'failed'],
+    default: 'queued',
+    index: true
+  },
+  error: { type: String, default: null },
+  indexedAt: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now }
 });
 
