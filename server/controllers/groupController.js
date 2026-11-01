@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Group = require('../models/Group');
 const Message = require('../models/Message');
 const User = require('../models/User');
@@ -58,41 +59,110 @@ exports.createGroup = async (req, res) => {
   }
 };
 
-// Get all groups for authenticated user
+// Get all groups for authenticated user: Batched Single Aggregation [B-12]
 exports.getUserGroups = async (req, res) => {
   try {
-    const groups = await Group.find({ 'members.user': req.user._id })
+    const userObjectId = new mongoose.Types.ObjectId(req.user._id);
+
+    // 1. Fetch groups where user is a member with lean document hydration
+    const groups = await Group.find({ 'members.user': userObjectId })
       .populate('creator', 'username name avatar')
       .populate('members.user', 'username name avatar isOnline lastSeen')
-      .sort({ updatedAt: -1 });
+      .sort({ updatedAt: -1 })
+      .lean();
 
-    // Attach last message & unread count for each group
-    const groupsWithLastMessage = await Promise.all(
-      groups.map(async (group) => {
-        const lastMsg = await Message.findOne({ group: group._id, deletedForMe: { $ne: req.user._id } })
-          .sort({ createdAt: -1 })
-          .populate('sender', 'username name');
+    if (!groups || groups.length === 0) {
+      return res.json([]);
+    }
 
-        const unreadCount = await Message.countDocuments({
-          group: group._id,
-          sender: { $ne: req.user._id },
-          readBy: { $ne: req.user._id },
-          deletedForMe: { $ne: req.user._id }
-        });
+    const groupIds = groups.map(g => g._id);
 
-        return {
-          ...group.toObject(),
-          unreadCount,
-          lastMessage: lastMsg ? {
-            _id: lastMsg._id,
-            content: lastMsg.type === 'text' ? lastMsg.content : lastMsg.type === 'gif' ? '👾 GIF' : `📷 ${lastMsg.type.toUpperCase()}`,
-            type: lastMsg.type,
-            sender: lastMsg.sender,
-            createdAt: lastMsg.createdAt
-          } : null
-        };
-      })
-    );
+    // 2. Batch-lookup latest message & unread count across ALL groups in a single aggregation pipeline
+    const groupStats = await Message.aggregate([
+      {
+        $match: {
+          group: { $in: groupIds },
+          deletedForMe: { $ne: userObjectId }
+        }
+      },
+      {
+        $sort: { createdAt: -1 }
+      },
+      {
+        $group: {
+          _id: '$group',
+          lastMessage: { $first: '$$ROOT' },
+          unreadCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $ne: ['$sender', userObjectId] },
+                    { $not: { $in: [userObjectId, { $ifNull: ['$readBy', []] }] } }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'lastMessage.sender',
+          foreignField: '_id',
+          as: 'senderUser'
+        }
+      },
+      {
+        $unwind: {
+          path: '$senderUser',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          unreadCount: 1,
+          lastMessage: {
+            _id: '$lastMessage._id',
+            content: {
+              $switch: {
+                branches: [
+                  { case: { $eq: ['$lastMessage.type', 'text'] }, then: '$lastMessage.content' },
+                  { case: { $eq: ['$lastMessage.type', 'gif'] }, then: '👾 GIF' }
+                ],
+                default: { $concat: ['📷 ', { $toUpper: { $ifNull: ['$lastMessage.type', 'MEDIA'] } }] }
+              }
+            },
+            type: '$lastMessage.type',
+            createdAt: '$lastMessage.createdAt',
+            sender: {
+              _id: '$senderUser._id',
+              username: '$senderUser.username',
+              name: '$senderUser.name'
+            }
+          }
+        }
+      }
+    ]);
+
+    // 3. Map aggregated stats into a quick O(1) lookup Map
+    const statsMap = new Map();
+    groupStats.forEach(stat => {
+      statsMap.set(stat._id.toString(), stat);
+    });
+
+    const groupsWithLastMessage = groups.map(group => {
+      const stat = statsMap.get(group._id.toString());
+      return {
+        ...group,
+        unreadCount: stat ? stat.unreadCount : 0,
+        lastMessage: stat ? stat.lastMessage : null
+      };
+    });
 
     res.json(groupsWithLastMessage);
   } catch (err) {
@@ -136,36 +206,74 @@ exports.getGroupDetails = async (req, res) => {
   }
 };
 
-// Get group messages history
+// Get group messages history: Cursor-Based Pagination & Lean Hydration [B-05]
 exports.getGroupMessages = async (req, res) => {
   try {
     const { groupId } = req.params;
-    const group = await Group.findById(groupId);
+    const { cursor, limit = 30 } = req.query;
 
+    if (!mongoose.Types.ObjectId.isValid(groupId)) {
+      return res.status(400).json({ message: 'Invalid group ID' });
+    }
+
+    const group = await Group.findById(groupId).select('members').lean();
     if (!group) return res.status(404).json({ message: 'Group not found' });
 
     const role = getMemberRole(group, req.user._id);
     if (!role) return res.status(403).json({ message: 'Access denied. Not a member of this group.' });
 
-    const messages = await Message.find({
+    const limitNum = Math.min(Math.max(parseInt(limit, 10) || 30, 1), 50);
+
+    const query = {
       group: groupId,
       deletedForMe: { $ne: req.user._id }
-    })
-    .populate('sender', 'username name avatar')
-    .populate('repliedTo', 'content type sender')
-    .sort({ createdAt: 1 });
+    };
+
+    // Cursor-based filtering (older than cursor)
+    if (cursor) {
+      if (mongoose.Types.ObjectId.isValid(cursor)) {
+        query._id = { $lt: new mongoose.Types.ObjectId(cursor) };
+      } else if (!isNaN(Date.parse(cursor))) {
+        query.createdAt = { $lt: new Date(cursor) };
+      }
+    }
+
+    // Sort descending by _id using compound index { group: 1, _id: -1 }
+    // Fetch limitNum + 1 to detect whether an older page exists
+    const messages = await Message.find(query)
+      .populate('sender', 'username name avatar')
+      .populate('repliedTo', 'content type sender')
+      .sort({ _id: -1 })
+      .limit(limitNum + 1)
+      .lean();
+
+    const hasMore = messages.length > limitNum;
+    if (hasMore) {
+      messages.pop(); // Remove extra record used for lookahead
+    }
+
+    const nextCursor = hasMore && messages.length > 0 ? messages[messages.length - 1]._id : null;
+
+    // Reverse to chronological order (oldest to newest) for client view
+    messages.reverse();
 
     const sanitizedMessages = messages.map(m => {
       if (m.content && typeof m.content === 'string' && m.content.startsWith('blob:')) {
-        const obj = m.toObject();
-        obj.content = '';
-        obj.isCorruptedMedia = true;
-        return obj;
+        return {
+          ...m,
+          content: '',
+          isCorruptedMedia: true
+        };
       }
       return m;
     });
 
-    res.json(sanitizedMessages);
+    res.json({
+      messages: sanitizedMessages,
+      nextCursor,
+      hasMore,
+      totalFetched: sanitizedMessages.length
+    });
   } catch (err) {
     console.error('Get Group Messages Error:', err);
     res.status(500).json({ message: 'Failed to fetch group messages' });

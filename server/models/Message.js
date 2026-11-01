@@ -13,6 +13,11 @@ const messageSchema = new mongoose.Schema({
     required: function() { return !this.isGroup; },
     alias: 'receiverId'
   },
+  conversation: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Conversation',
+    default: null
+  },
   group: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Group',
@@ -85,8 +90,16 @@ const messageSchema = new mongoose.Schema({
   }]
 }, { timestamps: true });
 
-messageSchema.index({ sender: 1, receiver: 1 });
-messageSchema.index({ receiver: 1, sender: 1 });
+// Compound indexes for high-frequency queries and cursor-based pagination [B-13]
+messageSchema.index({ conversation: 1, _id: -1 });
+messageSchema.index({ group: 1, _id: -1 });
+messageSchema.index({ sender: 1, receiver: 1, _id: -1 });
+messageSchema.index({ receiver: 1, sender: 1, _id: -1 });
+messageSchema.index({ sender: 1, receiver: 1, createdAt: -1 });
+messageSchema.index({ receiver: 1, sender: 1, createdAt: -1 });
+messageSchema.index({ receiver: 1, status: 1 });
+messageSchema.index({ group: 1, createdAt: -1 });
+messageSchema.index({ group: 1, readBy: 1 });
 messageSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Message', messageSchema);

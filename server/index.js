@@ -95,11 +95,16 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
-// DB Connection
+// DB Connection with tuned connection pooling for high-concurrency resilience
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI);
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
+    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+      maxPoolSize: 50,              // Maintain up to 50 active socket connections
+      minPoolSize: 10,              // Pre-warm pool with 10 connections for rapid burst handling
+      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of default 30s to fail fast
+      socketTimeoutMS: 45000,       // Close idle sockets after 45s
+    });
+    console.log(`MongoDB Connected: ${conn.connection.host} (Pool Size: 10-50 connections)`);
   } catch (error) {
     console.error('--- MONGODB CONNECTION ERROR ---');
     console.error(`Message: ${error.message}`);

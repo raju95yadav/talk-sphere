@@ -1,5 +1,7 @@
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Message = require('../models/Message');
+const Conversation = require('../models/Conversation');
 const ApiError = require('../utils/ApiError');
 const logger = require('../utils/logger');
 const { createAndSendNotification } = require('../utils/notify');
@@ -97,32 +99,76 @@ exports.getContacts = async (req, res) => {
   }
 };
 
-// Messaging
+// Messaging: Cursor-Based Pagination for 1-on-1 Chats [B-04]
 exports.getChatHistory = async (req, res) => {
   try {
     const { receiverId } = req.params;
-    const messages = await Message.find({
+    const { cursor, limit = 30 } = req.query;
+
+    if (!mongoose.Types.ObjectId.isValid(receiverId)) {
+      return res.status(400).json({ message: 'Invalid receiver ID' });
+    }
+
+    const userObjectId = new mongoose.Types.ObjectId(req.user._id);
+    const receiverObjectId = new mongoose.Types.ObjectId(receiverId);
+    const limitNum = Math.min(Math.max(parseInt(limit, 10) || 30, 1), 50);
+
+    const query = {
+      isGroup: false,
       $or: [
-        { sender: req.user._id, receiver: receiverId },
-        { sender: receiverId, receiver: req.user._id }
+        { sender: userObjectId, receiver: receiverObjectId },
+        { sender: receiverObjectId, receiver: userObjectId }
       ],
-      deletedForMe: { $ne: req.user._id }
-    })
-    .populate('repliedTo', 'content type sender')
-    .sort({ createdAt: 1 });
+      deletedForMe: { $ne: userObjectId }
+    };
+
+    // If cursor is provided, fetch messages older than the cursor (_id or timestamp)
+    if (cursor) {
+      if (mongoose.Types.ObjectId.isValid(cursor)) {
+        query._id = { $lt: new mongoose.Types.ObjectId(cursor) };
+      } else if (!isNaN(Date.parse(cursor))) {
+        query.createdAt = { $lt: new Date(cursor) };
+      }
+    }
+
+    // Sort descending by _id to leverage compound index { sender: 1, receiver: 1, _id: -1 }
+    // Fetch limitNum + 1 to detect whether an older page exists
+    const messages = await Message.find(query)
+      .populate('repliedTo', 'content type sender')
+      .sort({ _id: -1 })
+      .limit(limitNum + 1)
+      .lean();
+
+    const hasMore = messages.length > limitNum;
+    if (hasMore) {
+      messages.pop(); // Remove the extra record used for lookahead
+    }
+
+    // Cursor for fetching the next older page
+    const nextCursor = hasMore && messages.length > 0 ? messages[messages.length - 1]._id : null;
+
+    // Reverse to chronological order (oldest to newest) for client view
+    messages.reverse();
 
     const sanitizedMessages = messages.map(m => {
       if (m.content && typeof m.content === 'string' && m.content.startsWith('blob:')) {
-        const obj = m.toObject();
-        obj.content = '';
-        obj.isCorruptedMedia = true;
-        return obj;
+        return {
+          ...m,
+          content: '',
+          isCorruptedMedia: true
+        };
       }
       return m;
     });
 
-    res.json(sanitizedMessages);
+    res.json({
+      messages: sanitizedMessages,
+      nextCursor,
+      hasMore,
+      totalFetched: sanitizedMessages.length
+    });
   } catch (error) {
+    console.error('Get Chat History Error:', error);
     res.status(500).json({ message: 'Error fetching history' });
   }
 };
@@ -206,61 +252,112 @@ exports.editMessage = async (req, res) => {
   }
 };
 
+// Sidebar Conversation Loading: Single Optimized Aggregation Pipeline [B-11]
 exports.getConversations = async (req, res) => {
   try {
-    const userId = req.user._id;
-    const messages = await Message.find({
-      $or: [{ sender: userId }, { receiver: userId }],
-      deletedForMe: { $ne: userId }
-    }).sort({ createdAt: -1 });
+    const userObjectId = new mongoose.Types.ObjectId(req.user._id);
 
-    const conversationMap = new Map();
-    const unreadCounts = new Map();
-
-    messages.forEach(msg => {
-      if (!msg.sender || !msg.receiver) return;
-
-      const senderIdStr = msg.sender.toString();
-      const receiverIdStr = msg.receiver.toString();
-      const currentIdStr = userId.toString();
-
-      const otherUser = senderIdStr === currentIdStr ? receiverIdStr : senderIdStr;
-      
-      if (!conversationMap.has(otherUser)) {
-        conversationMap.set(otherUser, msg);
+    const conversations = await Message.aggregate([
+      // 1. Match only 1-on-1 messages involving the current user and not soft-deleted
+      {
+        $match: {
+          isGroup: false,
+          $or: [
+            { sender: userObjectId },
+            { receiver: userObjectId }
+          ],
+          deletedForMe: { $ne: userObjectId }
+        }
+      },
+      // 2. Identify the other participant in the conversation
+      {
+        $addFields: {
+          otherUser: {
+            $cond: {
+              if: { $eq: ['$sender', userObjectId] },
+              then: '$receiver',
+              else: '$sender'
+            }
+          }
+        }
+      },
+      // 3. Sort messages by createdAt descending before grouping to guarantee the top message is newest
+      {
+        $sort: { createdAt: -1 }
+      },
+      // 4. Group by otherUser to get the latest message and calculate unread count in a single pass
+      {
+        $group: {
+          _id: '$otherUser',
+          lastMessage: { $first: '$$ROOT' },
+          unreadCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$receiver', userObjectId] },
+                    { $ne: ['$status', 'read'] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          }
+        }
+      },
+      // 5. Lookup the other user's profile card
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userData'
+        }
+      },
+      {
+        $unwind: '$userData'
+      },
+      // 6. Sort conversations by the latest message timestamp descending
+      {
+        $sort: { 'lastMessage.createdAt': -1 }
+      },
+      // 7. Project clean card data matching frontend contract
+      {
+        $project: {
+          _id: 0,
+          user: {
+            _id: '$userData._id',
+            username: '$userData.username',
+            name: '$userData.name',
+            avatar: '$userData.avatar',
+            isOnline: '$userData.isOnline',
+            lastSeen: '$userData.lastSeen'
+          },
+          unreadCount: '$unreadCount',
+          lastMessage: {
+            _id: '$lastMessage._id',
+            content: {
+              $switch: {
+                branches: [
+                  { case: { $eq: ['$lastMessage.type', 'call'] }, then: { $ifNull: ['$lastMessage.content', '📞 Call'] } },
+                  { case: { $eq: ['$lastMessage.type', 'image'] }, then: '📷 Image' },
+                  { case: { $eq: ['$lastMessage.type', 'video'] }, then: '🎥 Video' },
+                  { case: { $eq: ['$lastMessage.type', 'audio'] }, then: '🎤 Voice Note' },
+                  { case: { $eq: ['$lastMessage.type', 'gif'] }, then: '👾 GIF' },
+                  { case: { $in: ['$lastMessage.type', ['file', 'document']] }, then: '📁 Document' }
+                ],
+                default: '$lastMessage.content'
+              }
+            },
+            type: '$lastMessage.type',
+            createdAt: '$lastMessage.createdAt',
+            sender: '$lastMessage.sender',
+            status: '$lastMessage.status'
+          }
+        }
       }
-
-      if (receiverIdStr === currentIdStr && msg.status !== 'read') {
-        unreadCounts.set(otherUser, (unreadCounts.get(otherUser) || 0) + 1);
-      }
-    });
-
-    const conversationUserIds = Array.from(conversationMap.keys());
-    const users = await User.find({ _id: { $in: conversationUserIds } })
-      .select('username name avatar isOnline lastSeen');
-
-    const conversations = users.map(user => {
-      const lastMessage = conversationMap.get(user._id.toString());
-      return {
-        user,
-        unreadCount: unreadCounts.get(user._id.toString()) || 0,
-        lastMessage: lastMessage ? {
-          content: 
-            lastMessage.type === 'call' ? (lastMessage.content || '📞 Call') :
-            lastMessage.type === 'image' ? '📷 Image' : 
-            lastMessage.type === 'video' ? '🎥 Video' : 
-            lastMessage.type === 'audio' ? '🎤 Voice Note' :
-            lastMessage.type === 'gif' ? '👾 GIF' :
-            lastMessage.type === 'file' || lastMessage.type === 'document' ? '📁 Document' : 
-            lastMessage.content,
-          createdAt: lastMessage.createdAt,
-          sender: lastMessage.sender,
-          status: lastMessage.status
-        } : null
-      };
-    }).filter(c => c.lastMessage !== null);
-
-    conversations.sort((a, b) => new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt));
+    ]);
 
     res.json(conversations);
   } catch (error) {

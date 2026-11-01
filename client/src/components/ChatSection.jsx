@@ -125,6 +125,9 @@ const ChatSection = ({ externalContact }) => {
   }, []);
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
+  const [chatCursor, setChatCursor] = useState(null);
+  const [hasMoreChat, setHasMoreChat] = useState(false);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
@@ -323,14 +326,27 @@ const ChatSection = ({ externalContact }) => {
     }
   };
 
-  const fetchHistory = async (receiverId, retryCount = 0) => {
+  const fetchHistory = async (receiverId, retryCount = 0, cursor = null) => {
     try {
-      const res = await apiClient.get(`/api/chat/history/${receiverId}`);
-      const history = res.data.map(m => ({
+      if (cursor) setIsLoadingOlder(true);
+      const url = cursor ? `/api/chat/history/${receiverId}?cursor=${cursor}` : `/api/chat/history/${receiverId}`;
+      const res = await apiClient.get(url);
+      const rawList = Array.isArray(res.data) ? res.data : (res.data?.messages || []);
+      const nextCursor = res.data?.nextCursor || null;
+      const hasMore = Boolean(res.data?.hasMore);
+
+      const history = rawList.map(m => ({
         ...m,
         isSent: (m.sender?._id || m.sender).toString() === currentUserId?.toString()
       }));
-      setChatHistory(history);
+
+      if (cursor) {
+        setChatHistory(prev => [...history, ...prev]);
+      } else {
+        setChatHistory(history);
+      }
+      setChatCursor(nextCursor);
+      setHasMoreChat(hasMore);
 
       // Mark unread messages as read
       const unreadIds = history
@@ -341,9 +357,11 @@ const ChatSection = ({ externalContact }) => {
         socket?.emit('mark_read', { messageIds: unreadIds, senderId: receiverId, receiverId: currentUserId });
       }
     } catch (err) {
-      if (retryCount < 2 && selectedContactRef.current?._id === receiverId) {
+      if (retryCount < 2 && selectedContactRef.current?._id === receiverId && !cursor) {
         setTimeout(() => fetchHistory(receiverId, retryCount + 1), 2000);
       }
+    } finally {
+      if (cursor) setIsLoadingOlder(false);
     }
   };
 
@@ -419,19 +437,44 @@ const ChatSection = ({ externalContact }) => {
     }
   };
 
-  const fetchGroupHistory = async (groupId) => {
+  const fetchGroupHistory = async (groupId, cursor = null) => {
     try {
-      const res = await apiClient.get(`/api/groups/${groupId}/messages`);
-      const history = res.data.map(m => ({
+      if (cursor) setIsLoadingOlder(true);
+      const url = cursor ? `/api/groups/${groupId}/messages?cursor=${cursor}` : `/api/groups/${groupId}/messages`;
+      const res = await apiClient.get(url);
+      const rawList = Array.isArray(res.data) ? res.data : (res.data?.messages || []);
+      const nextCursor = res.data?.nextCursor || null;
+      const hasMore = Boolean(res.data?.hasMore);
+
+      const history = rawList.map(m => ({
         ...m,
         isSent: (m.sender?._id || m.sender).toString() === currentUserId?.toString()
       }));
-      setChatHistory(history);
+
+      if (cursor) {
+        setChatHistory(prev => [...history, ...prev]);
+      } else {
+        setChatHistory(history);
+      }
+      setChatCursor(nextCursor);
+      setHasMoreChat(hasMore);
     } catch (err) {
       if (err.response?.status === 403 || err.response?.status === 404) {
         setSelectedGroup(null);
         setChatHistory([]);
       }
+    } finally {
+      if (cursor) setIsLoadingOlder(false);
+    }
+  };
+
+  const handleLoadOlder = () => {
+    if (isLoadingOlder || !hasMoreChat || !chatCursor) return;
+    if (selectedContact) {
+      fetchHistory(selectedContact._id, 0, chatCursor);
+    } else if (selectedGroup) {
+      const gId = (selectedGroup._id || selectedGroup.id)?.toString();
+      fetchGroupHistory(gId, chatCursor);
     }
   };
 
@@ -857,7 +900,8 @@ const ChatSection = ({ externalContact }) => {
       fetchConversations();
       if (selectedContactRef.current) {
         apiClient.get(`/api/chat/history/${selectedContactRef.current._id}`).then(res => {
-          if (res.data) setChatHistory(res.data);
+          const rawList = Array.isArray(res.data) ? res.data : (res.data?.messages || []);
+          if (rawList) setChatHistory(rawList);
         }).catch(() => {});
       }
     };
@@ -1709,6 +1753,17 @@ const ChatSection = ({ externalContact }) => {
 
         {/* Group Message Stream */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 custom-scrollbar bg-bg-main relative w-full max-w-full">
+          {hasMoreChat && (
+            <div className="flex justify-center py-2 w-full">
+              <button
+                onClick={handleLoadOlder}
+                disabled={isLoadingOlder}
+                className="text-xs px-3 py-1.5 rounded-full bg-accent-primary/10 text-accent-primary hover:bg-accent-primary/20 transition-all font-semibold flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {isLoadingOlder ? 'Loading older messages...' : '↑ Load earlier messages'}
+              </button>
+            </div>
+          )}
           <AnimatePresence initial={false}>
             {chatHistory.length === 0 ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col items-center justify-center opacity-20 space-y-4">
@@ -2264,6 +2319,17 @@ const ChatSection = ({ externalContact }) => {
           {/* Subtle background pattern */}
           <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at center, var(--text-muted) 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
           
+          {hasMoreChat && (
+            <div className="flex justify-center py-2 w-full">
+              <button
+                onClick={handleLoadOlder}
+                disabled={isLoadingOlder}
+                className="text-xs px-3 py-1.5 rounded-full bg-accent-primary/10 text-accent-primary hover:bg-accent-primary/20 transition-all font-semibold flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {isLoadingOlder ? 'Loading older messages...' : '↑ Load earlier messages'}
+              </button>
+            </div>
+          )}
           <AnimatePresence initial={false}>
             {(messageSearchQuery.trim() !== '' ? (messageSearchResults || []) : chatHistory).length === 0 ? (
               <motion.div 
