@@ -13,6 +13,7 @@ const {
   getCallLogs
 } = require('../controllers/chatController');
 const { protect } = require('../middleware/authMiddleware');
+const { chatUploadLimiter } = require('../middleware/rateLimiter');
 const { chatMediaStorage } = require('../utils/cloudinary');
 const uploadMedia = multer({ 
   storage: chatMediaStorage,
@@ -21,7 +22,7 @@ const uploadMedia = multer({
 
 router.use(protect);
 
-router.post('/upload', (req, res) => {
+router.post('/upload', chatUploadLimiter, (req, res) => {
   uploadMedia.single('file')(req, res, (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {

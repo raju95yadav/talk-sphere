@@ -10,10 +10,11 @@ const {
   deleteAISession 
 } = require('../controllers/aiController');
 const { protect } = require('../middleware/authMiddleware');
+const { aiChatLimiter } = require('../middleware/rateLimiter');
 
 router.get('/ping', protect, pingAI);
-router.post('/chat', protect, chatWithAI);
-router.post('/stream', protect, streamAIChat);
+router.post('/chat', protect, aiChatLimiter, chatWithAI);
+router.post('/stream', protect, aiChatLimiter, streamAIChat);
 
 // AI Sessions MongoDB CRUD Routes
 router.get('/sessions', protect, getAISessions);

@@ -1,9 +1,11 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
+const fs = require('fs');
 const RagDocument = require('../models/RagDocument');
 const RagChunk = require('../models/RagChunk');
 const AISession = require('../models/AISession');
 const logger = require('../utils/logger');
+const { ragEmbeddingBreaker, geminiBreaker } = require('../services/circuitBreaker');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
 
@@ -16,61 +18,66 @@ let verifiedChatModel = 'gemini-3.5-flash-lite';
 // Query embedding cache to avoid redundant network calls for identical/repeated questions
 const queryEmbeddingCache = new Map();
 
-// Generate 768-dimensional embeddings using Gemini with smart fast-path caching
+// Generate 768-dimensional embeddings using Gemini with smart fast-path caching & Circuit Breaker [B-16]
 const generateEmbedding = async (text) => {
   if (!text || typeof text !== 'string' || !text.trim()) {
     return new Array(768).fill(0);
   }
 
-  // Fast-path: use verified working model directly (0ms probe overhead)
-  if (verifiedEmbeddingModel) {
+  return ragEmbeddingBreaker.execute(async () => {
+    // Fast-path: use verified working model directly (0ms probe overhead)
+    if (verifiedEmbeddingModel) {
+      try {
+        const model = genAI.getGenerativeModel({ model: verifiedEmbeddingModel });
+        const res = await model.embedContent({
+          content: { parts: [{ text }] },
+          outputDimensionality: 768
+        });
+        if (res?.embedding?.values && res.embedding.values.length === 768) {
+          return res.embedding.values;
+        }
+      } catch (cachedErr) {
+        logger.warn('RAG_EMBEDDING_CACHED_FAIL', `Cached model ${verifiedEmbeddingModel} failed, re-probing...`);
+        verifiedEmbeddingModel = null;
+      }
+    }
+
+    // Primary: gemini-embedding-001 with outputDimensionality: 768 (active & fast in v1beta)
     try {
-      const model = genAI.getGenerativeModel({ model: verifiedEmbeddingModel });
-      const res = await model.embedContent({
+      const embedModel = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
+      const res = await embedModel.embedContent({
         content: { parts: [{ text }] },
         outputDimensionality: 768
       });
       if (res?.embedding?.values && res.embedding.values.length === 768) {
+        verifiedEmbeddingModel = 'gemini-embedding-001';
         return res.embedding.values;
       }
-    } catch (cachedErr) {
-      logger.warn('RAG_EMBEDDING_CACHED_FAIL', `Cached model ${verifiedEmbeddingModel} failed, re-probing...`);
-      verifiedEmbeddingModel = null;
+    } catch (err) {
+      logger.warn('RAG_EMBEDDING_RETRY', `gemini-embedding-001: ${err.message}. Trying text-embedding-004 fallback...`);
     }
-  }
 
-  // Primary: gemini-embedding-001 with outputDimensionality: 768 (active & fast in v1beta)
-  try {
-    const embedModel = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
-    const res = await embedModel.embedContent({
-      content: { parts: [{ text }] },
-      outputDimensionality: 768
-    });
-    if (res?.embedding?.values && res.embedding.values.length === 768) {
-      verifiedEmbeddingModel = 'gemini-embedding-001';
-      return res.embedding.values;
+    // Fallback: text-embedding-004
+    try {
+      const fallbackModel = genAI.getGenerativeModel({ model: 'text-embedding-004' });
+      const res = await fallbackModel.embedContent({
+        content: { parts: [{ text }] },
+        outputDimensionality: 768
+      });
+      if (res?.embedding?.values && res.embedding.values.length === 768) {
+        verifiedEmbeddingModel = 'text-embedding-004';
+        return res.embedding.values;
+      }
+    } catch (fallbackErr) {
+      logger.error('RAG_EMBEDDING_FAILED', fallbackErr.message || fallbackErr);
+      throw new Error(`Embedding generation failed: ${fallbackErr.message}`);
     }
-  } catch (err) {
-    logger.warn('RAG_EMBEDDING_RETRY', `gemini-embedding-001: ${err.message}. Trying text-embedding-004 fallback...`);
-  }
 
-  // Fallback: text-embedding-004
-  try {
-    const fallbackModel = genAI.getGenerativeModel({ model: 'text-embedding-004' });
-    const res = await fallbackModel.embedContent({
-      content: { parts: [{ text }] },
-      outputDimensionality: 768
-    });
-    if (res?.embedding?.values && res.embedding.values.length === 768) {
-      verifiedEmbeddingModel = 'text-embedding-004';
-      return res.embedding.values;
-    }
-  } catch (fallbackErr) {
-    logger.error('RAG_EMBEDDING_FAILED', fallbackErr.message || fallbackErr);
-    throw new Error(`Embedding generation failed: ${fallbackErr.message}`);
-  }
-
-  throw new Error('Could not obtain 768-dimensional embedding from Gemini');
+    throw new Error('Could not obtain 768-dimensional embedding from Gemini');
+  }, () => {
+    // Graceful fallback: return zero vector if circuit breaker is OPEN
+    return new Array(768).fill(0);
+  });
 };
 
 // Calculate cosine similarity between two vectors
@@ -208,9 +215,11 @@ const cleanAnswerText = (text) => {
 };
 
 /**
- * 1. Upload & Process Document (PDF, DOCX, TXT, MD)
+ * 1. Upload & Process Document (PDF, DOCX, TXT, MD) [B-08 Disk Staging & Cleanup]
  */
 exports.uploadDocument = async (req, res) => {
+  const tempFilePath = req.file?.path;
+
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No document file uploaded.' });
@@ -228,8 +237,17 @@ exports.uploadDocument = async (req, res) => {
 
     const title = req.body.title?.trim() || originalname.replace(/\.[^/.]+$/, '');
 
-    // Step A: Extract plain text
-    const extractedText = await extractTextFromBuffer(buffer, ext);
+    // Step A: Extract plain text (reads from disk if tempFilePath exists, with fallback to buffer)
+    let fileData = buffer;
+    if (!fileData && tempFilePath) {
+      fileData = await fs.promises.readFile(tempFilePath);
+    }
+
+    if (!fileData) {
+      return res.status(400).json({ message: 'Failed to access uploaded document data.' });
+    }
+
+    const extractedText = await extractTextFromBuffer(fileData, ext);
     if (!extractedText || !extractedText.trim()) {
       return res.status(400).json({ message: 'The uploaded document contains no readable text.' });
     }
@@ -289,6 +307,19 @@ exports.uploadDocument = async (req, res) => {
   } catch (error) {
     logger.error('RAG_UPLOAD_ERROR', error.message || error);
     res.status(500).json({ message: `Document upload processing failed: ${error.message}` });
+  } finally {
+    // Mandatory disk cleanup: unlink temp file immediately upon completion or error [B-08]
+    if (tempFilePath) {
+      try {
+        await fs.promises.unlink(tempFilePath);
+        logger.info('RAG_TEMP_CLEANUP', `Successfully unlinked staged file: ${tempFilePath}`);
+      } catch (unlinkErr) {
+        // Ignore if already deleted or does not exist
+        if (unlinkErr.code !== 'ENOENT') {
+          logger.warn('RAG_TEMP_CLEANUP_WARN', `Could not unlink staged file ${tempFilePath}: ${unlinkErr.message}`);
+        }
+      }
+    }
   }
 };
 
@@ -541,7 +572,10 @@ ${question}`;
           }
         });
 
-        const resultStream = await chat.sendMessageStream(userAugmentedMessage);
+        // Stream execution wrapped with Gemini Circuit Breaker & 8,000 ms timeout [B-16]
+        const resultStream = await geminiBreaker.execute(async () => {
+          return await chat.sendMessageStream(userAugmentedMessage);
+        }, (err) => { throw err; });
 
         let preambleBuffer = '';
         let isFlushingPreamble = false;

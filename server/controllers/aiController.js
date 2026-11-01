@@ -2,6 +2,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const ApiError = require('../utils/ApiError');
 const logger = require('../utils/logger');
 const AISession = require('../models/AISession');
+const { geminiBreaker, groqBreaker } = require('../services/circuitBreaker');
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -168,24 +169,30 @@ exports.streamAIChat = async (req, res) => {
         { role: 'user', content: message }
       ];
 
-      const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: groqMessages,
-          stream: true,
-          temperature: 0.3,
-          max_tokens: 1500
-        })
-      });
+      const groqResponse = await groqBreaker.execute(async () => {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: groqMessages,
+            stream: true,
+            temperature: 0.3,
+            max_tokens: 1500
+          }),
+          signal: AbortSignal.timeout(8000) // 8,000 ms request timeout [B-16]
+        });
 
-      if (!groqResponse.ok) {
-        throw new Error(`Groq API returned HTTP status ${groqResponse.status}`);
-      }
+        if (!res.ok) {
+          throw new Error(`Groq API returned HTTP status ${res.status}`);
+        }
+        return res;
+      }, (err) => {
+        throw new Error(err.message || 'Groq circuit is OPEN');
+      });
 
       const reader = groqResponse.body.getReader();
       const decoder = new TextDecoder();
@@ -228,10 +235,19 @@ exports.streamAIChat = async (req, res) => {
     }
   }
 
-  // Gemini AI Stream Implementation with Multi-Model Fallback & Auto-Retry
+  // Gemini AI Stream Implementation with Circuit Breaker Protection [B-16]
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === 'your_gemini_api_key_here') {
     res.write(`data: ${JSON.stringify({ error: 'Gemini API key is not configured on the server. Please update GEMINI_API_KEY in .env.' })}\n\n`);
+    res.write('data: [DONE]\n\n');
+    return res.end();
+  }
+
+  // Fast-fail if Gemini circuit is currently OPEN
+  geminiBreaker.checkState();
+  if (geminiBreaker.state === 'OPEN') {
+    logger.warn('AI_CIRCUIT_FAST_FAIL', 'Gemini circuit breaker is OPEN. Returning fallback response.');
+    res.write(`data: ${JSON.stringify({ error: geminiBreaker.fallback })}\n\n`);
     res.write('data: [DONE]\n\n');
     return res.end();
   }
@@ -266,7 +282,10 @@ exports.streamAIChat = async (req, res) => {
           },
         });
 
-        const resultStream = await chat.sendMessageStream(message);
+        // Wrap stream initialization with Gemini circuit breaker & 8s timeout [B-16]
+        const resultStream = await geminiBreaker.execute(async () => {
+          return await chat.sendMessageStream(message);
+        }, (err) => { throw err; });
 
         for await (const chunk of resultStream.stream) {
           const chunkText = chunk.text();
@@ -308,7 +327,10 @@ exports.streamAIChat = async (req, res) => {
             history: chatHistory,
             generationConfig: { temperature: 0.3, maxOutputTokens: 2500 }
           });
-          const nonStreamRes = await chat.sendMessage(message);
+          const nonStreamRes = await geminiBreaker.execute(async () => {
+            return await chat.sendMessage(message);
+          }, (err) => { throw err; });
+
           const fullText = nonStreamRes.response.text();
           if (fullText) {
             hasSentAnyChunk = true;
@@ -374,6 +396,17 @@ exports.chatWithAI = async (req, res) => {
       return res.status(500).json({ message: 'Gemini API key is not configured on the server.' });
     }
 
+    // Fast-fail if Gemini circuit is currently OPEN [B-16]
+    geminiBreaker.checkState();
+    if (geminiBreaker.state === 'OPEN') {
+      logger.warn('AI_CHAT_CIRCUIT_FAST_FAIL', 'Gemini circuit breaker is OPEN. Returning fast fallback.');
+      return res.status(503).json({
+        content: geminiBreaker.fallback,
+        role: 'assistant',
+        circuitOpen: true
+      });
+    }
+
     const modelCandidates = getModelCandidates(requestedModel);
     const chatHistory = (history || []).map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
@@ -398,7 +431,11 @@ exports.chatWithAI = async (req, res) => {
           },
         });
 
-        const result = await chat.sendMessage(message);
+        // Wrap non-streaming execution with circuit breaker & 8,000 ms timeout [B-16]
+        const result = await geminiBreaker.execute(async () => {
+          return await chat.sendMessage(message);
+        }, (err) => { throw err; });
+
         const response = await result.response;
         fullText = response.text();
         if (fullText) break;

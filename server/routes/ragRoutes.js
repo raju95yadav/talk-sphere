@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
 const { protect } = require('../middleware/authMiddleware');
+const { ragUpload } = require('../middleware/ragUpload');
+const { ragUploadLimiter, ragQueryLimiter } = require('../middleware/rateLimiter');
 const {
   uploadDocument,
   getDocuments,
@@ -11,18 +12,13 @@ const {
   streamRagQuery
 } = require('../controllers/ragController');
 
-// Multer memory storage with 25MB file size limit
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 25 * 1024 * 1024 }
-});
-
-router.post('/upload', protect, upload.single('file'), uploadDocument);
+// RAG Routes with disk staging and tiered rate limiting [B-08, B-14]
+router.post('/upload', protect, ragUploadLimiter, ragUpload.single('file'), uploadDocument);
 router.get('/documents', protect, getDocuments);
 router.get('/documents/:id', protect, getDocumentById);
 router.delete('/documents/:id', protect, deleteDocument);
 router.post('/clear-history', protect, clearRagHistory);
-router.post('/stream', protect, streamRagQuery);
+router.post('/stream', protect, ragQueryLimiter, streamRagQuery);
 
 module.exports = router;
 
