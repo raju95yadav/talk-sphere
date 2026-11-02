@@ -13,14 +13,28 @@ import {
 
 const CallContext = createContext();
 
-const DEFAULT_ICE_SERVERS = {
+// Development-only fallback STUN servers. Strictly forbidden in production builds.
+export const DEV_FALLBACK_STUN_SERVERS = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' }
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
   ]
+};
+
+/**
+ * Validates whether an ICE server configuration contains valid TURN relay server(s)
+ * with required ephemeral credentials.
+ *
+ * @param {Array<object>} iceServers
+ * @returns {boolean}
+ */
+export const hasTurnServer = (iceServers) => {
+  if (!Array.isArray(iceServers) || iceServers.length === 0) return false;
+  return iceServers.some(server => {
+    if (!server || !server.urls) return false;
+    const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+    const isTurnUrl = urls.some(url => typeof url === 'string' && (url.startsWith('turn:') || url.startsWith('turns:')));
+    return isTurnUrl && Boolean(server.username) && Boolean(server.credential);
+  });
 };
 
 // Web Audio API Synthesizer for high quality ringtone cues
@@ -167,7 +181,7 @@ export const CallProvider = ({ children }) => {
   const disconnectGraceTimeoutRef = useRef(null);
 
   // Dynamic ICE servers cache [B-10]
-  const dynamicIceServersRef = useRef(DEFAULT_ICE_SERVERS);
+  const dynamicIceServersRef = useRef(null);
 
   // Audio Analyser refs
   const audioContextRef = useRef(null);
@@ -178,20 +192,40 @@ export const CallProvider = ({ children }) => {
 
   /**
    * Fetch dynamic ICE servers with Coturn HMAC-SHA1 ephemeral credentials [B-10]
+   * In production: Strictly requires valid TURN servers. Rejects degradation to STUN-only.
+   * In development: Allows explicit offline fallback with visible warning.
    */
   const fetchIceServers = useCallback(async () => {
     try {
       const res = await apiClient.get('/api/webrtc/ice-servers');
-      if (res.data?.iceServers && Array.isArray(res.data.iceServers)) {
-        const iceConfig = { iceServers: res.data.iceServers };
+      const servers = res.data?.iceServers;
+
+      if (Array.isArray(servers) && servers.length > 0) {
+        const containsTurn = hasTurnServer(servers);
+
+        if (import.meta.env.PROD && !containsTurn) {
+          throw new Error('Backend ICE response is missing required TURN relay configuration');
+        }
+
+        const iceConfig = { iceServers: servers };
         dynamicIceServersRef.current = iceConfig;
         console.log('[WebRTC] Loaded dynamic Coturn TURN/STUN credentials successfully');
         return iceConfig;
       }
+
+      throw new Error('Malformed or empty ICE servers payload received from backend');
     } catch (err) {
-      console.warn('[WebRTC] Failed to load dynamic TURN credentials, falling back to STUN:', err.message);
+      console.error('[WebRTC] Dynamic ICE provisioning error:', err.message);
+
+      if (import.meta.env.PROD) {
+        dynamicIceServersRef.current = null;
+        throw new Error('Unable to establish a secure call relay. Please check network/service availability.');
+      } else {
+        console.warn('[WebRTC Dev Warning] Using fallback STUN-only configuration. Symmetric NAT traversal will fail.');
+        dynamicIceServersRef.current = DEV_FALLBACK_STUN_SERVERS;
+        return DEV_FALLBACK_STUN_SERVERS;
+      }
     }
-    return DEFAULT_ICE_SERVERS;
   }, []);
 
   // Pre-fetch ICE credentials when authenticated
@@ -430,7 +464,19 @@ export const CallProvider = ({ children }) => {
 
   // Initialize RTCPeerConnection instance with dynamic Coturn ICE servers [B-10]
   const createPeerConnection = useCallback((peerUserId, customIceConfig) => {
-    const iceConfig = customIceConfig || dynamicIceServersRef.current || DEFAULT_ICE_SERVERS;
+    let iceConfig = customIceConfig || dynamicIceServersRef.current;
+
+    if (import.meta.env.PROD) {
+      if (!iceConfig || !hasTurnServer(iceConfig.iceServers)) {
+        throw new Error('Cannot initialize RTCPeerConnection: No valid TURN relay configured in production');
+      }
+    } else {
+      if (!iceConfig) {
+        console.warn('[WebRTC Dev Warning] Using fallback STUN-only configuration. Symmetric NAT traversal will fail.');
+        iceConfig = DEV_FALLBACK_STUN_SERVERS;
+      }
+    }
+
     const pc = new RTCPeerConnection(iceConfig);
 
     pc.onicecandidate = (event) => {
@@ -449,35 +495,85 @@ export const CallProvider = ({ children }) => {
       }
     };
 
+    const handleConnectionFailure = () => {
+      console.warn('[WebRTC] Peer connection failed or dropped permanently');
+      if (disconnectGraceTimeoutRef.current) {
+        clearTimeout(disconnectGraceTimeoutRef.current);
+        disconnectGraceTimeoutRef.current = null;
+      }
+      toast.error('Call dropped due to network connection failure');
+      endCall(true);
+    };
+
+    const handleConnectionDisconnected = async () => {
+      console.warn('[WebRTC] Connection state is disconnected. Initiating ICE recovery...');
+
+      // Attempt ICE restart if caller and socket connected
+      if (pc.restartIce && typeof pc.restartIce === 'function' && isCaller && socket && peerUserId) {
+        try {
+          console.log('[WebRTC] Initiating peerConnection.restartIce()...');
+          pc.restartIce();
+          const restartOffer = await pc.createOffer({ iceRestart: true });
+          await pc.setLocalDescription(restartOffer);
+          socket.emit('call_user', {
+            userToCall: peerUserId,
+            signalData: restartOffer,
+            from: currentUserId,
+            isIceRestart: true
+          });
+          console.log('[WebRTC] Dispatched ICE restart offer');
+        } catch (e) {
+          console.warn('[WebRTC] ICE restart attempt error:', e.message);
+        }
+      }
+
+      if (!disconnectGraceTimeoutRef.current) {
+        disconnectGraceTimeoutRef.current = setTimeout(() => {
+          if (pcRef.current && (
+            pcRef.current.connectionState === 'disconnected' || 
+            pcRef.current.connectionState === 'failed' ||
+            pcRef.current.iceConnectionState === 'disconnected' ||
+            pcRef.current.iceConnectionState === 'failed'
+          )) {
+            handleConnectionFailure();
+          }
+        }, 7000);
+      }
+    };
+
+    // Monitor ICE connection state changes [B-10]
+    pc.oniceconnectionstatechange = () => {
+      console.log('[WebRTC] ICE Connection State:', pc.iceConnectionState);
+      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        if (disconnectGraceTimeoutRef.current) {
+          clearTimeout(disconnectGraceTimeoutRef.current);
+          disconnectGraceTimeoutRef.current = null;
+        }
+      } else if (pc.iceConnectionState === 'disconnected') {
+        handleConnectionDisconnected();
+      } else if (pc.iceConnectionState === 'failed') {
+        handleConnectionFailure();
+      }
+    };
+
+    // Monitor Overall Peer connection state changes [B-10]
     pc.onconnectionstatechange = () => {
-      console.log('[WebRTC] Connection state changed:', pc.connectionState);
+      console.log('[WebRTC] Peer Connection State:', pc.connectionState);
       if (pc.connectionState === 'connected') {
         if (disconnectGraceTimeoutRef.current) {
           clearTimeout(disconnectGraceTimeoutRef.current);
           disconnectGraceTimeoutRef.current = null;
         }
       } else if (pc.connectionState === 'disconnected') {
-        if (!disconnectGraceTimeoutRef.current) {
-          disconnectGraceTimeoutRef.current = setTimeout(() => {
-            if (pcRef.current && (pcRef.current.connectionState === 'disconnected' || pcRef.current.connectionState === 'failed')) {
-              toast('Call connection terminated');
-              endCall(true);
-            }
-          }, 6000);
-        }
+        handleConnectionDisconnected();
       } else if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
-        if (disconnectGraceTimeoutRef.current) {
-          clearTimeout(disconnectGraceTimeoutRef.current);
-          disconnectGraceTimeoutRef.current = null;
-        }
-        toast('Call connection terminated');
-        endCall(true);
+        handleConnectionFailure();
       }
     };
 
     pcRef.current = pc;
     return pc;
-  }, [socket, endCall]);
+  }, [socket, endCall, isCaller, currentUserId]);
 
   // Handle incoming media stream with low-data constraints support
   const getMediaStream = async (audioOnly, audioDeviceId, videoDeviceId) => {
@@ -693,10 +789,19 @@ export const CallProvider = ({ children }) => {
       }, 30000);
 
       const targetId = userToCall._id || userToCall.id;
-      const [iceConfig, stream] = await Promise.all([
-        fetchIceServers(),
-        getMediaStream(type === 'audio', selectedAudioInput, selectedVideoInput)
-      ]);
+      let iceConfig;
+      let stream;
+      try {
+        [iceConfig, stream] = await Promise.all([
+          fetchIceServers(),
+          getMediaStream(type === 'audio', selectedAudioInput, selectedVideoInput)
+        ]);
+      } catch (prepErr) {
+        console.error('[WebRTC] Outgoing call preparation failed:', prepErr.message);
+        toast.error(prepErr.message || 'Unable to establish a secure call relay. Please check network/service availability.');
+        resetCallState();
+        return;
+      }
 
       const pc = createPeerConnection(targetId, iceConfig);
 
@@ -717,6 +822,7 @@ export const CallProvider = ({ children }) => {
       });
     } catch (err) {
       console.error('[WebRTC] Outgoing call error:', err);
+      toast.error(err.message || 'Unable to establish a secure call relay. Please check network/service availability.');
       resetCallState();
     }
   };
@@ -738,10 +844,19 @@ export const CallProvider = ({ children }) => {
         avatar: incomingCallData.callerAvatar
       });
 
-      const [iceConfig, stream] = await Promise.all([
-        fetchIceServers(),
-        getMediaStream(type === 'audio', selectedAudioInput, selectedVideoInput)
-      ]);
+      let iceConfig;
+      let stream;
+      try {
+        [iceConfig, stream] = await Promise.all([
+          fetchIceServers(),
+          getMediaStream(type === 'audio', selectedAudioInput, selectedVideoInput)
+        ]);
+      } catch (prepErr) {
+        console.error('[WebRTC] Answer call preparation failed:', prepErr.message);
+        toast.error(prepErr.message || 'Unable to establish a secure call relay. Please check network/service availability.');
+        resetCallState();
+        return;
+      }
 
       const pc = createPeerConnection(peerId, iceConfig);
 
@@ -917,8 +1032,29 @@ export const CallProvider = ({ children }) => {
   useEffect(() => {
     if (!socket) return;
 
-    const handleIncomingCall = (data) => {
+    const handleIncomingCall = async (data) => {
       console.log('[WebRTC] Incoming call received:', data);
+
+      // Handle renegotiated ICE restart offer during active call
+      if (data.isIceRestart && pcRef.current && callStatus === 'connected') {
+        console.log('[WebRTC] Received ICE restart offer from peer');
+        try {
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.signalData));
+          const answer = await pcRef.current.createAnswer();
+          await pcRef.current.setLocalDescription(answer);
+          socket.emit('answer_call', {
+            to: data.from,
+            signal: answer,
+            from: currentUserId,
+            isIceRestart: true
+          });
+          console.log('[WebRTC] Sent ICE restart answer');
+        } catch (err) {
+          console.error('[WebRTC] Error handling ICE restart offer:', err);
+        }
+        return;
+      }
+
       if (callStatus !== 'idle') {
         console.warn('[WebRTC] Ignoring incoming call because user is already busy or in a call');
         return;
