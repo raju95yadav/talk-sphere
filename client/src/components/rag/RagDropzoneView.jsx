@@ -5,6 +5,7 @@ import {
   FolderOpen, ArrowUpRight
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 const RAG_SUGGESTED_QUESTIONS = [
   {
@@ -188,9 +189,16 @@ const RagDropzoneView = ({
           return (
             <motion.button
               key={idx}
+              type="button"
               whileHover={{ y: -2, scale: 1.01 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => onSelectPrompt && onSelectPrompt(item.prompt)}
+              onClick={() => {
+                if (!selectedDoc) {
+                  toast.error('Please upload or select a document first', { icon: '📄' });
+                  return;
+                }
+                if (onSelectPrompt) onSelectPrompt(item.prompt);
+              }}
               className="p-3.5 bg-white dark:bg-[#161826] hover:bg-slate-50 dark:hover:bg-[#1d2033] border border-slate-200 dark:border-white/10 hover:border-violet-500/50 rounded-2xl text-left transition-all duration-300 group cursor-pointer flex items-start gap-3 shadow-sm"
             >
               <div className="w-9 h-9 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center group-hover:border-violet-500/50 group-hover:scale-105 shrink-0 transition-all text-violet-400">

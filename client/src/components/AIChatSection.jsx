@@ -34,6 +34,49 @@ const PRESET_PROMPTS = [
   { label: 'Debug Code Error', icon: Wrench, prompt: 'Explain the root cause and fix for this error:' }
 ];
 
+/**
+ * Dynamically derive a clean, human-readable session title (30-40 chars max)
+ * from the user's first prompt or selected document name.
+ */
+export const generateSmartTitle = (prompt, mode = 'general', docTitle = null) => {
+  if (mode === 'rag' && docTitle && docTitle !== 'Document Chat' && docTitle !== 'New Document Chat') {
+    return docTitle;
+  }
+  if (!prompt || typeof prompt !== 'string') {
+    return mode === 'rag' ? 'Document Q&A' : 'New Chat';
+  }
+
+  // 1. Strip code blocks, markdown prefixes, and normalize whitespace
+  let clean = prompt
+    .replace(/^```[a-z]*\s*/i, '')
+    .replace(/```$/g, '')
+    .replace(/^[#*`>~_\s-]+/g, '')
+    .replace(/[*_~`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!clean) return mode === 'rag' ? 'Document Q&A' : 'New Chat';
+
+  // 2. Extract first sentence or clause
+  const sentenceMatch = clean.match(/^([^?!]+[?!]|[^.]+(?:\.(?!\S)|$))/);
+  let snippet = sentenceMatch ? sentenceMatch[1].trim() : clean;
+
+  // 3. Truncate at word boundary within 30-38 characters
+  const MAX_CHARS = 38;
+  if (snippet.length > MAX_CHARS) {
+    const cut = snippet.slice(0, MAX_CHARS);
+    const lastSpace = cut.lastIndexOf(' ');
+    if (lastSpace > 20) {
+      snippet = cut.slice(0, lastSpace).trim() + '...';
+    } else {
+      snippet = cut.trim() + '...';
+    }
+  }
+
+  // 4. Capitalize first letter
+  return snippet.charAt(0).toUpperCase() + snippet.slice(1);
+};
+
 const AIChatSection = () => {
   const { token, user } = useAuth();
   const socket = useSocket();
@@ -419,6 +462,22 @@ const AIChatSection = () => {
     }
   };
 
+  const handlePresetSelect = (preset, directSend = false) => {
+    if (directSend) {
+      handleSendMessage(null, preset.prompt);
+    } else {
+      setMessage(preset.prompt + ' ');
+      const inputEl = document.getElementById('ai-message-input');
+      if (inputEl) {
+        inputEl.focus();
+        setTimeout(() => {
+          const val = preset.prompt + ' ';
+          inputEl.setSelectionRange(val.length, val.length);
+        }, 0);
+      }
+    }
+  };
+
   const handleSendMessage = async (e, customPrompt = null) => {
     if (e) e.preventDefault();
     const promptToSend = customPrompt || message;
@@ -440,14 +499,14 @@ const AIChatSection = () => {
     const targetDoc = documents.find(d => d._id === selectedDocId);
     const sessionDocTitle = targetDoc ? (targetDoc.title || targetDoc.originalName) : 'Document Chat';
 
-    if (!targetSessionId || !sessions.find(s => (s._id || s.id) === targetSessionId)) {
-      try {
-        const sessionTitle = assistantMode === 'rag'
-          ? sessionDocTitle
-          : promptToSend.slice(0, 24) + '...';
+    const existingSession = sessions.find(s => (s._id || s.id) === targetSessionId);
+    const isFirstMessage = !existingSession || !existingSession.messages || existingSession.messages.length === 0;
+    const dynamicTitle = generateSmartTitle(promptToSend, assistantMode, sessionDocTitle);
 
+    if (!targetSessionId || !existingSession) {
+      try {
         const createRes = await apiClient.post('/api/ai/sessions', {
-          title: sessionTitle,
+          title: dynamicTitle,
           modelPreference: selectedModel,
           mode: assistantMode,
           ragDocument: (assistantMode === 'rag' && targetDoc) ? targetDoc._id : null,
@@ -460,27 +519,31 @@ const AIChatSection = () => {
         return toast.error('Failed to initialize AI session');
       }
     } else {
-      currentHistory = activeSession?.messages || [];
+      currentHistory = existingSession.messages || [];
+      const updatedTitle = (isFirstMessage || existingSession.title === 'New Chat' || existingSession.title === 'New Document Chat')
+        ? dynamicTitle
+        : existingSession.title;
+
+      // Update local state immediately so sidebar and header reflect the derived title instantly
       setSessions(prev => prev.map(s => {
         if ((s._id || s.id) === targetSessionId) {
-          let sessionTitle = s.title;
-          if (assistantMode === 'rag') {
-            sessionTitle = sessionDocTitle;
-          } else {
-            if (s.messages.length === 0) {
-              sessionTitle = promptToSend.slice(0, 24) + '...';
-            }
-          }
-
           return {
             ...s,
             messages: [...s.messages, userMsg],
-            title: sessionTitle,
+            title: updatedTitle,
             ragDocument: s.ragDocument || (targetDoc ? targetDoc._id : null)
           };
         }
         return s;
       }));
+
+      // Immediately persist derived title to MongoDB when first prompt is dispatched
+      if (isFirstMessage || existingSession.title === 'New Chat' || existingSession.title === 'New Document Chat') {
+        apiClient.put(`/api/ai/sessions/${targetSessionId}`, {
+          title: updatedTitle,
+          ragDocument: (assistantMode === 'rag' && targetDoc) ? targetDoc._id : existingSession.ragDocument
+        }).catch(err => console.error('Failed to immediately persist session title to MongoDB:', err));
+      }
     }
 
     if (!customPrompt) setMessage('');
@@ -1014,8 +1077,11 @@ const AIChatSection = () => {
                 onUploadFile={handleUploadDocument}
                 onSelectDoc={handleSelectDocument}
                 onSelectPrompt={(p) => {
-                  setMessage(p);
-                  document.getElementById('ai-message-input')?.focus();
+                  if (!selectedDocId) {
+                    toast.error('Please upload or select a document first', { icon: '📄' });
+                    return;
+                  }
+                  handleSendMessage(null, p);
                 }}
                 isUploading={isUploadingDoc}
               />
@@ -1037,28 +1103,36 @@ const AIChatSection = () => {
                   {PRESET_PROMPTS.map((p, idx) => {
                     const Icon = p.icon;
                     return (
-                      <motion.button
+                      <motion.div
                         key={idx}
                         whileHover={{ y: -3, scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => {
-                          setMessage(p.prompt + ' ');
-                          document.getElementById('ai-message-input')?.focus();
-                        }}
-                        className="p-4 bg-white dark:bg-[#161826] hover:bg-slate-50 dark:hover:bg-[#1d2033] border border-slate-200 dark:border-white/10 hover:border-violet-500/50 hover:shadow-lg hover:shadow-violet-500/10 rounded-2xl text-left transition-all duration-300 group cursor-pointer flex items-start gap-3.5 shadow-sm"
+                        onClick={() => handlePresetSelect(p, false)}
+                        className="p-4 bg-white dark:bg-[#161826] hover:bg-slate-50 dark:hover:bg-[#1d2033] border border-slate-200 dark:border-white/10 hover:border-violet-500/50 hover:shadow-lg hover:shadow-violet-500/10 rounded-2xl text-left transition-all duration-300 group cursor-pointer flex items-start gap-3.5 shadow-sm relative"
                       >
                         <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center group-hover:border-violet-500/50 group-hover:scale-105 shrink-0 transition-all">
                           <Icon size={18} className="text-violet-400 transition-colors" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-violet-400 transition-colors mb-0.5">
-                            {p.label}
+                          <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-violet-400 transition-colors mb-0.5 flex items-center justify-between">
+                            <span>{p.label}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePresetSelect(p, true);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-violet-500/15 rounded-md text-violet-500 transition-all cursor-pointer"
+                              title="Send immediately"
+                            >
+                              <Send size={12} />
+                            </button>
                           </div>
                           <div className="text-xs font-normal text-slate-600 dark:text-slate-300 leading-snug line-clamp-2">
                             {p.prompt}
                           </div>
                         </div>
-                      </motion.button>
+                      </motion.div>
                     );
                   })}
                 </div>
