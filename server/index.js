@@ -25,9 +25,14 @@ const {
   updateActiveCall,
   removeActiveCall,
   setLocalCallTimer,
-  clearLocalCallTimer
+  clearLocalCallTimer,
+  closeRedis
 } = require('./utils/redis');
 const { broadcastUserPresence } = require('./utils/presence');
+const observabilityMiddleware = require('./middleware/observabilityMiddleware');
+const healthRoutes = require('./routes/healthRoutes');
+const { initRagQueue, closeRagQueue } = require('./config/queue');
+const { startRagWorker, closeRagWorker } = require('./workers/ragWorker');
 
 dotenv.config();
 
@@ -91,9 +96,6 @@ initRedis(io).catch((err) => {
 });
 
 // Initialize BullMQ RAG Queue & Background Workers [B-06]
-const { initRagQueue } = require('./config/queue');
-const { startRagWorker } = require('./workers/ragWorker');
-
 initRagQueue().then(() => {
   startRagWorker(io);
 }).catch((err) => {
@@ -101,10 +103,17 @@ initRagQueue().then(() => {
   startRagWorker(io);
 });
 
+// Observability Middleware: Distributed Correlation ID & Performance Latency Tracing [Phase 6 - Step 6.4]
+app.use(observabilityMiddleware);
+
 // Middleware
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
+
+// Liveness & Readiness Health Probes [Phase 6 - Step 6.3]
+app.use('/health', healthRoutes);
+app.use('/api/health', healthRoutes);
 
 // DB Connection with tuned connection pooling for high-concurrency resilience
 const connectDB = async () => {
@@ -840,6 +849,66 @@ process.on('unhandledRejection', (reason) => {
 process.on('uncaughtException', (err) => {
   logger.error('UNCAUGHT_EXCEPTION', err.message || 'Uncaught Exception', err);
 });
+
+// Graceful Process Lifecycle Termination (Zero-Downtime Rolling Updates) [Phase 6 - Step 6.4]
+let isShuttingDown = false;
+
+const gracefulShutdown = async (signal) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  app.set('isShuttingDown', true);
+
+  logger.warn('PROCESS_TERMINATION', `Received ${signal}. Initiating graceful connection draining and teardown...`);
+
+  // Fallback safety timeout: 10s maximum wait before forced exit
+  const forceExitTimer = setTimeout(() => {
+    logger.error('SHUTDOWN_TIMEOUT', 'Graceful shutdown timed out after 10000ms. Forcing process exit.');
+    process.exit(1);
+  }, 10000);
+  forceExitTimer.unref();
+
+  try {
+    // 1. Stop accepting new HTTP requests
+    await new Promise((resolve) => {
+      server.close((err) => {
+        if (err) logger.warn('SERVER_CLOSE_WARN', `HTTP server close notice: ${err.message}`);
+        else logger.info('HTTP_SERVER_CLOSED', 'HTTP server stopped accepting new incoming requests.');
+        resolve();
+      });
+    });
+
+    // 2. Drain active Socket.io connections gracefully
+    await new Promise((resolve) => {
+      io.close((err) => {
+        if (err) logger.warn('SOCKET_CLOSE_WARN', `Socket.io close notice: ${err.message}`);
+        else logger.info('SOCKET_SERVER_CLOSED', 'Socket.io connections drained and closed.');
+        resolve();
+      });
+    });
+
+    // 3. Drain BullMQ background workers & queue instances
+    await closeRagWorker();
+    await closeRagQueue();
+
+    // 4. Close Mongoose connection pool cleanly
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.connection.close(false);
+      logger.info('MONGOOSE_CLOSED', 'Mongoose connection pool drained and closed.');
+    }
+
+    // 5. Close Redis clients (pub, sub, and data)
+    await closeRedis();
+
+    logger.info('SHUTDOWN_COMPLETE', 'All subsystem resources cleanly released. Graceful exit (0).');
+    process.exit(0);
+  } catch (shutdownErr) {
+    logger.error('SHUTDOWN_ERROR', `Error during graceful shutdown: ${shutdownErr.message}`, shutdownErr);
+    process.exit(1);
+  }
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

@@ -391,6 +391,36 @@ const removeActiveCall = async (key) => {
   localActiveCallsMap.delete(key);
 };
 
+/**
+ * Returns current Redis connection and readiness status [Phase 6 - Step 6.4]
+ */
+const getRedisStatus = () => {
+  return {
+    isReady: isRedisReady && redisClient && redisClient.status === 'ready',
+    status: redisClient ? redisClient.status : 'disconnected',
+    uri: REDIS_URI.replace(/:[^:@]+@/, ':***@')
+  };
+};
+
+/**
+ * Cleanly drains and closes all Redis connections on graceful process termination
+ */
+const closeRedis = async () => {
+  const clients = [pubClient, subClient, redisClient].filter(Boolean);
+  await Promise.all(
+    clients.map(async (client) => {
+      try {
+        await client.quit();
+      } catch (err) {
+        // Fallback to disconnect if quit hangs
+        try { client.disconnect(); } catch (e) {}
+      }
+    })
+  );
+  isRedisReady = false;
+  logger.info('REDIS_CLOSED', 'All Redis cluster connections closed gracefully.');
+};
+
 module.exports = {
   initRedis,
   publishClusterEvent,
@@ -405,6 +435,8 @@ module.exports = {
   findCallByParticipant,
   findAllCallsForUser,
   updateActiveCall,
-  removeActiveCall
+  removeActiveCall,
+  getRedisStatus,
+  closeRedis
 };
 

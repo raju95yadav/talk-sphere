@@ -357,11 +357,27 @@ const startRagWorker = async (io) => {
   }
 };
 
+/**
+ * Gracefully drains and closes the BullMQ worker
+ */
+const closeRagWorker = async () => {
+  if (bullmqWorker) {
+    try {
+      await bullmqWorker.close();
+      logger.info('BULLMQ_WORKER_CLOSED', 'BullMQ RAG Worker closed gracefully.');
+    } catch (err) {
+      logger.warn('BULLMQ_WORKER_CLOSE_WARN', `Error closing BullMQ worker: ${err.message}`);
+    }
+    bullmqWorker = null;
+  }
+};
+
 module.exports = {
   startRagWorker,
   processDocumentJob,
   setWorkerIO,
   emitDocumentStatus,
-  chunkText
+  chunkText,
+  closeRagWorker
 };
 

@@ -145,11 +145,28 @@ const addDocumentJob = async (jobData) => {
   return { jobId: syntheticJobId, mode: 'fallback' };
 };
 
+/**
+ * Closes BullMQ queue on graceful process shutdown
+ */
+const closeRagQueue = async () => {
+  if (ragQueue) {
+    try {
+      await ragQueue.close();
+      logger.info('BULLMQ_QUEUE_CLOSED', 'BullMQ "rag-document-queue" closed gracefully.');
+    } catch (err) {
+      logger.warn('BULLMQ_CLOSE_WARN', `Error closing BullMQ queue: ${err.message}`);
+    }
+    ragQueue = null;
+    isBullMQActive = false;
+  }
+};
+
 module.exports = {
   initRagQueue,
   addDocumentJob,
   registerFallbackHandler,
   getRedisConnectionOptions,
   getIsBullMQActive: () => isBullMQActive,
-  getRagQueue: () => ragQueue
+  getRagQueue: () => ragQueue,
+  closeRagQueue
 };
