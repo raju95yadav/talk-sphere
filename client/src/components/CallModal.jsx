@@ -1,7 +1,45 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff, Monitor, Maximize2, Minimize2, User, VolumeX, Settings, X, ChevronRight, MicIcon, Camera } from 'lucide-react';
+import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff, Monitor, Maximize2, Minimize2, User, VolumeX, Settings, X, ChevronRight, MicIcon, Camera, Users } from 'lucide-react';
 import { useCall } from '../context/CallContext';
+
+// SfuParticipantTile for O(N) multi-party group video cards [B-09]
+const SfuParticipantTile = ({ participant }) => {
+  const videoRef = useRef(null);
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    if (videoRef.current && participant.videoTrack) {
+      videoRef.current.srcObject = new MediaStream([participant.videoTrack]);
+    }
+  }, [participant.videoTrack]);
+
+  useEffect(() => {
+    if (audioRef.current && participant.audioTrack) {
+      audioRef.current.srcObject = new MediaStream([participant.audioTrack]);
+    }
+  }, [participant.audioTrack]);
+
+  return (
+    <div className={`relative rounded-2xl overflow-hidden bg-zinc-900 border ${participant.isSpeaking ? 'border-emerald-500 ring-2 ring-emerald-500/50' : 'border-white/10'} aspect-video flex items-center justify-center shadow-lg`}>
+      {participant.audioTrack && <audio ref={audioRef} autoPlay />}
+      {participant.videoTrack ? (
+        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+      ) : (
+        <div className="flex flex-col items-center justify-center p-4">
+          <div className="w-14 h-14 rounded-full bg-violet-600/30 border border-violet-500/40 flex items-center justify-center text-white font-bold text-lg mb-2">
+            {participant.name?.[0]?.toUpperCase() || 'U'}
+          </div>
+          <span className="text-xs font-semibold text-white/80 truncate max-w-[140px]">{participant.name}</span>
+        </div>
+      )}
+      <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] font-bold text-white flex items-center gap-1.5 z-10">
+        <span className={`w-1.5 h-1.5 rounded-full ${participant.isSpeaking ? 'bg-emerald-400 animate-ping' : 'bg-white/40'}`}></span>
+        <span className="truncate max-w-[120px]">{participant.name}</span>
+      </div>
+    </div>
+  );
+};
 
 const CallModal = () => {
   const {
@@ -12,6 +50,8 @@ const CallModal = () => {
     incomingCallData,
     localStream,
     remoteStream,
+    isSfuCall,
+    sfuParticipants,
     isMuted,
     isVideoOff,
     isPeerMuted,
@@ -290,8 +330,33 @@ const CallModal = () => {
                 </div>
               )}
 
-              {/* Main Remote View (Video or Audio Visualizer) */}
-              {callType === 'video' ? (
+              {/* Main Remote View: Multi-Party LiveKit SFU Grid [B-09] or 1-on-1 P2P */}
+              {isSfuCall ? (
+                <div className="w-full h-full p-4 overflow-y-auto flex items-center justify-center bg-zinc-950">
+                  {sfuParticipants.length === 0 ? (
+                    <div className="text-center p-8">
+                      <div className="w-20 h-20 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center mx-auto mb-4 animate-pulse">
+                        <Users size={32} className="text-violet-400" />
+                      </div>
+                      <h3 className="text-base font-bold text-white mb-1">Group SFU Call Connected</h3>
+                      <p className="text-xs text-white/60 max-w-sm">
+                        Selective Forwarding Unit active. Waiting for group members to join...
+                      </p>
+                    </div>
+                  ) : (
+                    <div className={`grid gap-3 w-full max-w-5xl ${
+                      sfuParticipants.length === 1 ? 'grid-cols-1' :
+                      sfuParticipants.length === 2 ? 'grid-cols-1 sm:grid-cols-2' :
+                      sfuParticipants.length <= 4 ? 'grid-cols-2' :
+                      'grid-cols-2 sm:grid-cols-3'
+                    }`}>
+                      {sfuParticipants.map((p) => (
+                        <SfuParticipantTile key={p.identity} participant={p} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : callType === 'video' ? (
                 <div className="w-full h-full relative flex items-center justify-center bg-zinc-950">
                   {isPeerVideoOff ? (
                     <div className="flex flex-col items-center justify-center text-center p-6">

@@ -139,6 +139,7 @@ app.use('/api/ai',      require('./routes/aiRoutes'));
 app.use('/api/rag',     require('./routes/ragRoutes'));
 app.use('/api/devices',       require('./routes/deviceRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/webrtc',        require('./routes/webrtcRoutes'));
 
 app.get('/', (req, res) => {
   res.send('Talk Sphere API is running');
@@ -804,6 +805,21 @@ io.on('connection', (socket) => {
     const targetId = getUserIdStr(to);
     if (targetId) {
       io.to(targetId).emit('peer_media_toggle', { isMuted, isVideoOff });
+    }
+  });
+
+  // LiveKit SFU Multi-Party Group Call Broadcast [B-09]
+  socket.on('group_call_started', (data) => {
+    const { groupId, roomName, callType, from, callerName } = data || {};
+    if (groupId) {
+      console.log(`[WebRTC] Group SFU call initiated in group_${groupId} by ${callerName} (${from})`);
+      socket.to(`group_${groupId}`).emit('incoming_group_call', {
+        groupId,
+        roomName,
+        callType,
+        from,
+        callerName
+      });
     }
   });
 });

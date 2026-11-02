@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import useSocket from '../hooks/useSocket';
+import apiClient from '../api/apiClient';
 import toast from 'react-hot-toast';
+import { Room, RoomEvent, VideoPresets, Track } from 'livekit-client';
 import {
   getWebRTCConstraints,
   applyPeerConnectionBitrates,
@@ -11,7 +13,7 @@ import {
 
 const CallContext = createContext();
 
-const ICE_SERVERS = {
+const DEFAULT_ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
@@ -132,6 +134,11 @@ export const CallProvider = ({ children }) => {
   
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
+
+  // LiveKit SFU Multi-Party State [B-09]
+  const [isSfuCall, setIsSfuCall] = useState(false);
+  const [sfuParticipants, setSfuParticipants] = useState([]);
+  const sfuRoomRef = useRef(null);
   
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
@@ -159,12 +166,40 @@ export const CallProvider = ({ children }) => {
   const callLastBytesRef = useRef(0);
   const disconnectGraceTimeoutRef = useRef(null);
 
+  // Dynamic ICE servers cache [B-10]
+  const dynamicIceServersRef = useRef(DEFAULT_ICE_SERVERS);
+
   // Audio Analyser refs
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
   const animFrameRef = useRef(null);
 
   const currentUserId = user?._id || user?.id;
+
+  /**
+   * Fetch dynamic ICE servers with Coturn HMAC-SHA1 ephemeral credentials [B-10]
+   */
+  const fetchIceServers = useCallback(async () => {
+    try {
+      const res = await apiClient.get('/api/webrtc/ice-servers');
+      if (res.data?.iceServers && Array.isArray(res.data.iceServers)) {
+        const iceConfig = { iceServers: res.data.iceServers };
+        dynamicIceServersRef.current = iceConfig;
+        console.log('[WebRTC] Loaded dynamic Coturn TURN/STUN credentials successfully');
+        return iceConfig;
+      }
+    } catch (err) {
+      console.warn('[WebRTC] Failed to load dynamic TURN credentials, falling back to STUN:', err.message);
+    }
+    return DEFAULT_ICE_SERVERS;
+  }, []);
+
+  // Pre-fetch ICE credentials when authenticated
+  useEffect(() => {
+    if (currentUserId) {
+      fetchIceServers();
+    }
+  }, [currentUserId, fetchIceServers]);
 
   // Enumerate hardware media devices
   const refreshDevices = useCallback(async () => {
@@ -260,6 +295,16 @@ export const CallProvider = ({ children }) => {
     }
     callLastBytesRef.current = 0;
 
+    // Disconnect LiveKit SFU Room if active [B-09]
+    if (sfuRoomRef.current) {
+      try {
+        sfuRoomRef.current.disconnect();
+      } catch (err) {
+        console.warn('LiveKit SFU disconnect error:', err);
+      }
+      sfuRoomRef.current = null;
+    }
+
     if (pcRef.current) {
       pcRef.current.ontrack = null;
       pcRef.current.onicecandidate = null;
@@ -280,6 +325,8 @@ export const CallProvider = ({ children }) => {
 
     setLocalStream(null);
     setRemoteStream(null);
+    setIsSfuCall(false);
+    setSfuParticipants([]);
     setCallStatus('idle');
     setIncomingCallData(null);
     setTargetUser(null);
@@ -354,9 +401,37 @@ export const CallProvider = ({ children }) => {
     }, 2000);
   }, []);
 
-  // Initialize RTCPeerConnection instance
-  const createPeerConnection = useCallback((peerUserId) => {
-    const pc = new RTCPeerConnection(ICE_SERVERS);
+  /**
+   * Apply Simulcast encodings for bandwidth optimization & packet drop resilience [B-09]
+   */
+  const configureSimulcastSenders = async (pc) => {
+    if (!pc || !pc.getSenders) return;
+    try {
+      const senders = pc.getSenders();
+      const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+      if (videoSender && videoSender.getParameters && videoSender.setParameters) {
+        const params = videoSender.getParameters();
+        if (!params.encodings || params.encodings.length <= 1) {
+          // Configure 3 adaptive quality layers
+          params.encodings = [
+            { rid: 'h', maxBitrate: 1200000 },
+            { rid: 'm', maxBitrate: 500000, scaleResolutionDownBy: 2.0 },
+            { rid: 'l', maxBitrate: 150000, scaleResolutionDownBy: 4.0 }
+          ];
+          await videoSender.setParameters(params);
+          console.log('[WebRTC] Simulcast encodings configured (h, m, l)');
+        }
+      }
+    } catch (err) {
+      // Browsers that don't support renegotiating multi-rid encoding continue with default single layer
+      console.log('[WebRTC] Standard single-layer encoding active');
+    }
+  };
+
+  // Initialize RTCPeerConnection instance with dynamic Coturn ICE servers [B-10]
+  const createPeerConnection = useCallback((peerUserId, customIceConfig) => {
+    const iceConfig = customIceConfig || dynamicIceServersRef.current || DEFAULT_ICE_SERVERS;
+    const pc = new RTCPeerConnection(iceConfig);
 
     pc.onicecandidate = (event) => {
       if (event.candidate && socket && peerUserId) {
@@ -382,7 +457,6 @@ export const CallProvider = ({ children }) => {
           disconnectGraceTimeoutRef.current = null;
         }
       } else if (pc.connectionState === 'disconnected') {
-        // ICE may be transiently switching networks or renegotiating; allow a 6-second grace window before ending call
         if (!disconnectGraceTimeoutRef.current) {
           disconnectGraceTimeoutRef.current = setTimeout(() => {
             if (pcRef.current && (pcRef.current.connectionState === 'disconnected' || pcRef.current.connectionState === 'failed')) {
@@ -442,7 +516,6 @@ export const CallProvider = ({ children }) => {
         await audioSender.replaceTrack(newAudioTrack);
       }
 
-      // Stop old audio track
       localStreamRef.current.getAudioTracks().forEach(t => t.stop());
       localStreamRef.current.addTrack(newAudioTrack);
       toast.success('Microphone device updated');
@@ -457,18 +530,17 @@ export const CallProvider = ({ children }) => {
     if (!localStreamRef.current || callType !== 'video') return;
     try {
       const newStream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
+        audio: false,
         video: { deviceId: { exact: deviceId } }
       });
       const newVideoTrack = newStream.getVideoTracks()[0];
-      
+
       const senders = pcRef.current?.getSenders();
       const videoSender = senders?.find(s => s.track && s.track.kind === 'video');
       if (videoSender) {
         await videoSender.replaceTrack(newVideoTrack);
       }
 
-      // Stop old video track
       localStreamRef.current.getVideoTracks().forEach(t => t.stop());
       localStreamRef.current.addTrack(newVideoTrack);
       setLocalStream(new MediaStream([localStreamRef.current.getAudioTracks()[0], newVideoTrack]));
@@ -478,11 +550,130 @@ export const CallProvider = ({ children }) => {
     }
   };
 
-  // Start Outgoing Call
+  /**
+   * Start Multi-Party LiveKit SFU Group Call [B-09]
+   */
+  const startSfuGroupCall = async (groupObj, type = 'video') => {
+    try {
+      setCallType(type);
+      setTargetUser(groupObj);
+      setIsCaller(true);
+      setIsSfuCall(true);
+      setCallStatus('connected');
+      startDurationTimer();
+
+      const groupId = groupObj._id || groupObj.id;
+      const roomName = `group_${groupId}`;
+
+      // Request LiveKit SFU Access Token from backend
+      const res = await apiClient.post('/api/webrtc/token', { roomName });
+      const { token, serverUrl } = res.data;
+
+      // Initialize LiveKit Room with dynacast & adaptive streaming
+      const room = new Room({
+        adaptiveStream: true,
+        dynacast: true,
+        videoCaptureDefaults: {
+          resolution: VideoPresets.h720.resolution
+        }
+      });
+      sfuRoomRef.current = room;
+
+      const updateParticipants = () => {
+        const remoteList = [];
+        room.remoteParticipants.forEach((p) => {
+          let videoTrack = null;
+          let audioTrack = null;
+
+          p.trackPublications.forEach((pub) => {
+            if (pub.track?.kind === 'video') videoTrack = pub.track.mediaStreamTrack;
+            if (pub.track?.kind === 'audio') audioTrack = pub.track.mediaStreamTrack;
+          });
+
+          remoteList.push({
+            identity: p.identity,
+            name: p.name || p.identity,
+            isSpeaking: p.isSpeaking,
+            videoTrack,
+            audioTrack
+          });
+        });
+        setSfuParticipants(remoteList);
+      };
+
+      room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+        console.log('[LiveKit SFU] Track subscribed:', track.kind, 'from', participant.identity);
+        updateParticipants();
+      });
+
+      room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+        updateParticipants();
+      });
+
+      room.on(RoomEvent.ParticipantConnected, (p) => {
+        console.log('[LiveKit SFU] Participant joined:', p.identity);
+        updateParticipants();
+      });
+
+      room.on(RoomEvent.ParticipantDisconnected, (p) => {
+        console.log('[LiveKit SFU] Participant left:', p.identity);
+        updateParticipants();
+      });
+
+      room.on(RoomEvent.ActiveSpeakersChanged, () => {
+        updateParticipants();
+      });
+
+      room.on(RoomEvent.Disconnected, () => {
+        console.log('[LiveKit SFU] Room disconnected');
+        resetCallState();
+      });
+
+      // Connect to SFU instance
+      await room.connect(serverUrl, token);
+      console.log('[LiveKit SFU] Connected to room:', roomName);
+
+      // Publish local media tracks
+      if (type === 'video') {
+        await room.localParticipant.enableCameraAndMicrophone();
+        const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera);
+        if (camPub?.track?.mediaStreamTrack) {
+          setLocalStream(new MediaStream([camPub.track.mediaStreamTrack]));
+        }
+      } else {
+        await room.localParticipant.setMicrophoneEnabled(true);
+      }
+
+      // Notify group members over Socket.io
+      if (socket) {
+        socket.emit('group_call_started', {
+          groupId,
+          roomName,
+          callType: type,
+          from: currentUserId,
+          callerName: user?.name || user?.username || 'User'
+        });
+      }
+
+      toast.success(`Connected to group call via SFU`);
+    } catch (err) {
+      console.error('[LiveKit SFU] Connection failed:', err);
+      toast.error(`SFU Group Call error: ${err.message}`);
+      resetCallState();
+    }
+  };
+
+  // Start Outgoing Call (Routes to SFU for group, or dynamic Coturn P2P for 1-on-1)
   const startCall = async (userToCall, type = 'video') => {
     if (!socket) return toast.error('Socket connection unavailable');
     if (callStatus !== 'idle') return toast.error('You are already in a call');
 
+    // Route Group calls to LiveKit SFU [B-09]
+    if (userToCall?.isGroup) {
+      return await startSfuGroupCall(userToCall, type);
+    }
+
+    // 1-on-1 P2P with dynamic Coturn STUN/TURN relays [B-10]
     try {
       ringtone.playOutgoing();
       setCallType(type);
@@ -502,11 +693,16 @@ export const CallProvider = ({ children }) => {
       }, 30000);
 
       const targetId = userToCall._id || userToCall.id;
-      const stream = await getMediaStream(type === 'audio', selectedAudioInput, selectedVideoInput);
-      const pc = createPeerConnection(targetId);
+      const [iceConfig, stream] = await Promise.all([
+        fetchIceServers(),
+        getMediaStream(type === 'audio', selectedAudioInput, selectedVideoInput)
+      ]);
+
+      const pc = createPeerConnection(targetId, iceConfig);
 
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
       await applyPeerConnectionBitrates(pc, loadStoragePrefs().useLessData);
+      await configureSimulcastSenders(pc);
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
@@ -520,11 +716,12 @@ export const CallProvider = ({ children }) => {
         callType: type
       });
     } catch (err) {
+      console.error('[WebRTC] Outgoing call error:', err);
       resetCallState();
     }
   };
 
-  // Answer Incoming Call
+  // Answer Incoming Call (1-on-1 P2P with dynamic Coturn TURN [B-10])
   const answerCall = async () => {
     if (!incomingCallData || !socket) return;
     ringtone.stop();
@@ -541,11 +738,16 @@ export const CallProvider = ({ children }) => {
         avatar: incomingCallData.callerAvatar
       });
 
-      const stream = await getMediaStream(type === 'audio', selectedAudioInput, selectedVideoInput);
-      const pc = createPeerConnection(peerId);
+      const [iceConfig, stream] = await Promise.all([
+        fetchIceServers(),
+        getMediaStream(type === 'audio', selectedAudioInput, selectedVideoInput)
+      ]);
+
+      const pc = createPeerConnection(peerId, iceConfig);
 
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
       await applyPeerConnectionBitrates(pc, loadStoragePrefs().useLessData);
+      await configureSimulcastSenders(pc);
 
       await pc.setRemoteDescription(new RTCSessionDescription(incomingCallData.signal));
 
@@ -560,46 +762,62 @@ export const CallProvider = ({ children }) => {
 
       socket.emit('answer_call', {
         to: peerId,
-        from: currentUserId,
-        signal: answer
+        signal: answer,
+        from: currentUserId
       });
 
       startDurationTimer();
     } catch (err) {
       console.error('[WebRTC] Answer call error:', err);
-      toast.error('Failed to establish call connection');
-      endCall(true);
+      toast.error('Failed to answer call');
+      resetCallState();
     }
   };
 
-  // Reject Call
+  // Reject Incoming Call
   const rejectCall = () => {
+    ringtone.stop();
     if (incomingCallData && socket) {
-      socket.emit('reject_call', { to: incomingCallData.from, from: currentUserId });
+      socket.emit('reject_call', {
+        to: incomingCallData.from,
+        from: currentUserId
+      });
     }
     resetCallState();
-    toast('Call declined');
   };
 
-  // Toggle Microphone
+  // Toggle Mute Audio
   const toggleAudio = () => {
-    if (localStreamRef.current) {
-      const audioTrack = localStreamRef.current.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        const newMutedState = !audioTrack.enabled;
-        setIsMuted(newMutedState);
+    if (isSfuCall && sfuRoomRef.current) {
+      const nextMuted = !isMuted;
+      sfuRoomRef.current.localParticipant.setMicrophoneEnabled(!nextMuted);
+      setIsMuted(nextMuted);
+      return;
+    }
 
-        const peerId = targetUser?._id || targetUser?.id || incomingCallData?.from;
-        if (socket && peerId) {
-          socket.emit('toggle_media', { to: peerId, isMuted: newMutedState, isVideoOff });
-        }
+    if (!localStreamRef.current) return;
+    const audioTrack = localStreamRef.current.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+      const newMutedState = !audioTrack.enabled;
+      setIsMuted(newMutedState);
+
+      const peerId = targetUser?._id || targetUser?.id || incomingCallData?.from;
+      if (socket && peerId) {
+        socket.emit('toggle_media', { to: peerId, isMuted: newMutedState, isVideoOff });
       }
     }
   };
 
   // Toggle Camera / Mid-Call Video Upgrade
   const toggleVideo = async () => {
+    if (isSfuCall && sfuRoomRef.current) {
+      const nextVideoOff = !isVideoOff;
+      sfuRoomRef.current.localParticipant.setCameraEnabled(!nextVideoOff);
+      setIsVideoOff(nextVideoOff);
+      return;
+    }
+
     if (!localStreamRef.current) return;
     const videoTrack = localStreamRef.current.getVideoTracks()[0];
     if (videoTrack) {
@@ -612,7 +830,6 @@ export const CallProvider = ({ children }) => {
         socket.emit('toggle_media', { to: peerId, isMuted, isVideoOff: newVideoOffState });
       }
     } else if (callType === 'audio') {
-      // Upgrade from audio-only to video mid-call
       try {
         const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
         const newVideoTrack = videoStream.getVideoTracks()[0];
@@ -646,10 +863,16 @@ export const CallProvider = ({ children }) => {
 
   // Screen Sharing Toggle
   const toggleScreenShare = async () => {
+    if (isSfuCall && sfuRoomRef.current) {
+      const nextShare = !isScreenSharing;
+      await sfuRoomRef.current.localParticipant.setScreenShareEnabled(nextShare);
+      setIsScreenSharing(nextShare);
+      return;
+    }
+
     if (!pcRef.current) return;
 
     if (isScreenSharing) {
-      // Revert back to local camera track
       if (screenTrackRef.current) {
         screenTrackRef.current.stop();
         screenTrackRef.current = null;
@@ -710,83 +933,79 @@ export const CallProvider = ({ children }) => {
       console.log('[WebRTC] Call accepted by remote peer');
       ringtone.stop();
 
-      // Immediately clear caller-side ringing timeout
       if (ringingTimeoutRef.current) {
         clearTimeout(ringingTimeoutRef.current);
         ringingTimeoutRef.current = null;
-        console.log('[WebRTC] Ringing timeout cleared on caller side');
       }
 
       setCallStatus('connected');
-      
-      if (pcRef.current) {
-        // Guard against duplicate / wrong state
-        if (pcRef.current.signalingState !== 'have-local-offer') {
-          console.warn('[WebRTC] Skipping setRemoteDescription because signalingState is:', pcRef.current.signalingState);
-          return;
-        }
+      startDurationTimer();
+
+      if (pcRef.current && data.signal) {
         try {
           await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.signal));
           while (pendingCandidatesRef.current.length > 0) {
             const candidate = pendingCandidatesRef.current.shift();
-            if (candidate) {
-              await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => console.warn(e));
-            }
+            await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
           }
         } catch (err) {
-          console.error('[WebRTC] Failed to set remote description on call_accepted:', err);
+          console.error('[WebRTC] Error setting remote description on caller:', err);
         }
       }
-      startDurationTimer();
     };
 
     const handleIceCandidate = async (data) => {
-      if (!data?.candidate) return;
-      if (pcRef.current && pcRef.current.remoteDescription) {
-        try {
-          await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
-        } catch (e) {
-          console.warn('Error adding ICE candidate:', e);
+      if (data && data.candidate) {
+        if (pcRef.current && pcRef.current.remoteDescription) {
+          try {
+            await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+          } catch (e) {
+            console.warn('[WebRTC] Failed to add ICE candidate:', e);
+          }
+        } else {
+          pendingCandidatesRef.current.push(data.candidate);
         }
-      } else {
-        pendingCandidatesRef.current.push(data.candidate);
       }
     };
 
     const handleCallRejected = () => {
-      toast.error('Call declined by user');
+      toast('Call was declined');
       resetCallState();
     };
 
     const handleCallEnded = () => {
-      toast('Call ended by peer');
+      toast('Remote peer ended the call');
       resetCallState();
     };
 
     const handleCallTimeout = () => {
-      if (callStatus === 'connected') {
-        console.warn('[WebRTC] Received call_timeout while call is already connected, ignoring');
-        return;
-      }
-      toast.error('Call unanswered (Timed out)');
+      toast('Call was not answered (Timed out)');
       resetCallState();
     };
 
     const handleUserBusy = (data) => {
-      toast.error(data.message || 'User is on another call');
+      toast.error(data?.message || 'User is currently on another call');
       resetCallState();
     };
 
     const handleDismissIncomingCall = () => {
-      // Do not reset call state if this tab has already accepted or initiated the call
-      if (callStatus === 'connected' || isCaller) return;
-      console.log('[Multi-Tab] Incoming call answered/dismissed on another tab');
-      resetCallState();
+      if (callStatus === 'ringing' && !isCaller) {
+        console.log('[WebRTC] Call answered on another device/tab. Dismissing modal.');
+        ringtone.stop();
+        resetCallState();
+      }
     };
 
-    const handlePeerMediaToggle = (data) => {
-      if (data.isMuted !== undefined) setIsPeerMuted(data.isMuted);
-      if (data.isVideoOff !== undefined) setIsPeerVideoOff(data.isVideoOff);
+    const handlePeerMediaToggle = ({ isMuted: peerMuted, isVideoOff: peerVideoOff }) => {
+      setIsPeerMuted(Boolean(peerMuted));
+      setIsPeerVideoOff(Boolean(peerVideoOff));
+    };
+
+    // Incoming Group Call listener
+    const handleIncomingGroupCall = (data) => {
+      if (callStatus === 'idle') {
+        toast(`Group call started in ${data.groupId}`, { icon: '📞' });
+      }
     };
 
     socket.on('incoming_call', handleIncomingCall);
@@ -798,6 +1017,7 @@ export const CallProvider = ({ children }) => {
     socket.on('user_busy', handleUserBusy);
     socket.on('dismiss_incoming_call', handleDismissIncomingCall);
     socket.on('peer_media_toggle', handlePeerMediaToggle);
+    socket.on('incoming_group_call', handleIncomingGroupCall);
 
     return () => {
       socket.off('incoming_call', handleIncomingCall);
@@ -809,6 +1029,7 @@ export const CallProvider = ({ children }) => {
       socket.off('user_busy', handleUserBusy);
       socket.off('dismiss_incoming_call', handleDismissIncomingCall);
       socket.off('peer_media_toggle', handlePeerMediaToggle);
+      socket.off('incoming_group_call', handleIncomingGroupCall);
     };
   }, [socket, callStatus, isCaller, resetCallState, startDurationTimer]);
 
@@ -833,6 +1054,8 @@ export const CallProvider = ({ children }) => {
       incomingCallData,
       localStream,
       remoteStream,
+      isSfuCall,
+      sfuParticipants,
       isMuted,
       isVideoOff,
       isPeerMuted,
@@ -846,6 +1069,7 @@ export const CallProvider = ({ children }) => {
       selectedAudioInput,
       selectedVideoInput,
       startCall,
+      startSfuGroupCall,
       answerCall,
       rejectCall,
       endCall,

@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # ============================================================================
+  # Coturn - High-Availability WebRTC NAT Traversal Relay [B-10]
+  # ============================================================================
+  coturn:
+    image: coturn/coturn:latest
+    container_name: talksphere-coturn
+    restart: unless-stopped
+    network_mode: "host"
+    volumes:
+      - ./turn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command:
+      - -c
+      - /etc/coturn/turnserver.conf
+
+  # ============================================================================
+  # LiveKit SFU - O(N) Multi-Party Media Forwarding Unit [B-09]
+  # ============================================================================
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: talksphere-livekit-sfu
+    restart: unless-stopped
+    network_mode: "host"
+    volumes:
+      - ./livekit/livekit.yaml:/etc/livekit.yaml:ro
+    command:
+      - --config
+      - /etc/livekit.yaml
+    environment:
+      - LIVEKIT_KEYS=talksphere_api_key: talksphere_api_secret_key_2026
+    depends_on:
+      - redis
+
+  # ============================================================================
+  # Redis - State & Pub/Sub Coordination
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: talksphere-media-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+
