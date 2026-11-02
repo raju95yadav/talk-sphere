@@ -251,7 +251,7 @@ const createCallLogMessage = async (senderId, receiverId, callType, callStatus, 
   }
 };
 
-// JWT Authentication Middleware for Sockets
+// JWT Authentication Middleware for Sockets (With Production Synthetic Isolation)
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token || socket.handshake.headers['authorization']?.split(' ')[1];
   
@@ -261,7 +261,27 @@ io.use((socket, next) => {
   }
   
   try {
+    // 1. Synthetic Load-Test Token Guardrail
+    try {
+      const testDecoded = jwt.verify(token, 'talksphere-isolated-load-test-secret-do-not-use-in-prod');
+      if (testDecoded) {
+        if (process.env.NODE_ENV === 'production') {
+          return next(new Error('Authentication error: Synthetic load-test credentials strictly forbidden in production'));
+        }
+        if (process.env.ALLOW_SYNTHETIC_TOKENS === 'true') {
+          socket.userId = testDecoded.id;
+          socket.isSynthetic = true;
+          return next();
+        }
+      }
+    } catch (testErr) {}
+
+    // 2. Strict Verification against Production JWT_SECRET
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.isSyntheticLoadTest && process.env.NODE_ENV === 'production') {
+      return next(new Error('Authentication error: Synthetic load-test credentials strictly forbidden in production'));
+    }
+
     socket.userId = decoded.id;
     next();
   } catch (err) {

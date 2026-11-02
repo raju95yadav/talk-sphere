@@ -2,7 +2,17 @@
  * Master Load Testing & Benchmark Runner [Phase 7]
  * Orchestrates all benchmark scenarios, profiles system metrics,
  * writes raw JSON telemetry and compiles the executive Scalability Audit Report.
+ *
+ * SAFETY GUARDRAIL: Strict runtime check aborts execution if running in production
+ * or if pointing to a production MongoDB cluster.
  */
+
+// Production Environment & Database Isolation Guardrail
+if (process.env.NODE_ENV === 'production' || 
+    (process.env.MONGODB_URI && (process.env.MONGODB_URI.includes('production') || process.env.MONGODB_URI.includes('mongodb.net')))) {
+  console.error('FATAL: Attempted to run load-test scripts against a production environment. Terminating process.');
+  process.exit(1);
+}
 
 const fs = require('fs');
 const path = require('path');
@@ -167,6 +177,7 @@ async function runMasterSuite() {
   console.log('\n========================================================================');
   console.log('✅ ALL PHASE 7 BENCHMARKS & LOAD VALIDATIONS COMPLETED SUCCESSFULLY!');
   console.log('========================================================================\n');
+  process.exit(0);
 }
 
 function compileReport(results) {

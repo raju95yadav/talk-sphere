@@ -1,0 +1,31 @@
+# Version control
+.git
+.gitignore
+.github
+
+# Dependencies
+node_modules
+client/node_modules
+server/node_modules
+
+# Build artifacts
+dist
+client/dist
+.DS_Store
+Thumbs.db
+
+# Synthetic load tests and benchmark datasets (Strict container isolation)
+load-tests
+load-tests/**
+
+# Environment secrets
+.env
+.env.*
+client/.env
+server/.env
+server/.env.*
+
+# Logs
+logs
+*.log
+

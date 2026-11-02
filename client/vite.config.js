@@ -15,4 +15,20 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      // Strictly prevent bundling of load test scripts or synthetic datasets
+      external: [
+        'load-tests',
+        /^load-tests\/.*/,
+        /mockUsers\.json/,
+        /testMessages\.json/
+      ]
+    }
+  },
+  server: {
+    watch: {
+      ignored: ['**/load-tests/**', '**/server/**']
+    }
+  }
 })

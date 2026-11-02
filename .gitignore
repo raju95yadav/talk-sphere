@@ -24,4 +24,8 @@ server/.env.local
 .DS_Store
 Thumbs.db
 
-
+# Load testing runtime dumps & profiling artifacts
+load-tests/reports/benchmark_results.json
+load-tests/reports/*.html
+load-tests/temp/
+*.clinic/

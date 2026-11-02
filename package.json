@@ -1,0 +1,14 @@
+{
+  "name": "talk-sphere",
+  "version": "2.0.0",
+  "private": true,
+  "description": "TalkSphere - Clustered Real-Time Communication Platform",
+  "scripts": {
+    "start": "node server/index.js",
+    "build:client": "npm --prefix client run build",
+    "test:load": "node load-tests/runner.js",
+    "test:generate-datasets": "node load-tests/scripts/generateDatasets.js",
+    "test:verify": "node server/scripts/verify-phase6-infrastructure.js"
+  }
+}
+
