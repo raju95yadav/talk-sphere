@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
 const cookieParser = require('cookie-parser');
@@ -34,7 +35,7 @@ const healthRoutes = require('./routes/healthRoutes');
 const { initRagQueue, closeRagQueue } = require('./config/queue');
 const { startRagWorker, closeRagWorker } = require('./workers/ragWorker');
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const server = http.createServer(app);

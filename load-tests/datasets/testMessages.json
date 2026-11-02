@@ -1,0 +1,34 @@
+[
+  {
+    "type": "short",
+    "content": "Hey, how are you doing today?"
+  },
+  {
+    "type": "greeting",
+    "content": "Good morning team! 👋 Ready for the sprint demo?"
+  },
+  {
+    "type": "emoji",
+    "content": "🚀 TalkSphere v2.0 is live! Great work everyone! 🎉✨🔥"
+  },
+  {
+    "type": "unicode",
+    "content": "Testing internationalized Unicode: こんにちは, 你好, Здравствуйте, مرحبا, नमस्ते!"
+  },
+  {
+    "type": "code_snippet",
+    "content": "```javascript\nconst { io } = require('socket.io-client');\nconst socket = io('http://localhost:5000');\nsocket.emit('send_message', { content: 'Ping' });\n```"
+  },
+  {
+    "type": "markdown",
+    "content": "### Architecture Update\n- **Redis Adapter**: Horizontal scaling enabled\n- **Cursor Pagination**: O(1) indexed reads\n- **SFU WebRTC**: $O(N)$ streaming"
+  },
+  {
+    "type": "long",
+    "content": "This is a long technical inquiry regarding the distributed memory caching topology and event loop responsiveness under 2,000+ concurrent active WebSocket sessions. Can we verify that the Redis Pub/Sub adapter handles broadcast bursts without queue backpressure or unhandled promise rejections?"
+  },
+  {
+    "type": "rag_query",
+    "content": "What are the main security guidelines for API rate limiting and token revocation?"
+  }
+]
