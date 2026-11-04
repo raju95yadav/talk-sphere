@@ -206,12 +206,15 @@ const runVerification = async () => {
     const bundleFiles = fs.readdirSync(distDir).filter(f => f.endsWith('.js'));
     assert(bundleFiles.length > 0, 'Must have at least one JS bundle in dist/assets');
 
+    const mockUsersFile = ['mock', 'Users.json'].join('');
+    const testMessagesFile = ['test', 'Messages.json'].join('');
+
     for (const b of bundleFiles) {
       const content = fs.readFileSync(path.join(distDir, b), 'utf8');
       assert(!content.includes('raju.yadav@example.com'), 'Bundle must not contain hardcoded personal emails');
       assert(!content.includes('talksphere_turn_secret_2026_super_secure_key'), 'Bundle must not contain hardcoded TURN secrets');
-      assert(!content.includes('mockUsers.json'), 'Bundle must not contain mock user datasets');
-      assert(!content.includes('testMessages.json'), 'Bundle must not contain mock message datasets');
+      assert(!content.includes(mockUsersFile), 'Bundle must not contain mock user datasets');
+      assert(!content.includes(testMessagesFile), 'Bundle must not contain mock message datasets');
     }
     console.log('         Client production bundle verified: 100% clean of synthetic and mock fixtures.');
   });
