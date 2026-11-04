@@ -12,13 +12,14 @@ const queryEmbeddingCache = new Map();
 
 /**
  * Generate 768-dimensional embeddings using Gemini with smart caching & Circuit Breaker [B-16]
+ * Fail-Fast: Never returns zero-vectors or dummy synthetic arrays upon API failures.
  *
  * @param {string} text
  * @returns {Promise<number[]>} 768-dimensional float array
  */
 const generateEmbedding = async (text) => {
   if (!text || typeof text !== 'string' || !text.trim()) {
-    return new Array(768).fill(0);
+    throw new Error('EmbeddingGenerationError: Input text must be a non-empty string.');
   }
 
   return ragEmbeddingBreaker.execute(async () => {
@@ -31,10 +32,13 @@ const generateEmbedding = async (text) => {
           outputDimensionality: 768
         });
         if (res?.embedding?.values && res.embedding.values.length === 768) {
-          return res.embedding.values;
+          // Reject synthetic all-zero vectors
+          if (!res.embedding.values.every(v => v === 0)) {
+            return res.embedding.values;
+          }
         }
       } catch (cachedErr) {
-        logger.warn('RAG_EMBEDDING_CACHED_FAIL', `Cached model ${verifiedEmbeddingModel} failed, re-probing...`);
+        logger.warn('RAG_EMBEDDING_CACHED_FAIL', `Cached model ${verifiedEmbeddingModel} failed (${cachedErr.message}), re-probing...`);
         verifiedEmbeddingModel = null;
       }
     }
@@ -46,7 +50,7 @@ const generateEmbedding = async (text) => {
         content: { parts: [{ text }] },
         outputDimensionality: 768
       });
-      if (res?.embedding?.values && res.embedding.values.length === 768) {
+      if (res?.embedding?.values && res.embedding.values.length === 768 && !res.embedding.values.every(v => v === 0)) {
         verifiedEmbeddingModel = 'gemini-embedding-001';
         return res.embedding.values;
       }
@@ -61,19 +65,16 @@ const generateEmbedding = async (text) => {
         content: { parts: [{ text }] },
         outputDimensionality: 768
       });
-      if (res?.embedding?.values && res.embedding.values.length === 768) {
+      if (res?.embedding?.values && res.embedding.values.length === 768 && !res.embedding.values.every(v => v === 0)) {
         verifiedEmbeddingModel = 'text-embedding-004';
         return res.embedding.values;
       }
     } catch (fallbackErr) {
       logger.error('RAG_EMBEDDING_FAILED', fallbackErr.message || fallbackErr);
-      throw new Error(`Embedding generation failed: ${fallbackErr.message}`);
+      throw new Error(`EmbeddingGenerationError: Failed to generate valid 768-dimensional vector from Gemini API. ${fallbackErr.message}`);
     }
 
-    throw new Error('Could not obtain 768-dimensional embedding from Gemini');
-  }, () => {
-    // Graceful fallback: return zero vector if circuit breaker is OPEN
-    return new Array(768).fill(0);
+    throw new Error('EmbeddingGenerationError: Failed to generate valid 768-dimensional vector from Gemini API.');
   });
 };
 
@@ -85,6 +86,10 @@ const generateEmbedding = async (text) => {
  */
 const getQueryEmbedding = async (query) => {
   const cacheKey = (query || '').trim().toLowerCase();
+  if (!cacheKey) {
+    throw new Error('EmbeddingGenerationError: Query cannot be empty.');
+  }
+
   let emb = queryEmbeddingCache.get(cacheKey);
   if (!emb) {
     emb = await generateEmbedding(query);
@@ -120,4 +125,3 @@ module.exports = {
   cosineSimilarity,
   genAI
 };
-

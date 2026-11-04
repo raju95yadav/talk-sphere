@@ -110,7 +110,12 @@ exports.uploadDocument = async (req, res) => {
     if (tempFilePath) {
       await fs.promises.unlink(tempFilePath).catch(() => {});
     }
-    return res.status(500).json({ message: `Document upload processing failed: ${error.message}` });
+    const statusCode = error.name === 'QueueServiceUnavailable' || error.statusCode === 503 ? 503 : 500;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || 'Document upload processing failed',
+      error: error.name || 'QueueServiceUnavailable'
+    });
   }
 };
 

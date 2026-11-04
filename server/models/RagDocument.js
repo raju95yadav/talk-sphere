@@ -9,14 +9,15 @@ const ragDocumentSchema = new mongoose.Schema({
   totalChunks: { type: Number, default: 0 },
   status: {
     type: String,
-    enum: ['queued', 'parsing', 'indexing', 'ready', 'failed'],
+    enum: ['queued', 'parsing', 'indexing', 'ready', 'failed', 'FAILED', 'QUEUED', 'PARSING', 'INDEXING', 'READY'],
     default: 'queued',
     index: true
   },
   error: { type: String, default: null },
+  processingError: { type: String, default: null },
+  failedAt: { type: Date, default: null },
   indexedAt: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now }
 });
 
 module.exports = mongoose.model('RagDocument', ragDocumentSchema);
-

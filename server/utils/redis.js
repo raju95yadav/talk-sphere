@@ -2,7 +2,16 @@ const Redis = require('ioredis');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const logger = require('./logger');
 
-// Connection options for resilient clustering & local fallback
+// Custom Redis Error class for distributed state failures
+class RedisConnectionError extends Error {
+  constructor(message = 'Redis connection is down. Distributed operation unavailable.') {
+    super(message);
+    this.name = 'RedisConnectionError';
+    this.statusCode = 503;
+  }
+}
+
+// Connection options for resilient clustering
 const REDIS_URI = process.env.REDIS_URI || 'redis://127.0.0.1:6379';
 
 const redisOptions = {
@@ -11,7 +20,7 @@ const redisOptions = {
   lazyConnect: true,
   connectTimeout: 5000,
   retryStrategy: (times) => {
-    // Retry with capped exponential backoff up to 10 seconds
+    // Exponential backoff capped at 10 seconds
     const delay = Math.min(times * 500, 10000);
     return delay;
   }
@@ -22,14 +31,56 @@ let subClient = null;
 let redisClient = null;
 let isRedisReady = false;
 
-// In-memory fallback stores for when Redis server is offline / local development
+// In-memory fallback stores strictly for development/test mode
 const localSocketsMap = new Map(); // userId -> Set of socket IDs
 const localActiveCallsMap = new Map(); // callKey -> call metadata
 const localCallTimers = new Map(); // callKey -> local setTimeout ID
 
 /**
+ * Enforce that Redis is online in production.
+ * Throws 503 RedisConnectionError if called in production while Redis is disconnected.
+ */
+const ensureRedisConnected = (operationName) => {
+  if (process.env.NODE_ENV === 'production') {
+    if (!isRedisReady || !redisClient || redisClient.status !== 'ready') {
+      const msg = `RedisConnectionError: Redis is disconnected. Distributed operation "${operationName}" refused in production.`;
+      logger.error('REDIS_PROD_ENFORCEMENT', msg);
+      throw new RedisConnectionError(msg);
+    }
+  }
+};
+
+/**
+ * Attach connection lifecycle events for observability and auto-reconnection
+ */
+const bindLifecycleEvents = (client, name) => {
+  client.on('connect', () => {
+    logger.info(`REDIS_${name}_CONNECT`, `Redis ${name} client connected.`);
+  });
+
+  client.on('ready', () => {
+    logger.info(`REDIS_${name}_READY`, `Redis ${name} client ready to process commands.`);
+    if (name === 'MAIN') isRedisReady = true;
+  });
+
+  client.on('reconnecting', (delay) => {
+    logger.warn(`REDIS_${name}_RECONNECT`, `Redis ${name} client reconnecting in ${delay}ms...`);
+  });
+
+  client.on('error', (err) => {
+    logger.error(`REDIS_${name}_ERROR`, `Redis ${name} client error: ${err.message}`);
+  });
+
+  client.on('close', () => {
+    logger.warn(`REDIS_${name}_CLOSE`, `Redis ${name} client connection closed.`);
+    if (name === 'MAIN') isRedisReady = false;
+  });
+};
+
+/**
  * Initializes Redis clients and mounts the Socket.io Redis adapter.
- * Falls back gracefully to in-memory mode if Redis is not reachable.
+ * Production: Strict check. Throws RedisConnectionError if connection fails.
+ * Development: Falls back to in-memory mode with visible warning.
  *
  * @param {object} io - Socket.io Server instance
  * @returns {Promise<{ isRedisEnabled: boolean }>}
@@ -40,17 +91,9 @@ const initRedis = async (io) => {
     subClient = new Redis(REDIS_URI, redisOptions);
     redisClient = new Redis(REDIS_URI, redisOptions);
 
-    pubClient.on('error', (err) => {
-      logger.warn('REDIS_PUB_ERROR', `Pub client warning: ${err.message}`);
-    });
-
-    subClient.on('error', (err) => {
-      logger.warn('REDIS_SUB_ERROR', `Sub client warning: ${err.message}`);
-    });
-
-    redisClient.on('error', (err) => {
-      logger.warn('REDIS_CLIENT_ERROR', `Redis client warning: ${err.message}`);
-    });
+    bindLifecycleEvents(pubClient, 'PUB');
+    bindLifecycleEvents(subClient, 'SUB');
+    bindLifecycleEvents(redisClient, 'MAIN');
 
     // Attempt connection with 3-second timeout
     await Promise.race([
@@ -90,9 +133,17 @@ const initRedis = async (io) => {
     return { isRedisEnabled: true };
   } catch (err) {
     isRedisReady = false;
+
+    if (process.env.NODE_ENV === 'production') {
+      logger.error('REDIS_PROD_INIT_FAIL', `FATAL: Redis connection failed in production: ${err.message}`);
+      throw new RedisConnectionError(`Redis connection unavailable in production: ${err.message}`);
+    }
+
+    // Development Environment Boundary
+    console.warn('[Dev Warning] Redis not detected. Falling back to local Map instances. Multi-instance clustering will not function.');
     logger.warn(
       'REDIS_FALLBACK',
-      `Redis connection unavailable (${err.message}). Falling back to in-memory adapter and stores.`
+      `Redis connection unavailable (${err.message}). Falling back to in-memory adapter and stores in development.`
     );
     return { isRedisEnabled: false };
   }
@@ -132,9 +183,9 @@ const handleClusterEvent = (event, payload) => {
 /**
  * Registers a socket connection for a user.
  * Returns the total number of active sockets for this user.
- * If return value === 1, the user has just transitioned to online.
  */
 const addUserSocket = async (userId, socketId) => {
+  ensureRedisConnected('addUserSocket');
   const uId = userId.toString();
 
   if (isRedisReady && redisClient) {
@@ -145,11 +196,14 @@ const addUserSocket = async (userId, socketId) => {
       const count = await redisClient.scard(socketKey);
       return count;
     } catch (e) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new RedisConnectionError(`addUserSocket failed in production: ${e.message}`);
+      }
       logger.warn('REDIS_ADD_SOCKET_FALLBACK', e.message);
     }
   }
 
-  // In-Memory Fallback
+  // Development In-Memory Fallback
   if (!localSocketsMap.has(uId)) {
     localSocketsMap.set(uId, new Set());
   }
@@ -160,9 +214,9 @@ const addUserSocket = async (userId, socketId) => {
 /**
  * Removes a socket connection for a user.
  * Returns the remaining number of active sockets for this user.
- * If return value === 0, the user has just transitioned to offline.
  */
 const removeUserSocket = async (userId, socketId) => {
+  ensureRedisConnected('removeUserSocket');
   const uId = userId.toString();
 
   if (isRedisReady && redisClient) {
@@ -177,11 +231,14 @@ const removeUserSocket = async (userId, socketId) => {
       }
       return remaining;
     } catch (e) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new RedisConnectionError(`removeUserSocket failed in production: ${e.message}`);
+      }
       logger.warn('REDIS_REMOVE_SOCKET_FALLBACK', e.message);
     }
   }
 
-  // In-Memory Fallback
+  // Development In-Memory Fallback
   if (localSocketsMap.has(uId)) {
     const set = localSocketsMap.get(uId);
     set.delete(socketId);
@@ -198,13 +255,16 @@ const removeUserSocket = async (userId, socketId) => {
  * Returns the active socket count for a user across all clusters
  */
 const getUserSocketCount = async (userId) => {
+  ensureRedisConnected('getUserSocketCount');
   const uId = userId.toString();
 
   if (isRedisReady && redisClient) {
     try {
       return await redisClient.scard(`presence:sockets:${uId}`);
     } catch (e) {
-      // Fallback
+      if (process.env.NODE_ENV === 'production') {
+        throw new RedisConnectionError(`getUserSocketCount failed in production: ${e.message}`);
+      }
     }
   }
 
@@ -215,13 +275,16 @@ const getUserSocketCount = async (userId) => {
  * Checks if a user is currently online
  */
 const isUserOnline = async (userId) => {
+  ensureRedisConnected('isUserOnline');
   const uId = userId.toString();
 
   if (isRedisReady && redisClient) {
     try {
       return (await redisClient.hexists('presence:online_users', uId)) === 1;
     } catch (e) {
-      // Fallback
+      if (process.env.NODE_ENV === 'production') {
+        throw new RedisConnectionError(`isUserOnline failed in production: ${e.message}`);
+      }
     }
   }
 
@@ -257,12 +320,17 @@ const clearLocalCallTimer = (key) => {
  * Registers an active call in the shared store
  */
 const saveActiveCall = async (key, callData) => {
-  const cleanData = { ...callData, timeoutId: undefined }; // Don't serialize local timer handle
+  ensureRedisConnected('saveActiveCall');
+  const cleanData = { ...callData, timeoutId: undefined };
 
   if (isRedisReady && redisClient) {
     try {
       await redisClient.hset('presence:active_calls', key, JSON.stringify(cleanData));
+      return;
     } catch (e) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new RedisConnectionError(`saveActiveCall failed in production: ${e.message}`);
+      }
       logger.warn('REDIS_SAVE_CALL_FALLBACK', e.message);
     }
   }
@@ -274,12 +342,17 @@ const saveActiveCall = async (key, callData) => {
  * Retrieves an active call by key
  */
 const getActiveCall = async (key) => {
+  ensureRedisConnected('getActiveCall');
+
   if (isRedisReady && redisClient) {
     try {
       const raw = await redisClient.hget('presence:active_calls', key);
       if (raw) return JSON.parse(raw);
+      return null;
     } catch (e) {
-      // Fallback
+      if (process.env.NODE_ENV === 'production') {
+        throw new RedisConnectionError(`getActiveCall failed in production: ${e.message}`);
+      }
     }
   }
 
@@ -290,6 +363,7 @@ const getActiveCall = async (key) => {
  * Searches for any active call where the user is either caller or receiver
  */
 const findCallByParticipant = async (userId) => {
+  ensureRedisConnected('findCallByParticipant');
   const uId = userId.toString();
 
   if (isRedisReady && redisClient) {
@@ -303,8 +377,11 @@ const findCallByParticipant = async (userId) => {
           }
         } catch (e) {}
       }
+      return null;
     } catch (e) {
-      // Fallback
+      if (process.env.NODE_ENV === 'production') {
+        throw new RedisConnectionError(`findCallByParticipant failed in production: ${e.message}`);
+      }
     }
   }
 
@@ -321,6 +398,7 @@ const findCallByParticipant = async (userId) => {
  * Searches and returns all active calls currently matching a user
  */
 const findAllCallsForUser = async (userId, socketId = null) => {
+  ensureRedisConnected('findAllCallsForUser');
   const uId = userId.toString();
   const matched = [];
 
@@ -339,7 +417,9 @@ const findAllCallsForUser = async (userId, socketId = null) => {
       }
       return matched;
     } catch (e) {
-      // Fallback
+      if (process.env.NODE_ENV === 'production') {
+        throw new RedisConnectionError(`findAllCallsForUser failed in production: ${e.message}`);
+      }
     }
   }
 
@@ -358,14 +438,18 @@ const findAllCallsForUser = async (userId, socketId = null) => {
  * Updates call metadata across all instances
  */
 const updateActiveCall = async (key, updates) => {
+  ensureRedisConnected('updateActiveCall');
   const current = (await getActiveCall(key)) || {};
   const updated = { ...current, ...updates };
 
   if (isRedisReady && redisClient) {
     try {
       await redisClient.hset('presence:active_calls', key, JSON.stringify(updated));
+      return updated;
     } catch (e) {
-      // Fallback
+      if (process.env.NODE_ENV === 'production') {
+        throw new RedisConnectionError(`updateActiveCall failed in production: ${e.message}`);
+      }
     }
   }
 
@@ -377,14 +461,18 @@ const updateActiveCall = async (key, updates) => {
  * Deletes an active call from the shared store and notifies all peer nodes to clear timers
  */
 const removeActiveCall = async (key) => {
+  ensureRedisConnected('removeActiveCall');
   clearLocalCallTimer(key);
 
   if (isRedisReady && redisClient) {
     try {
       await redisClient.hdel('presence:active_calls', key);
       publishClusterEvent('CALL_CLEARED', { key });
+      return;
     } catch (e) {
-      // Fallback
+      if (process.env.NODE_ENV === 'production') {
+        throw new RedisConnectionError(`removeActiveCall failed in production: ${e.message}`);
+      }
     }
   }
 
@@ -412,7 +500,6 @@ const closeRedis = async () => {
       try {
         await client.quit();
       } catch (err) {
-        // Fallback to disconnect if quit hangs
         try { client.disconnect(); } catch (e) {}
       }
     })
@@ -437,6 +524,6 @@ module.exports = {
   updateActiveCall,
   removeActiveCall,
   getRedisStatus,
-  closeRedis
+  closeRedis,
+  RedisConnectionError
 };
-

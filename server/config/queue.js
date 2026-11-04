@@ -4,6 +4,15 @@ const logger = require('../utils/logger');
 
 const REDIS_URI = process.env.REDIS_URI || 'redis://127.0.0.1:6379';
 
+// Custom Queue Error class with 503 HTTP status
+class QueueServiceUnavailableError extends Error {
+  constructor(message = 'QueueServiceUnavailable: Redis connection is down. Unable to queue background job.') {
+    super(message);
+    this.name = 'QueueServiceUnavailable';
+    this.statusCode = 503;
+  }
+}
+
 // Parse Redis URI to configuration options
 const getRedisConnectionOptions = () => {
   try {
@@ -53,7 +62,7 @@ const defaultJobOptions = {
 
 /**
  * Initializes the BullMQ RAG document queue.
- * Detects Redis availability and gracefully falls back to in-process async queue if Redis is offline.
+ * Strictly checks Redis availability without silent fallback mocks in production.
  */
 const initRagQueue = async () => {
   const connectionOptions = getRedisConnectionOptions();
@@ -62,7 +71,7 @@ const initRagQueue = async () => {
     // Quick test connection to see if Redis is reachable before binding BullMQ
     const testClient = new Redis(connectionOptions);
     
-    testClient.on('error', (err) => {
+    testClient.on('error', () => {
       // Suppress noisy ECONNREFUSED logs during initial probe
     });
 
@@ -85,16 +94,25 @@ const initRagQueue = async () => {
   } catch (err) {
     isBullMQActive = false;
     ragQueue = null;
-    logger.warn(
-      'BULLMQ_FALLBACK',
-      `Redis not reachable for BullMQ (${err.message}). Using resilient in-process async job queue fallback.`
-    );
+
+    if (process.env.NODE_ENV === 'production') {
+      logger.error(
+        'BULLMQ_INIT_ERROR',
+        `FATAL: Redis not reachable for BullMQ in production (${err.message}). In-process fallbacks forbidden.`
+      );
+    } else {
+      logger.warn(
+        'BULLMQ_DEV_NOTICE',
+        `Redis not reachable for BullMQ (${err.message}). Local fallback requires ALLOW_LOCAL_QUEUE_FALLBACK=true.`
+      );
+    }
+
     return { isBullMQActive: false, ragQueue: null };
   }
 };
 
 /**
- * Register a fallback worker handler for in-process async processing when Redis is offline.
+ * Register a fallback worker handler for in-process async processing when explicitly allowed in dev.
  *
  * @param {Function} handler - async (jobData) => Promise<void>
  */
@@ -104,45 +122,64 @@ const registerFallbackHandler = (handler) => {
 
 /**
  * Enqueues a document ingestion job.
- * If Redis / BullMQ is active, submits to 'rag-document-queue'.
- * If offline, dispatches to the fallback worker asynchronously via setImmediate.
+ * Production: Strictly requires an active BullMQ/Redis connection. Throws 503 on failure.
+ * Development: Only allows in-memory worker if ALLOW_LOCAL_QUEUE_FALLBACK=true with visible warning.
  *
  * @param {object} jobData - { documentId, filePath, fileType, originalName, userId }
- * @returns {Promise<{ jobId: string, mode: 'bullmq' | 'fallback' }>}
+ * @returns {Promise<{ jobId: string, mode: 'bullmq' | 'local-fallback' }>}
  */
 const addDocumentJob = async (jobData) => {
   if (isBullMQActive && ragQueue) {
     try {
       const job = await ragQueue.add('process-document', jobData);
       logger.info('QUEUE_JOB_ADDED', `Job ${job.id} enqueued to BullMQ for document ${jobData.documentId}`);
-      return { jobId: job.id, mode: 'bullmq' };
+      return { jobId: String(job.id), mode: 'bullmq' };
     } catch (err) {
-      logger.warn('QUEUE_ADD_FAIL', `Failed adding to BullMQ (${err.message}), falling back to in-process worker.`);
+      logger.error('QUEUE_ADD_FAIL', `Failed adding job to BullMQ: ${err.message}`);
+      if (process.env.NODE_ENV === 'production') {
+        throw new QueueServiceUnavailableError(`QueueServiceUnavailable: Redis connection is down. Unable to queue background job. (${err.message})`);
+      }
     }
   }
 
-  // Resilient in-process async fallback (does not block HTTP thread)
-  const syntheticJobId = `job-fallback-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-  setImmediate(async () => {
-    if (!fallbackWorkerHandler) {
-      try {
-        const { processDocumentJob } = require('../workers/ragWorker');
-        fallbackWorkerHandler = processDocumentJob;
-      } catch (e) {}
-    }
+  // Production Guardrail: Never generate synthetic job IDs or fake successful queueing
+  if (process.env.NODE_ENV === 'production') {
+    logger.error('QUEUE_UNAVAILABLE_PROD', 'Rejected job dispatch: Redis/BullMQ is down in production environment.');
+    throw new QueueServiceUnavailableError('QueueServiceUnavailable: Redis connection is down. Unable to queue background job.');
+  }
 
-    if (fallbackWorkerHandler) {
-      try {
-        await fallbackWorkerHandler(jobData);
-      } catch (workerErr) {
-        logger.error('FALLBACK_WORKER_ERROR', `Error in fallback worker: ${workerErr.message}`);
+  // Development-Only Boundary: Allow in-process worker ONLY if ALLOW_LOCAL_QUEUE_FALLBACK=true
+  if (process.env.ALLOW_LOCAL_QUEUE_FALLBACK === 'true') {
+    console.warn('[Dev Warning] Executing job via ephemeral in-memory worker. Jobs will be lost on process restart.');
+    logger.warn('QUEUE_DEV_FALLBACK', 'Executing job via ephemeral in-memory worker (ALLOW_LOCAL_QUEUE_FALLBACK=true)');
+
+    const localJobId = `local-${Date.now()}`;
+    setImmediate(async () => {
+      if (!fallbackWorkerHandler) {
+        try {
+          const { processDocumentJob } = require('../workers/ragWorker');
+          fallbackWorkerHandler = processDocumentJob;
+        } catch (e) {}
       }
-    } else {
-      logger.error('NO_FALLBACK_HANDLER', 'No fallback handler registered for RAG job processing');
-    }
-  });
 
-  return { jobId: syntheticJobId, mode: 'fallback' };
+      if (fallbackWorkerHandler) {
+        try {
+          await fallbackWorkerHandler(jobData);
+        } catch (workerErr) {
+          logger.error('FALLBACK_WORKER_ERROR', `Error in local fallback worker: ${workerErr.message}`);
+        }
+      } else {
+        logger.error('NO_FALLBACK_HANDLER', 'No local fallback handler registered for RAG job processing');
+      }
+    });
+
+    return { jobId: localJobId, mode: 'local-fallback' };
+  }
+
+  // Development without flag set: Fail explicitly so developer knows Redis is needed or flag must be set
+  throw new QueueServiceUnavailableError(
+    'QueueServiceUnavailable: Redis connection is down. Unable to queue background job. (To enable in-memory execution in dev, set ALLOW_LOCAL_QUEUE_FALLBACK=true)'
+  );
 };
 
 /**
@@ -152,7 +189,7 @@ const closeRagQueue = async () => {
   if (ragQueue) {
     try {
       await ragQueue.close();
-      logger.info('BULLMQ_QUEUE_CLOSED', 'BullMQ "rag-document-queue" closed gracefully.');
+      logger.info('BULLMQ_CLOSED', 'BullMQ "rag-document-queue" closed gracefully.');
     } catch (err) {
       logger.warn('BULLMQ_CLOSE_WARN', `Error closing BullMQ queue: ${err.message}`);
     }
@@ -165,8 +202,7 @@ module.exports = {
   initRagQueue,
   addDocumentJob,
   registerFallbackHandler,
-  getRedisConnectionOptions,
-  getIsBullMQActive: () => isBullMQActive,
-  getRagQueue: () => ragQueue,
-  closeRagQueue
+  closeRagQueue,
+  QueueServiceUnavailableError,
+  getRedisConnectionOptions
 };

@@ -111,8 +111,8 @@ const RagDocumentsModal = ({
                     <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-500 dark:text-slate-400 flex-wrap">
                       <span>{formatBytes(doc.fileSize)}</span>
                       <span>•</span>
-                      {doc.status && doc.status !== 'ready' ? (
-                        <span className={`font-semibold capitalize ${doc.status === 'failed' ? 'text-red-500' : 'text-amber-500 animate-pulse'}`}>
+                      {doc.status && doc.status.toLowerCase() !== 'ready' ? (
+                        <span className={`font-semibold capitalize ${doc.status.toLowerCase() === 'failed' ? 'text-red-500' : 'text-amber-500 animate-pulse'}`}>
                           {doc.status}...
                         </span>
                       ) : (

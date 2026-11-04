@@ -226,6 +226,12 @@ const processDocumentJob = async (jobData) => {
       const batchPromises = batch.map(async (chunkContent, idx) => {
         const chunkIndex = i + idx;
         const embedding = await generateEmbedding(chunkContent);
+
+        // Strict validation: never allow zero-vectors or corrupted embeddings
+        if (!Array.isArray(embedding) || embedding.length !== 768 || embedding.every(val => val === 0)) {
+          throw new Error('EmbeddingGenerationError: Failed to generate valid 768-dimensional vector from Gemini API.');
+        }
+
         return {
           user: userId,
           document: documentId,
@@ -288,17 +294,25 @@ const processDocumentJob = async (jobData) => {
   } catch (error) {
     logger.error('RAG_WORKER_ERROR', `Job failed for doc ${documentId}: ${error.message}`);
 
-    // Mark document as failed
+    // Clean up any orphan chunks in MongoDB so zero partial or corrupted data remains
+    await RagChunk.deleteMany({ document: documentId }).catch(() => {});
+
+    // Update parent document status in MongoDB
     await RagDocument.findByIdAndUpdate(documentId, {
-      status: 'failed',
-      error: error.message || 'Extraction failed'
+      status: 'FAILED',
+      error: error.message || 'Processing failed',
+      processingError: 'Failed to generate semantic embeddings. Please retry.',
+      failedAt: new Date()
     }).catch(() => {});
 
     emitDocumentStatus(userId, {
       documentId,
-      status: 'failed',
-      error: error.message || 'Extraction failed',
-      progress: 0
+      status: 'FAILED',
+      error: error.message || 'Failed to generate semantic embeddings. Please retry.',
+      processingError: 'Failed to generate semantic embeddings. Please retry.',
+      failedAt: new Date(),
+      progress: 0,
+      canRetry: true
     });
 
     // Ensure temp file is unlinked on error

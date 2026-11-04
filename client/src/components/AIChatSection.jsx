@@ -225,7 +225,7 @@ const AIChatSection = () => {
         setUploadStep('');
         toast.success(`Document indexing complete (${data.totalChunks || 0} chunks ready)`);
         fetchDocuments();
-      } else if (data.status === 'failed') {
+      } else if (data.status?.toLowerCase() === 'failed') {
         setIsUploadingDoc(false);
         setUploadStep('');
         toast.error(`Document indexing failed: ${data.error || 'Extraction error'}`);
