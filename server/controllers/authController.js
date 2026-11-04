@@ -74,7 +74,7 @@ exports.requestOTP = async (req, res) => {
     const hashedOtp = await bcrypt.hash(otp, 10);
 
     if (!user) {
-      const defaultUsername = email.split('@')[0] + Math.floor(1000 + Math.random() * 9000);
+      const defaultUsername = email.split('@')[0] + crypto.randomInt(1000, 10000);
       user = new User({ 
         email, 
         username: defaultUsername,
@@ -460,7 +460,7 @@ exports.googleAuth = async (req, res) => {
         await user.save();
       }
     } else {
-      const defaultUsername = email.split('@')[0] + Math.floor(1000 + Math.random() * 9000);
+      const defaultUsername = email.split('@')[0] + crypto.randomInt(1000, 10000);
       user = new User({
         email: email.toLowerCase(),
         name: name || email.split('@')[0],

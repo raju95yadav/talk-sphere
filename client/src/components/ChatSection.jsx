@@ -123,6 +123,13 @@ const ChatSection = ({ externalContact }) => {
     window.addEventListener('talksphere:open_chat', handleOpenChat);
     return () => window.removeEventListener('talksphere:open_chat', handleOpenChat);
   }, []);
+
+  const generateTempId = (prefix = 'msg') => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return `temp-${prefix}-${crypto.randomUUID()}`;
+    }
+    return `temp-${prefix}-${Date.now()}`;
+  };
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [chatCursor, setChatCursor] = useState(null);
@@ -1016,7 +1023,7 @@ const ChatSection = ({ externalContact }) => {
         return;
       }
 
-      const tempId = 'group-msg-' + Date.now();
+      const tempId = generateTempId('group-msg');
       const msgData = {
         groupId: selectedGroup._id,
         content: message,
@@ -1064,7 +1071,7 @@ const ChatSection = ({ externalContact }) => {
       return;
     }
 
-    const tempId = 'msg-' + Date.now();
+    const tempId = generateTempId('msg');
     const msgData = {
       senderId: currentUserId,
       receiverId: selectedContact._id,
@@ -1127,7 +1134,7 @@ const ChatSection = ({ externalContact }) => {
     };
 
     if (selectedGroup) {
-      const tempId = 'group-gif-' + Date.now();
+      const tempId = generateTempId('group-gif');
       const msgData = {
         groupId: selectedGroup._id,
         content: gifTitle,
@@ -1161,7 +1168,7 @@ const ChatSection = ({ externalContact }) => {
     }
 
     if (selectedContact) {
-      const tempId = 'gif-' + Date.now();
+      const tempId = generateTempId('gif');
       const msgData = {
         senderId: currentUserId,
         receiverId: selectedContact._id,
@@ -1246,7 +1253,7 @@ const ChatSection = ({ externalContact }) => {
 
   const handleVoiceUpload = async (audioBlob) => {
     const file = new window.File([audioBlob], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
-    const tempId = 'upload-' + Date.now();
+    const tempId = generateTempId('voice');
     const localUrl = URL.createObjectURL(file);
 
     const isGroup = !!selectedGroup;
@@ -1342,7 +1349,7 @@ const ChatSection = ({ externalContact }) => {
     if (!file || (!selectedContact && !selectedGroup)) return;
 
     const isGroup = !!selectedGroup;
-    const tempId = 'upload-' + Date.now();
+    const tempId = generateTempId('file');
     const type = file.type.startsWith('image/') ? 'image' : 
                  file.type.startsWith('video/') ? 'video' :
                  file.type.startsWith('audio/') ? 'audio' : 'file';
@@ -1766,9 +1773,9 @@ const ChatSection = ({ externalContact }) => {
           )}
           <AnimatePresence initial={false}>
             {chatHistory.length === 0 ? (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col items-center justify-center opacity-20 space-y-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col items-center justify-center opacity-30 space-y-4">
                 <Users size={48} className="text-accent-primary" />
-                <p className="text-[10px] font-black uppercase tracking-[0.3em]">Encrypted Group Channel Initiated</p>
+                <p className="text-xs font-black uppercase tracking-widest text-text-muted">No messages yet. Send a message to start the conversation.</p>
               </motion.div>
             ) : (
               chatHistory.map((msg, i) => (
@@ -2108,11 +2115,11 @@ const ChatSection = ({ externalContact }) => {
               <div className="space-y-3">
                 <h5 className="text-xs font-black uppercase tracking-wider text-text-muted">Members ({selectedGroup.members?.length || 0})</h5>
                 <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                  {selectedGroup.members?.map((m) => {
+                  {selectedGroup.members?.map((m, mIdx) => {
                     const memberUser = m.user;
                     const isMe = memberUser?._id?.toString() === currentUserId?.toString();
                     return (
-                      <div key={memberUser?._id || Math.random()} className="flex items-center justify-between p-3 rounded-2xl bg-bg-card-secondary border border-border-main">
+                      <div key={memberUser?._id || memberUser?.id || m._id || mIdx} className="flex items-center justify-between p-3 rounded-2xl bg-bg-card-secondary border border-border-main">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-accent-primary/20 flex items-center justify-center overflow-hidden border border-border-main">
                             {memberUser?.avatar ? <img src={memberUser.avatar} className="w-full h-full object-cover" /> : <User size={18} className="text-accent-primary" />}
@@ -2335,13 +2342,13 @@ const ChatSection = ({ externalContact }) => {
               <motion.div 
                 initial={{ opacity: 0, scale: 0.8 }} 
                 animate={{ opacity: 1, scale: 1 }} 
-                className="h-full flex flex-col items-center justify-center opacity-20 space-y-6"
+                className="h-full flex flex-col items-center justify-center opacity-30 space-y-6"
               >
                  <div className="w-24 h-24 rounded-full bg-accent-primary/10 flex items-center justify-center border border-accent-primary/20">
                    {messageSearchQuery.trim() !== '' ? <Search size={40} className="text-accent-primary" /> : <MessageSquare size={40} className="text-accent-primary" />}
                  </div>
-                 <p className="text-[10px] font-black uppercase tracking-[0.4em] text-accent-primary">
-                   {messageSearchQuery.trim() !== '' ? 'No matches found' : 'Encrypted Channel Established'}
+                 <p className="text-xs font-black uppercase tracking-widest text-text-muted">
+                   {messageSearchQuery.trim() !== '' ? 'No matches found' : 'No messages yet. Send a message to start the conversation.'}
                  </p>
               </motion.div>
             ) : (

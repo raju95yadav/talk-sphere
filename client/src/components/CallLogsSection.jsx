@@ -188,7 +188,7 @@ const CallLogsSection = () => {
         ) : filteredLogs.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center opacity-30 p-8">
             <PhoneMissed size={48} className="text-accent-primary mb-3" />
-            <p className="text-xs font-black uppercase tracking-widest">No Call Logs Found</p>
+            <p className="text-xs font-black uppercase tracking-widest">No recent call activity.</p>
           </div>
         ) : (
           filteredLogs.map((log) => {

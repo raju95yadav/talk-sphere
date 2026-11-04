@@ -45,7 +45,7 @@ exports.generateQR = async (req, res) => {
 
     const currentUser = await extractAuthUser(req);
     const qrToken = 'tsqr_' + crypto.randomBytes(24).toString('hex');
-    const finalSessionId = sessionId || `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    const finalSessionId = sessionId || `sess_${crypto.randomUUID()}`;
     const expiresAt = new Date(Date.now() + 120_000); // 120s TTL (2 minutes)
 
     const session = await QRSession.create({
@@ -302,7 +302,7 @@ exports.claimQR = async (req, res) => {
     const { browser, os, deviceType, deviceName } = parseDeviceInfo(ua);
     const ip = getClientIP(req);
 
-    const targetSessionId = sessionId || `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    const targetSessionId = sessionId || `sess_${crypto.randomUUID()}`;
 
     await DeviceSession.findOneAndUpdate(
       { user: user._id, sessionId: targetSessionId },

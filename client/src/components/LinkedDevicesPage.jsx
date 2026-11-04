@@ -42,7 +42,10 @@ const SESSION_KEY = 'ts_device_id';
 const getOrCreateSessionId = () => {
   let id = localStorage.getItem(SESSION_KEY);
   if (!id) {
-    id = sessionStorage.getItem('ts_session_id') || `sess_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const randomPart = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}_${performance.now().toString(36)}`;
+    id = sessionStorage.getItem('ts_session_id') || `sess_${randomPart}`;
     localStorage.setItem(SESSION_KEY, id);
     sessionStorage.setItem('ts_session_id', id);
   }

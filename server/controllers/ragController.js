@@ -373,9 +373,9 @@ ABSOLUTE RULES:
 2. For specific data fields (e.g. candidate name, DOB / date of birth, roll number, email, phone, marks, date, college name, skills):
    - Output ONLY the exact value.
    - Examples:
-     User: "please give me condidate name" -> Response: "Mr. Raju Yadav"
+     User: "please give me candidate name" -> Response: "Mr. Alex Morgan"
      User: "DOB of candidate" -> Response: "12/04/2002"
-     User: "email id" -> Response: "raju.yadav@example.com"
+     User: "email id" -> Response: "alex.morgan@domain.com"
 3. For explanations or list questions:
    - Provide only crisp, direct bullet points or 1-2 concise sentences without introduction or conclusion.
 4. If the information is NOT present in the document:

@@ -12,6 +12,11 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 async function runRagTest() {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('[FATAL] test-rag.js cannot be executed in production environment!');
+    process.exit(1);
+  }
+
   console.log('=== STARTING RAG SYSTEM VERIFICATION ===\n');
 
   try {

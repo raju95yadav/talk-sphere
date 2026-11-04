@@ -1,6 +1,7 @@
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const multer = require('multer');
 
 // Dedicated staging directory for temporary document parsing [B-08]
@@ -14,7 +15,7 @@ const diskStorage = multer.diskStorage({
     cb(null, tempUploadDir);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    const uniqueSuffix = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`;
     const ext = path.extname(file.originalname);
     cb(null, `rag-${uniqueSuffix}${ext}`);
   }
