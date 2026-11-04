@@ -22,8 +22,17 @@ load-tests/**
 .env
 .env.*
 client/.env
+client/.env.*
 server/.env
 server/.env.*
+
+# TLS / SSL Certificates & Cryptographic Keys
+*.pem
+*.key
+*.crt
+*.cert
+*.pfx
+*.p12
 
 # Logs
 logs

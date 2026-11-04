@@ -34,8 +34,12 @@ const observabilityMiddleware = require('./middleware/observabilityMiddleware');
 const healthRoutes = require('./routes/healthRoutes');
 const { initRagQueue, closeRagQueue } = require('./config/queue');
 const { startRagWorker, closeRagWorker } = require('./workers/ragWorker');
+const { validateEnv } = require('./config/envValidator');
 
 dotenv.config({ path: path.join(__dirname, '.env') });
+
+// Fail-fast environment validation guardrail [Phase 5]
+validateEnv();
 
 const app = express();
 const server = http.createServer(app);

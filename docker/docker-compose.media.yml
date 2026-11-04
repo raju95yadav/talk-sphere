@@ -11,6 +11,9 @@ services:
     network_mode: "host"
     volumes:
       - ./turn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    environment:
+      - TURN_SHARED_SECRET=${TURN_SHARED_SECRET}
+      - TURN_REALM=${TURN_REALM:-turn.talksphere.local}
     command:
       - -c
       - /etc/coturn/turnserver.conf
@@ -29,7 +32,7 @@ services:
       - --config
       - /etc/livekit.yaml
     environment:
-      - LIVEKIT_KEYS=talksphere_api_key: talksphere_api_secret_key_2026
+      - LIVEKIT_KEYS=${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
     depends_on:
       - redis
 

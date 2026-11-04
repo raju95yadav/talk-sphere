@@ -1,9 +1,6 @@
 const { AccessToken } = require('livekit-server-sdk');
 const logger = require('../utils/logger');
-
-const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || 'talksphere_api_key';
-const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || 'talksphere_api_secret_key_2026';
-const LIVEKIT_URL = process.env.LIVEKIT_URL || 'ws://127.0.0.1:7880';
+const { getLiveKitConfig } = require('../config/livekit');
 
 /**
  * Generate a cryptographically signed LiveKit SFU Access Token [B-09]
@@ -28,7 +25,9 @@ const generateLiveKitToken = async ({
     throw new Error('Room name is required to generate LiveKit SFU access token');
   }
 
-  const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
+  const { apiKey, apiSecret, serverUrl } = getLiveKitConfig();
+
+  const at = new AccessToken(apiKey, apiSecret, {
     identity: userId.toString(),
     name: userName || 'Participant',
     ttl: '2h' // 2-hour token window
@@ -47,7 +46,7 @@ const generateLiveKitToken = async ({
 
   return {
     token,
-    serverUrl: LIVEKIT_URL,
+    serverUrl,
     roomName,
     identity: userId.toString()
   };
@@ -55,7 +54,12 @@ const generateLiveKitToken = async ({
 
 module.exports = {
   generateLiveKitToken,
-  LIVEKIT_URL,
-  LIVEKIT_API_KEY
+  getLiveKitConfig,
+  get LIVEKIT_URL() {
+    return getLiveKitConfig().serverUrl;
+  },
+  get LIVEKIT_API_KEY() {
+    return getLiveKitConfig().apiKey;
+  }
 };
 

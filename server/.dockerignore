@@ -5,6 +5,14 @@ node_modules
 .env
 .env.*
 
+# TLS / SSL Certificates & Cryptographic Keys
+*.pem
+*.key
+*.crt
+*.cert
+*.pfx
+*.p12
+
 # Logs & temp
 *.log
 uploads/temp/*

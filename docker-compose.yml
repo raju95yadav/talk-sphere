@@ -48,15 +48,17 @@ services:
       - NODE_ENV=production
       - PORT=5000
       - INSTANCE_ID=backend-replica-1
-      - REDIS_URI=redis://redis:6379
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - REDIS_URI=${REDIS_URI:-redis://redis:6379}
       - MONGODB_URI=${MONGODB_URI}
       - JWT_SECRET=${JWT_SECRET}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - TURN_HOST=${TURN_HOST:-coturn}
-      - TURN_STATIC_SECRET=${TURN_STATIC_SECRET:-talksphere_turn_secret_2026_super_secure_key}
+      - TURN_SHARED_SECRET=${TURN_SHARED_SECRET}
+      - TURN_REALM=${TURN_REALM:-turn.talksphere.local}
       - LIVEKIT_URL=${LIVEKIT_URL:-ws://livekit:7880}
-      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY:-talksphere_api_key}
-      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET:-talksphere_api_secret_key_2026}
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
     volumes:
       - temp-uploads:/tmp/talksphere-rag-temp
     depends_on:
@@ -75,15 +77,17 @@ services:
       - NODE_ENV=production
       - PORT=5000
       - INSTANCE_ID=backend-replica-2
-      - REDIS_URI=redis://redis:6379
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - REDIS_URI=${REDIS_URI:-redis://redis:6379}
       - MONGODB_URI=${MONGODB_URI}
       - JWT_SECRET=${JWT_SECRET}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - TURN_HOST=${TURN_HOST:-coturn}
-      - TURN_STATIC_SECRET=${TURN_STATIC_SECRET:-talksphere_turn_secret_2026_super_secure_key}
+      - TURN_SHARED_SECRET=${TURN_SHARED_SECRET}
+      - TURN_REALM=${TURN_REALM:-turn.talksphere.local}
       - LIVEKIT_URL=${LIVEKIT_URL:-ws://livekit:7880}
-      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY:-talksphere_api_key}
-      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET:-talksphere_api_secret_key_2026}
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
     volumes:
       - temp-uploads:/tmp/talksphere-rag-temp
     depends_on:
@@ -102,15 +106,17 @@ services:
       - NODE_ENV=production
       - PORT=5000
       - INSTANCE_ID=backend-replica-3
-      - REDIS_URI=redis://redis:6379
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - REDIS_URI=${REDIS_URI:-redis://redis:6379}
       - MONGODB_URI=${MONGODB_URI}
       - JWT_SECRET=${JWT_SECRET}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - TURN_HOST=${TURN_HOST:-coturn}
-      - TURN_STATIC_SECRET=${TURN_STATIC_SECRET:-talksphere_turn_secret_2026_super_secure_key}
+      - TURN_SHARED_SECRET=${TURN_SHARED_SECRET}
+      - TURN_REALM=${TURN_REALM:-turn.talksphere.local}
       - LIVEKIT_URL=${LIVEKIT_URL:-ws://livekit:7880}
-      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY:-talksphere_api_key}
-      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET:-talksphere_api_secret_key_2026}
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
     volumes:
       - temp-uploads:/tmp/talksphere-rag-temp
     depends_on:
@@ -148,6 +154,9 @@ services:
     restart: unless-stopped
     volumes:
       - ./docker/turn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    environment:
+      - TURN_SHARED_SECRET=${TURN_SHARED_SECRET}
+      - TURN_REALM=${TURN_REALM:-turn.talksphere.local}
     command: ["-c", "/etc/coturn/turnserver.conf"]
     networks:
       - talksphere-net
@@ -161,6 +170,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./docker/livekit/livekit.yaml:/etc/livekit.yaml:ro
+    environment:
+      - LIVEKIT_KEYS=${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
     command: ["--config", "/etc/livekit.yaml"]
     depends_on:
       redis:

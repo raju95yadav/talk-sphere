@@ -14,8 +14,7 @@ rtc:
   use_external_ip: true
   enable_loopback_candidate: false
 
-keys:
-  talksphere_api_key: talksphere_api_secret_key_2026
+keys: {}
 
 logging:
   json: false

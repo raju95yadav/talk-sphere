@@ -15,10 +15,26 @@ client/dist-ssr/
 
 # Environment variables (Sensitive data)
 .env
+.env.*
+.env*.local
+*.env
 client/.env
-client/.env.local
+client/.env.*
 server/.env
-server/.env.local
+server/.env.*
+
+# Preserve sanitized example templates in version control
+!.env.example
+!client/.env.example
+!server/.env.example
+
+# TLS / SSL Certificates & Cryptographic Keys
+*.pem
+*.key
+*.crt
+*.cert
+*.pfx
+*.p12
 
 # OS Metadata
 .DS_Store

@@ -12,18 +12,79 @@ class RedisConnectionError extends Error {
 }
 
 // Connection options for resilient clustering
-const REDIS_URI = process.env.REDIS_URI || 'redis://127.0.0.1:6379';
+/**
+ * Resolves Redis connection options from environment variables.
+ * Supports:
+ * - REDIS_URL or REDIS_URI (e.g. rediss://:password@host:6380, redis://host:6379)
+ * - REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_USERNAME, REDIS_TLS
+ * Enforces that in production, if connected to an external host (not localhost, 127.0.0.1, or redis container),
+ * password authentication is required.
+ */
+const getRedisConnectionConfig = () => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const rawUri = process.env.REDIS_URL || process.env.REDIS_URI;
 
-const redisOptions = {
-  maxRetriesPerRequest: null,
-  enableReadyCheck: true,
-  lazyConnect: true,
-  connectTimeout: 5000,
-  retryStrategy: (times) => {
-    // Exponential backoff capped at 10 seconds
-    const delay = Math.min(times * 500, 10000);
-    return delay;
+  let host = process.env.REDIS_HOST;
+  let port = process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : undefined;
+  let password = process.env.REDIS_PASSWORD;
+  let username = process.env.REDIS_USERNAME;
+  let tls = process.env.REDIS_TLS === 'true' ? {} : undefined;
+  let finalUri = rawUri;
+
+  if (rawUri) {
+    try {
+      const parsed = new URL(rawUri);
+      host = parsed.hostname;
+      port = parsed.port ? parseInt(parsed.port, 10) : (parsed.protocol === 'rediss:' ? 6380 : 6379);
+      if (parsed.password) password = decodeURIComponent(parsed.password);
+      if (parsed.username) username = decodeURIComponent(parsed.username);
+      if (parsed.protocol === 'rediss:') {
+        tls = tls || {};
+      }
+    } catch (e) {
+      if (logger && logger.warn) {
+        logger.warn('REDIS_URI_PARSE_ERROR', `Unable to parse REDIS_URL/REDIS_URI: ${e.message}`);
+      }
+    }
+  } else {
+    host = host || '127.0.0.1';
+    port = port || 6379;
+    finalUri = `redis://${host}:${port}`;
   }
+
+  // Security Check for external production instances
+  const internalHosts = ['localhost', '127.0.0.1', 'redis', 'talksphere-redis'];
+  const isExternalHost = host && !internalHosts.includes(host.toLowerCase());
+
+  if (isProduction && isExternalHost && !password) {
+    const errorMsg = `REDIS_AUTH_ERROR: External production Redis host "${host}" requires password authentication.`;
+    if (logger && logger.error) {
+      logger.error('REDIS_AUTH_ERROR', errorMsg);
+    }
+    throw new RedisConnectionError(errorMsg);
+  }
+
+  const options = {
+    host: host || '127.0.0.1',
+    port: port || 6379,
+    password: password || undefined,
+    username: username || undefined,
+    tls: tls,
+    maxRetriesPerRequest: null,
+    enableReadyCheck: true,
+    lazyConnect: true,
+    connectTimeout: 5000,
+    retryStrategy: (times) => Math.min(times * 500, 10000)
+  };
+
+  return {
+    uri: finalUri || `redis://${host}:${port}`,
+    options,
+    host,
+    port,
+    password,
+    tls
+  };
 };
 
 let pubClient = null;
@@ -87,9 +148,10 @@ const bindLifecycleEvents = (client, name) => {
  */
 const initRedis = async (io) => {
   try {
-    pubClient = new Redis(REDIS_URI, redisOptions);
-    subClient = new Redis(REDIS_URI, redisOptions);
-    redisClient = new Redis(REDIS_URI, redisOptions);
+    const { uri, options } = getRedisConnectionConfig();
+    pubClient = new Redis(options);
+    subClient = new Redis(options);
+    redisClient = new Redis(options);
 
     bindLifecycleEvents(pubClient, 'PUB');
     bindLifecycleEvents(subClient, 'SUB');
@@ -106,7 +168,7 @@ const initRedis = async (io) => {
     ]);
 
     isRedisReady = true;
-    logger.info('REDIS_CLUSTER', `Connected to Redis at ${REDIS_URI}. Multi-node synchronization active.`);
+    logger.info('REDIS_CLUSTER', `Connected to Redis at ${uri.replace(/:[^:@]+@/, ':***@')}. Multi-node synchronization active.`);
 
     // Mount @socket.io/redis-adapter
     if (io) {
@@ -483,10 +545,18 @@ const removeActiveCall = async (key) => {
  * Returns current Redis connection and readiness status [Phase 6 - Step 6.4]
  */
 const getRedisStatus = () => {
+  let displayUri = 'redis://127.0.0.1:6379';
+  try {
+    const { uri } = getRedisConnectionConfig();
+    displayUri = uri.replace(/:[^:@]+@/, ':***@');
+  } catch (e) {
+    displayUri = 'configured-unreachable';
+  }
+
   return {
     isReady: isRedisReady && redisClient && redisClient.status === 'ready',
     status: redisClient ? redisClient.status : 'disconnected',
-    uri: REDIS_URI.replace(/:[^:@]+@/, ':***@')
+    uri: displayUri
   };
 };
 
@@ -510,6 +580,7 @@ const closeRedis = async () => {
 
 module.exports = {
   initRedis,
+  getRedisConnectionConfig,
   publishClusterEvent,
   addUserSocket,
   removeUserSocket,

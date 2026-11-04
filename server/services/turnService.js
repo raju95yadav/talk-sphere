@@ -1,17 +1,30 @@
 const crypto = require('crypto');
 const logger = require('../utils/logger');
 
+const BANNED_TURN_SECRETS = [
+  'devkey',
+  'secret',
+  'talksphere_secret',
+  'talksphere_turn_dev_secret_2026',
+  'talksphere_turn_secret_2026_super_secure_key'
+];
+
 /**
  * Resolve TURN secret key from environment
  */
 const getTurnSecret = () => {
-  const secret = process.env.TURN_SECRET || process.env.TURN_STATIC_SECRET || process.env.COTURN_STATIC_SECRET;
+  const secret = process.env.TURN_SHARED_SECRET || process.env.TURN_SECRET || process.env.TURN_STATIC_SECRET || process.env.COTURN_STATIC_SECRET;
   if (!secret) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('TURN_SECRET is not configured in production environment.');
     }
     return 'talksphere_turn_dev_secret_2026';
   }
+
+  if (process.env.NODE_ENV === 'production' && BANNED_TURN_SECRETS.includes(secret.toLowerCase())) {
+    throw new Error('Insecure development default detected in TURN_SHARED_SECRET during production.');
+  }
+
   return secret;
 };
 

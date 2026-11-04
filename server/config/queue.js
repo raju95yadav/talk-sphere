@@ -1,8 +1,7 @@
 const { Queue } = require('bullmq');
 const Redis = require('ioredis');
 const logger = require('../utils/logger');
-
-const REDIS_URI = process.env.REDIS_URI || 'redis://127.0.0.1:6379';
+const { getRedisConnectionConfig } = require('../utils/redis');
 
 // Custom Queue Error class with 503 HTTP status
 class QueueServiceUnavailableError extends Error {
@@ -13,24 +12,20 @@ class QueueServiceUnavailableError extends Error {
   }
 }
 
-// Parse Redis URI to configuration options
+// Parse Redis configuration using centralized environment resolver
 const getRedisConnectionOptions = () => {
   try {
-    const url = new URL(REDIS_URI);
+    const { options } = getRedisConnectionConfig();
     return {
-      host: url.hostname || '127.0.0.1',
-      port: Number(url.port) || 6379,
-      password: url.password || undefined,
-      username: url.username || undefined,
-      maxRetriesPerRequest: null, // Required by BullMQ
+      ...options,
       enableReadyCheck: false,
       connectTimeout: 3000,
-      retryStrategy: (times) => {
-        // Capped backoff up to 5s
-        return Math.min(times * 500, 5000);
-      }
+      retryStrategy: (times) => Math.min(times * 500, 5000)
     };
   } catch (err) {
+    if (process.env.NODE_ENV === 'production') {
+      throw err;
+    }
     return {
       host: '127.0.0.1',
       port: 6379,
